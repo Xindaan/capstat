@@ -113,6 +113,51 @@ calling the result Cpk. Given no `target`, it returns `cpm = None` rather than
 assuming your target is the midpoint of the tolerance — for an asymmetric
 tolerance, that assumption is simply wrong.
 
+### Non-normal processes — a decision path, not a silent assumption
+
+Plenty of real processes are legitimately skewed (anything bounded at zero:
+flatness, roundness, contamination). On those, the standard indices are not
+merely imprecise — they are wrong, and usually optimistic. `analyze_capability`
+picks a method and **records why**:
+
+```python
+from capstat_core import analyze_capability
+
+analysis = analyze_capability(measurements, lsl=5.0, usl=60.0)
+
+analysis.path       # "normal" | "box-cox" | "percentile"
+analysis.rationale  # the reasoning, in words
+analysis.ppk
+```
+
+On a lognormal process it reports:
+
+> path: `box-cox` — *"the normal model was rejected, but a Box-Cox
+> transformation with lambda = 0.0525 achieved normality, so the standard
+> indices were computed on the transformed scale against the transformed
+> specification limits. Box-Cox is preferred over the percentile method because
+> it preserves the within/overall split, and hence Cp and Cpk."*
+
+Note **"against the transformed specification limits"**. Transforming the data
+and leaving the limits in their original units is the classic way to produce a
+confidently wrong Cpk; capstat carries the limits through the same λ (here
+LSL 5.0 → 1.6794, USL 60.0 → 4.5677). Box-Cox is skipped, with an explanation,
+when the data are not strictly positive — capstat will not shift your data to
+make the maths work, because the offset changes the indices and must be your
+recorded decision.
+
+If Box-Cox cannot achieve normality either, the path falls through to the
+**ISO 22514 percentile method**, which replaces the 6σ span with the span
+between the 0.135 % and 99.865 % percentiles of a fitted distribution. That
+method yields long-term indices only — it has no within/between split, so no Cp
+or Cpk exists for it, and capstat does not invent one.
+
+> **The two non-normal methods are not interchangeable.** They agree only where
+> a process is exactly "just capable" (index = 1); elsewhere they legitimately
+> differ — we measure Box-Cox Ppu = 1.61 against percentile Ppu = 2.44 on
+> identical data. Don't compare an index from one against a threshold
+> calibrated on the other.
+
 **On accuracy.** The variance and every other centered moment use a two-pass
 algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
 one-pass formula returns a *negative* variance. capstat reproduces the NIST

@@ -6,8 +6,6 @@
 
 ## Next
 
-- T-0006 M1d Non-normal path: Box-Cox transformation + ISO 22514 percentile
-  method; documented decision path instead of a silent normality assumption.
 - T-0007 M2a Control-chart constants + I-MR, X-bar-R, X-bar-S.
   **Scope reduced by T-0005**: `capstat_core.constants` already provides `d2`
   and `c4` (they were prerequisites for the within-subgroup sigma, so Cp/Cpk
@@ -60,6 +58,38 @@
 
 ## Done
 
+- T-0006 (2026-07-14) M1d Non-normal path. `capstat_core.nonnormal`:
+  `box_cox_capability`, `percentile_capability` (ISO 22514), `fit_distribution`,
+  and `analyze_capability` -> `CapabilityAnalysis`, which runs the documented
+  decision path (normal -> Box-Cox -> percentile) and records *why*.
+  277 tests, 100 % coverage. Week 1 (Tier-1 statistics) is complete.
+  * The limits are transformed with the same lambda as the data. A test pins the
+    magnitude of the bug being prevented (forgetting them shifts Ppk by > 1.0),
+    not merely its absence.
+  * Box-Cox is strictly increasing for **every** lambda (derivative
+    x**(lambda-1) > 0 for x > 0), so LSL stays the lower limit. Verified for
+    lambda in {-2, -0.5, 0, 0.5, 1, 3} -- the negative cases are the ones where
+    intuition says it should flip.
+  * capstat refuses to shift non-positive data to make Box-Cox applicable: the
+    offset changes the indices and must be the user's recorded decision.
+  * **A reference claim of mine was wrong and the tests caught it.** I asserted
+    that Box-Cox and the percentile method must agree on lognormal data. They
+    must not: Box-Cox is linear on the log scale, ISO is nonlinear on the
+    original scale ((e^U - 1)/(e^3s - 1)). They coincide ONLY at the just-capable
+    point (U = 3s, both = 1) and diverge sharply elsewhere -- measured Ppu 1.61
+    vs 2.44 on identical data. The YAML, the module docstring and the README now
+    say so; the tests pin both the agreement and the divergence.
+  * The fitted-normal percentile index differs from the classic one by exactly
+    sqrt(n/(n-1)) * (6/5.999954): the MLE sigma (denominator n) times ISO's
+    rounded percentile span. Predicted exactly and pinned at rel=1e-12, because
+    it is exact algebra -- a loose tolerance there would be an admission we did
+    not understand the gap, and could hide a real bug.
+  * `DistributionFit.fit_score` is an AD statistic via the probability integral
+    transform. It carries NO p-value: the parameters were estimated from the same
+    data, so any p-value would be anticonservative by an unknown amount. It ranks
+    candidates; it does not certify one.
+  * Isomorphy: the `float ** float -> Any` typeshed wrinkle (first hit in T-0003
+    at `m2**1.5`) recurred here at `x**lmbda`. Fixed the same way (`math.pow`).
 - T-0005 (2026-07-14) M1c Capability indices. `capstat_core.capability`
   (`capability` -> `CapabilityReport` with Cp/Cpl/Cpu/Cpk/Cpm and
   Pp/Ppl/Ppu/Ppk) and `capstat_core.constants` (`d2`, `c4`). 234 tests,
