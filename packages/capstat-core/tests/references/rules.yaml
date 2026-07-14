@@ -1,0 +1,94 @@
+# Run rules -- Nelson (1984) and Western Electric (1956)
+#
+# ---------------------------------------------------------------------------
+# Why the rule definitions are quoted verbatim below
+# ---------------------------------------------------------------------------
+# These rules are all counts: nine points, six points, two of three, four of
+# five. An off-by-one in any of them produces a chart that looks entirely
+# plausible and is wrong -- it will simply signal slightly too eagerly, or
+# slightly too late, forever, and nothing about the output will reveal it.
+#
+# A web search summary consulted while writing this described Nelson's rule 2 as
+# "nine consecutive points on the same side of the centre line WITHIN one
+# standard error of the centre line". That is wrong: it has fused rule 2 with
+# rule 7. The definitions below are taken from the rule tables themselves, not
+# from a summary, precisely because that class of error is invisible downstream.
+#
+# ---------------------------------------------------------------------------
+# The sequence that tells the two standards apart
+# ---------------------------------------------------------------------------
+# Western Electric rule 4 signals on EIGHT consecutive points on one side of the
+# centre line. Nelson's equivalent (rule 2) requires NINE. The standards
+# genuinely disagree, and that disagreement is a gift: a run of exactly eight
+# points must fire Western Electric rule 4 and must NOT fire Nelson rule 2. Any
+# off-by-one in either implementation breaks that, so the case is tested
+# explicitly.
+
+sources:
+  nelson:
+    title: >
+      Nelson, L. S. (1984). The Shewhart control chart -- tests for special
+      causes. Journal of Quality Technology, 16(4), 237-239.
+    retrieved: 2026-07-14
+    rules:
+      1: One point is more than 3 standard deviations from the mean.
+      2: Nine (or more) points in a row are on the same side of the mean.
+      3: Six (or more) points in a row are continually increasing (or decreasing).
+      4: >
+        Fourteen (or more) points in a row alternate in direction, increasing
+        then decreasing.
+      5: >
+        Two (or three) out of three points in a row are more than 2 standard
+        deviations from the mean in the same direction.
+      6: >
+        Four (or five) out of five points in a row are more than 1 standard
+        deviation from the mean in the same direction.
+      7: >
+        Fifteen points in a row are all within 1 standard deviation of the mean
+        on either side of the mean.
+      8: >
+        Eight points in a row exist, but none within 1 standard deviation of the
+        mean, and the points are in both directions from the mean.
+  western_electric:
+    title: >
+      Western Electric Company (1956). Statistical Quality Control Handbook.
+      As stated by the NIST/SEMATECH e-Handbook, section 6.3.2.
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc32.htm
+    retrieved: 2026-07-14
+    rules:
+      1: Any point beyond 3 sigma.
+      2: Two out of the last three points beyond 2 sigma, on the same side.
+      3: Four out of the last five points beyond 1 sigma, on the same side.
+      4: Eight consecutive points on one side of the control line.
+
+cases:
+  - id: false-alarm-rates
+    method: run_rules
+    description: >
+      The cost of switching rules on, measured on a stable process rather than
+      quoted. Adding rules makes a chart dramatically jumpier: the full Nelson
+      set signals about eight times as often as the limit test alone, on a
+      process that is behaving perfectly. Simulated over 200,000 in-control
+      points.
+    expected:
+      nelson_rule_1_only: 0.0027      # the theoretical 3-sigma rate, 1 in 370
+      all_nelson_rules: 0.023         # 1 in 44
+      all_western_electric_rules: 0.016  # 1 in 61
+    tolerance:
+      rel: 0.35   # a simulated rate over a finite sample; the order is the point
+
+  - id: eight-versus-nine-on-one-side
+    method: run_rules
+    description: >
+      The discriminating case. A run of exactly eight points on one side of the
+      centre line must fire Western Electric rule 4 (which needs eight) and must
+      NOT fire Nelson rule 2 (which needs nine). A ninth point must then fire
+      Nelson rule 2. This is asserted exactly -- no tolerance -- because it is
+      the assertion that catches an off-by-one.
+    input:
+      eight_points: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+      nine_points: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    expected:
+      eight_fires_western_electric_4: true
+      eight_fires_nelson_2: false
+      nine_fires_nelson_2: true

@@ -237,6 +237,42 @@ e-Handbook example does — makes the first limit **40 % too wide**, so a shift
 present at the start of the series can slip underneath it. Pass
 `time_varying_limits=False` to reproduce published tables.
 
+### Run rules — Nelson and Western Electric
+
+A point outside the limits is the only signal a bare Shewhart chart gives, and
+it is rarely the one a real process offers first. Processes drift, trend, and hug
+the centre line long before they throw a point past 3σ.
+
+```python
+from capstat_core import xbar_r_chart, nelson_rules, western_electric_rules
+
+pair = xbar_r_chart(subgroups)
+for v in nelson_rules(pair.location):
+    print(v.point, v.rule, v.description)
+    # 4  rule 6: four out of five points in a row more than 1 sigma
+    #            from the centre line, on the same side
+```
+
+Rules are applied **to** a chart, not baked into it — the zones are derived from
+the chart's own limits. So `ControlChart.violations` keeps meaning exactly what
+it always meant (points beyond the limits, which *is* Nelson rule 1), and nothing
+gets reported twice under two names. Each `RuleViolation` carries the point that
+completed the pattern *and* the whole window, so a plot can highlight the run and
+not just its last point.
+
+**The two standards disagree, and that is useful.** Western Electric rule 4 fires
+on **eight** consecutive points on one side; Nelson's rule 2 needs **nine**. A run
+of exactly eight fires one and not the other — which is exactly the sequence that
+would expose an off-by-one in either implementation, and capstat tests it.
+
+> **Switching on more rules is not free.** On a perfectly stable process the 3σ
+> test alone signals about once in 370 points. All four Western Electric rules:
+> once in 61. All eight Nelson rules: **once in 44** — roughly *eight times*
+> jumpier. Nelson himself advised against running all eight at once. Pass a
+> subset (`nelson_rules(chart, [1, 2, 3])`) and pick the rules that match the
+> failure you're actually hunting. (These rates are simulated in the test suite,
+> not quoted from a textbook.)
+
 **On accuracy.** The variance and every other centered moment use a two-pass
 algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
 one-pass formula returns a *negative* variance. capstat reproduces the NIST

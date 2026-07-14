@@ -6,8 +6,6 @@
 
 ## Next
 
-- T-0009 M2c Nelson rules + Western Electric rules, tested with constructed
-  sequences + published example data.
 - T-0010 M3 FastAPI service: compute endpoints (descriptive, capability,
   control charts), CSV/XLSX ingestion, OpenAPI schema, TS client generation
   with a drift check in CI.
@@ -50,6 +48,37 @@
 
 ## Done
 
+- T-0009 (2026-07-14) M2c Nelson + Western Electric run rules.
+  `capstat_core.rules`: `nelson_rules`, `western_electric_rules` ->
+  `tuple[RuleViolation, ...]`; `NELSON_RULES` / `WESTERN_ELECTRIC_RULES`
+  catalogues. 382 tests, 100 % coverage. **Week 2's chart work is complete.**
+  * **No breaking change after all.** STATE.md had flagged this task as needing
+    `ControlChart.violations` to grow into a rule-aware type. The better design
+    avoids it: rules are a *lens applied to* a chart, deriving their sigma zones
+    from the chart's own limits. So `violations` keeps meaning "beyond the
+    limits" (which IS Nelson rule 1), nothing is double-reported, and the
+    published dataclass is untouched.
+  * **The discriminating test:** Western Electric rule 4 needs EIGHT consecutive
+    points on one side, Nelson rule 2 needs NINE. The standards genuinely
+    disagree, and a run of exactly eight must fire one and not the other. Every
+    rule is a count, so an off-by-one would produce a chart that looks entirely
+    plausible and is permanently wrong -- this asymmetry is what catches it.
+    Each rule is additionally tested twice: with its pattern, and one point short.
+  * A web-search summary consulted while writing this stated Nelson rule 2 as
+    "nine consecutive points on the same side WITHIN one standard error" -- it had
+    fused rule 2 with rule 7. Definitions were taken from the rule tables instead.
+  * **My own docstring claim was wrong and the simulation caught it.** I wrote
+    that all eight Nelson rules make a chart "roughly four times as jumpy, about
+    1 in 90". Measured: 1 in 44 -- **eight times** as jumpy as the limit test
+    alone (1 in 351; theory 1 in 370). Western Electric: 1 in 61. Corrected in
+    the docstring, README and reference YAML, and pinned by a test.
+  * Zone rules need a symmetric chart. An R/s/moving-range chart's limits are
+    D3*Rbar and D4*Rbar -- not equidistant from Rbar -- so the functions refuse
+    it with an explanation rather than computing arithmetic without meaning.
+  * A rule fires on the point that *completes* its pattern, and the k-of-m rules
+    require that final point to qualify. Without that, a window like
+    [3.1, 2.5, 0.2] would flag the harmless last point long after the pattern
+    passed.
 - T-0008 (2026-07-14) M2b EWMA + CUSUM. `capstat_core.time_weighted`:
   `ewma_chart` -> `EwmaChart`, `cusum_chart` -> `CusumChart`.
   355 tests, 100 % coverage. Both NIST worked examples reproduced.
