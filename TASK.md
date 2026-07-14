@@ -6,8 +6,6 @@
 
 ## Next
 
-- T-0008 M2b EWMA + CUSUM, validated against Montgomery / NIST Handbook
-  examples.
 - T-0009 M2c Nelson rules + Western Electric rules, tested with constructed
   sequences + published example data.
 - T-0010 M3 FastAPI service: compute endpoints (descriptive, capability,
@@ -52,6 +50,41 @@
 
 ## Done
 
+- T-0008 (2026-07-14) M2b EWMA + CUSUM. `capstat_core.time_weighted`:
+  `ewma_chart` -> `EwmaChart`, `cusum_chart` -> `CusumChart`.
+  355 tests, 100 % coverage. Both NIST worked examples reproduced.
+  * **Real published reference values at last** (NIST 6.3.2.3 CUSUM, 6.3.2.4
+    EWMA), so this milestone rests on quoted numbers, not only identities.
+  * EWMA reproduces NIST to 4.8e-3 (inside their 2-decimal printing); limits to
+    1e-4. CUSUM only to 2.8e-2 -- and that is *explained, not tolerated*: NIST
+    prints its inputs to 2 decimals and a CUSUM is a CUMULATIVE sum, so input
+    rounding accumulates rather than averaging out. A systematic +0.005 on every
+    input moves the final S_hi by 0.040, so our 0.0275 sits comfortably inside
+    what their rounding can produce. A dedicated test proves the tolerance is
+    explained by rounding and has no room to hide a defect.
+  * **The values carry a tolerance; the DECISION carries none.** NIST's first
+    signal is group 14, and ours must be group 14 exactly -- asserted separately
+    with no tolerance at all.
+  * **Design: sigma defaults to the moving range, not the overall sd.** A
+    sustained shift inflates the overall sd, which widens the limits, which hides
+    the shift -- the chart then reports all is well. Measured over 200 runs with
+    a 2-sigma shift: moving-range sigma = 1.002 (true 1.0) while the overall sd
+    is inflated to 1.406.
+  * **EWMA limits are time-varying by default.** NIST (and many textbooks) apply
+    the steady-state width to every point, which makes the first limit 40 % too
+    wide -- a shift present at the start can slip under it. `time_varying_limits
+    =False` reproduces the published example.
+  * Claims verified rather than quoted: Shewhart ARL1 = 43.9 for a 1-sigma shift
+    (analytic), CUSUM ARL1 = 10.5 and ARL0 = 457 (simulated). lambda=1 reduces
+    EWMA exactly to a Shewhart individuals chart -- the sanity check on the
+    recursion.
+  * Three of my own tests were wrong, not the library: (a) I asserted a stable
+    EWMA series is always in control -- but with ARL0 ~500, **34.7 %** of
+    200-point series contain a false alarm, so the *rate* is what must be tested;
+    (b) I bounded the CUSUM detection delay at 15 when its p95 is 16; (c) I used
+    random symmetric jitter to justify the CUSUM tolerance, but random errors
+    partially cancel in a cumulative sum -- the systematic worst case is the
+    correct (and looser) argument.
 - T-0007 (2026-07-14) M2a Control-chart constants + Shewhart charts.
   `capstat_core.constants` extended with d3, A2, A3, B3, B4, D3, D4, E2 (all
   computed from definitions, none transcribed). `capstat_core.control_charts`:

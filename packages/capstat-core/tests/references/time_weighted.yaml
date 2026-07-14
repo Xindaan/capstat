@@ -1,0 +1,101 @@
+# EWMA and CUSUM -- reference values
+#
+# Both cases are NIST/SEMATECH e-Handbook worked examples, quoted with their
+# data, parameters and tabulated results. Unlike the earlier milestones, real
+# published numbers exist here, so identities are a supplement rather than the
+# main evidence.
+#
+# ---------------------------------------------------------------------------
+# On the two very different tolerances below
+# ---------------------------------------------------------------------------
+# EWMA reproduces NIST's table to 4.8e-3 -- inside the 5e-3 that their printing
+# to two decimals allows. The control limits match to 1e-4.
+#
+# CUSUM only reproduces to 2.8e-2, and that is not a defect. NIST prints the
+# input means rounded to two decimals, and a CUSUM is a *cumulative* sum: the
+# input rounding does not merely appear in the output, it accumulates. Over the
+# eight-point run from group 13 the error compounds to ~0.03. Recomputing their
+# table from their printed inputs cannot do better, and a tighter tolerance
+# would be a lie about what we can verify.
+#
+# The value tolerance is loose; the DECISION is exact. NIST's first signal is at
+# group 14, and our first signal must be at group 14 -- not within a tolerance
+# of it. That is the assertion that actually matters, and it is checked
+# separately with no tolerance at all.
+
+sources:
+  ewma:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2.4
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc324.htm
+    retrieved: 2026-07-14
+    note: >
+      NIST applies the steady-state limit width to every point. capstat defaults
+      to the exact time-varying limits (Montgomery), and offers
+      time_varying_limits=False to reproduce this example.
+  cusum:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2.3
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc323.htm
+    retrieved: 2026-07-14
+  arl:
+    title: >
+      Montgomery, D. C. Introduction to Statistical Quality Control, ch. 9;
+      Hawkins, D. M., & Olwell, D. H. (1998). Cumulative Sum Charts and
+      Charting for Quality Improvement.
+    note: >
+      The ARL figures are verified by simulation in the tests, not taken on
+      trust: a 3-sigma Shewhart chart needs ~44 points to see a one-sigma shift
+      (analytic: 1 / (Phi(-2) + Phi(-4)) = 43.9), while a CUSUM with k=0.5, h=5
+      sees it in ~10 while holding an in-control ARL of ~465.
+
+cases:
+  - id: nist-ewma-worked-example
+    method: ewma
+    description: >
+      NIST e-Handbook 6.3.2.4. Twenty observations, lambda = 0.3, L = 3,
+      target = 50, sigma = 2.0539. Steady-state limits, as NIST uses them.
+    input:
+      data: [52.0, 47.0, 53.0, 49.3, 50.1, 47.0, 51.0, 50.1, 51.2, 50.5,
+             49.6, 47.6, 49.9, 51.3, 47.8, 51.2, 52.6, 52.4, 53.6, 52.1]
+      lmbda: 0.3
+      L: 3.0
+      target: 50.0
+      sigma: 2.0539
+    expected:
+      ewma: [50.60, 49.52, 50.56, 50.18, 50.16, 49.21, 49.75, 49.85, 50.26, 50.33,
+             50.11, 49.36, 49.52, 50.05, 49.38, 49.92, 50.73, 51.23, 51.94, 51.99]
+      ucl: 52.5884
+      lcl: 47.4115
+      in_control: true
+    tolerance:
+      # NIST prints the EWMA values to two decimals; 5e-3 is their rounding.
+      abs: 5.0e-3
+      limits_abs: 2.0e-4
+
+  - id: nist-cusum-worked-example
+    method: cusum
+    description: >
+      NIST e-Handbook 6.3.2.3. Twenty subgroup means, target 325, sigma of the
+      means 0.635, designed for a one-sigma shift: k = 0.3175 (= 0.5 sigma) and
+      h = 4.1959 (= 6.6076 sigma). The process shifts up from group 13; NIST's
+      first signal is group 14.
+    input:
+      data: [324.93, 324.68, 324.73, 324.35, 325.35, 325.23, 324.13, 324.53,
+             325.23, 324.60, 324.63, 325.15, 328.33, 327.25, 327.83, 328.50,
+             326.68, 327.78, 326.88, 328.35]
+      target: 325.0
+      sigma: 0.635
+      k: 0.5
+      h: 6.607716535433071   # = 4.1959 / 0.635
+    expected:
+      K: 0.3175
+      H: 4.1959
+      s_hi: [0.00, 0.00, 0.00, 0.00, 0.03, 0.00, 0.00, 0.00, 0.00, 0.00,
+             0.00, 0.00, 3.01, 4.94, 7.45, 10.63, 11.99, 14.44, 16.00, 19.04]
+      s_lo: [0.00, 0.01, 0.00, 0.33, 0.00, 0.00, 0.56, 0.72, 0.17, 0.25,
+             0.31, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+      first_signal_group: 14   # exact -- no tolerance
+    tolerance:
+      # The inputs are printed to two decimals and the statistic is cumulative,
+      # so the input rounding accumulates. Measured worst case: 2.8e-2.
+      abs: 3.0e-2
+      design_abs: 1.0e-4

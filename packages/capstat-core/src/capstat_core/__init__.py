@@ -59,6 +59,12 @@ from capstat_core.robust import (
     trimmed_mean,
     winsorized_mean,
 )
+from capstat_core.time_weighted import (
+    CusumChart,
+    EwmaChart,
+    cusum_chart,
+    ewma_chart,
+)
 
 __all__ = [
     "A2",
@@ -75,8 +81,10 @@ __all__ = [
     "ChartPair",
     "ControlChart",
     "ControlLimits",
+    "CusumChart",
     "DescriptiveSummary",
     "DistributionFit",
+    "EwmaChart",
     "NormalityAssessment",
     "NormalityTestResult",
     "PercentileCapability",
@@ -88,9 +96,11 @@ __all__ = [
     "box_cox_capability",
     "c4",
     "capability",
+    "cusum_chart",
     "d2",
     "d3",
     "describe",
+    "ewma_chart",
     "fit_distribution",
     "i_mr_chart",
     "iqr",

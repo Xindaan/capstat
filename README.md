@@ -204,6 +204,39 @@ an already-rounded `d₂ = 1.128` and propagated the error. The true value is
 2.6587. (The tables also disagree with each other: NIST prints D₄(3) = 2.575,
 the ASTM-derived table 2.574. We compute 2.5746.)
 
+### EWMA and CUSUM — seeing what Shewhart misses
+
+A Shewhart chart looks at one point at a time, which makes it excellent at
+catching a big jump and nearly blind to a small sustained drift. Give a process
+a **+1σ shift at point 30** and watch:
+
+```python
+from capstat_core import i_mr_chart, cusum_chart
+
+i_mr_chart(values).location.violations   # ()  — never notices, across 70 points
+cusum_chart(values, target=100, sigma=1).violations[0]   # 46 — found it
+```
+
+The Shewhart chart never signals at all. CUSUM finds the shift 16 points in.
+That is the whole reason these charts exist: a 3σ Shewhart chart takes ~44
+points on average to see a 1σ shift, a CUSUM about 10 — both figures verified by
+simulation in the test suite, not quoted on faith.
+
+**The trap capstat defaults around:** both charts need a σ, and the obvious
+choice — the standard deviation of all the data — is poison. A sustained shift
+*inflates* that σ, which widens the limits, which hides the shift. The chart then
+reports that everything is fine. capstat estimates σ from the **moving range**
+instead, which only sees consecutive differences and so survives a level change
+almost intact (measured over 200 runs: moving-range σ = 1.002 where the overall
+standard deviation is inflated to 1.406). It tells you it did that, and tells you
+that a σ from a known stable period would be better still.
+
+EWMA limits are **time-varying** by default, because the variance of the EWMA
+statistic grows with i. Using the steady-state width everywhere — as the NIST
+e-Handbook example does — makes the first limit **40 % too wide**, so a shift
+present at the start of the series can slip underneath it. Pass
+`time_varying_limits=False` to reproduce published tables.
+
 **On accuracy.** The variance and every other centered moment use a two-pass
 algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
 one-pass formula returns a *negative* variance. capstat reproduces the NIST
