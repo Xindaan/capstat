@@ -158,6 +158,52 @@ or Cpk exists for it, and capstat does not invent one.
 > identical data. Don't compare an index from one against a threshold
 > calibrated on the other.
 
+### Control charts — read the dispersion chart first
+
+```python
+from capstat_core import xbar_r_chart, xbar_s_chart, i_mr_chart
+
+pair = xbar_r_chart(subgroups)
+
+pair.location.violations     # X-bar chart: []      — every average in limits
+pair.dispersion.violations   # R chart:     [9]     — the spread is not
+pair.in_control              # False
+```
+
+The X-bar chart above looks perfectly healthy. It isn't. Its limits are computed
+*from* R̄ — so when the R chart is out of control, R̄ is an average of
+incomparable things and the X-bar limits derived from it mean nothing. capstat
+judges the dispersion chart first and says so:
+
+> *"the R chart is out of control at [9]. Judge this first: the X-bar limits are
+> computed from the dispersion estimate, so while the spread is unstable those
+> limits — and any verdict drawn from them — mean nothing. Fix the spread, then
+> re-chart."*
+
+`in_control` is the AND of both charts, never just the location chart.
+
+Other things capstat tells you rather than leaving you to know:
+
+- **The R/s chart has no lower limit for small subgroups** (D₃ = 0 for n ≤ 6).
+  That is not a rounding convention — the unclamped limit is negative, and a
+  range cannot be. The consequence is that the chart *cannot detect an
+  improvement* in spread, and capstat says so.
+- **`i_mr_chart` assumes your data are in time order.** Shuffle them and the
+  limits still look perfectly reasonable. capstat cannot detect that, so it
+  warns every time.
+- **These are Phase I (trial) limits**, estimated from the data being plotted.
+  A large excursion inflates the very limits meant to catch it.
+
+Run-based rules (Nelson, Western Electric) that catch drifts never crossing a
+limit are not in yet — only points beyond the limits are flagged today.
+
+All chart constants (d₂, d₃, c₄, A₂, A₃, B₃, B₄, D₃, D₄, E₂) are **computed from
+their definitions**, not copied from a table. That is not fussiness: the
+published tables print `E₂ = 2.660`, which is wrong — they evaluated `3/d₂` using
+an already-rounded `d₂ = 1.128` and propagated the error. The true value is
+2.6587. (The tables also disagree with each other: NIST prints D₄(3) = 2.575,
+the ASTM-derived table 2.574. We compute 2.5746.)
+
 **On accuracy.** The variance and every other centered moment use a two-pass
 algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
 one-pass formula returns a *negative* variance. capstat reproduces the NIST

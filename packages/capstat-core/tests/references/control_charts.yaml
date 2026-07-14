@@ -1,0 +1,97 @@
+# Control-chart constants and Shewhart chart limits -- reference values
+#
+# ---------------------------------------------------------------------------
+# Constants: computed, then checked against tables that did not compute them
+# ---------------------------------------------------------------------------
+# Every constant below is derived from its definition, not transcribed:
+#
+#   d2 = E[range of n standard normals]                    (single integral)
+#   d3 = sd[range of n standard normals]                   (double integral over
+#        the joint density of the sample minimum and maximum)
+#   c4 = sqrt(2/(n-1)) * Gamma(n/2) / Gamma((n-1)/2)       (closed form)
+#
+#   A2 = 3 / (d2 * sqrt(n))       A3 = 3 / (c4 * sqrt(n))
+#   D3 = max(0, 1 - 3*d3/d2)      D4 = 1 + 3*d3/d2
+#   B3 = max(0, 1 - 3*sqrt(1-c4^2)/c4)
+#   B4 = 1 + 3*sqrt(1-c4^2)/c4
+#   E2 = 3 / d2
+#
+# The B3/B4 definitions are confirmed by NIST directly: the e-Handbook (6.3.2)
+# states the s chart limits as sbar +/- 3*(sbar/c4)*sqrt(1-c4^2), which is those
+# factors multiplied out.
+#
+# Two findings from computing rather than copying:
+#
+#   * D4(3): we compute 2.5746. NIST prints 2.575; the ASTM-derived table below
+#     prints 2.574. The published sources disagree in the last digit. Our value
+#     rounds to NIST's.
+#   * E2(2): tables print 2.660. The true value is 2.6587. The tables evaluated
+#     3/d2 using an already-rounded d2 = 1.128 and propagated the error. Copying
+#     the table would have imported that mistake.
+#
+# The tolerance is therefore 1e-3 absolute: it is set by the published tables'
+# three-decimal rounding (and their disagreement), not by our precision, which
+# is ~1e-8.
+
+sources:
+  constants_table:
+    title: >
+      Table of control chart constants, adapted from ASTM International (widely
+      reproduced; matches Montgomery, Introduction to Statistical Quality
+      Control, Appendix VI).
+    retrieved: 2026-07-14
+  nist_a2_d3_d4:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2.1
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc321.htm
+    note: >
+      NIST tabulates A2, D3, D4 for n = 2..10. It does NOT tabulate d2 or d3, so
+      checking our computed d2 against it (via A2 = 3/(d2*sqrt(n))) uses a table
+      that never states the quantity being checked.
+  nist_s_chart_limits:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2
+    quote: "UCL = sbar + 3*(sbar/c4)*sqrt(1 - c4^2)"
+    note: Confirms the B3/B4 definitions used here.
+
+cases:
+  - id: control-chart-constants-table
+    method: constants
+    description: >
+      All constants for n = 2..10 against the published table. Values are printed
+      to three decimals, so the tolerance reflects the source's precision, not
+      ours.
+    expected:
+      #  n:  [A2,    d2,    d3,    D3,    D4,    A3,    c4,     B3,    B4]
+      2: [1.880, 1.128, 0.853, 0.000, 3.267, 2.659, 0.7979, 0.000, 3.267]
+      3: [1.023, 1.693, 0.888, 0.000, 2.574, 1.954, 0.8862, 0.000, 2.568]
+      4: [0.729, 2.059, 0.880, 0.000, 2.282, 1.628, 0.9213, 0.000, 2.266]
+      5: [0.577, 2.326, 0.864, 0.000, 2.114, 1.427, 0.9400, 0.000, 2.089]
+      6: [0.483, 2.534, 0.848, 0.000, 2.004, 1.287, 0.9515, 0.030, 1.970]
+      7: [0.419, 2.704, 0.833, 0.076, 1.924, 1.182, 0.9594, 0.118, 1.882]
+      8: [0.373, 2.847, 0.820, 0.136, 1.864, 1.099, 0.9650, 0.185, 1.815]
+      9: [0.337, 2.970, 0.808, 0.184, 1.816, 1.032, 0.9693, 0.239, 1.761]
+      10: [0.308, 3.078, 0.797, 0.223, 1.777, 0.975, 0.9727, 0.284, 1.716]
+    tolerance:
+      abs: 1.0e-3
+
+  - id: e2-published-value-is-slightly-wrong
+    method: constants
+    description: >
+      The published E2(2) = 2.660 was computed from a rounded d2. The exact value
+      is 3 / 1.1283791670955126 = 2.658680776358274. We assert the exact one and
+      record that it differs from the table by 1.3e-3 -- more than the table's own
+      rounding could explain.
+    expected:
+      e2_exact: 2.658680776358274
+      e2_as_published: 2.660
+    tolerance:
+      abs: 1.0e-12
+
+  - id: xbar-limits-are-three-sigma-limits
+    method: control_limits
+    description: >
+      A2 * Rbar must equal 3 * sigma_within / sqrt(n), since A2 = 3/(d2*sqrt(n))
+      and sigma_within = Rbar/d2. Likewise A3 * sbar with sigma_within = sbar/c4,
+      and E2 * MRbar = 3 * sigma_within on the individuals chart. If a limit
+      formula were mis-wired, this identity would break.
+    tolerance:
+      rel: 1.0e-12

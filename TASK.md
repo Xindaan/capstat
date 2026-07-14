@@ -6,12 +6,6 @@
 
 ## Next
 
-- T-0007 M2a Control-chart constants + I-MR, X-bar-R, X-bar-S.
-  **Scope reduced by T-0005**: `capstat_core.constants` already provides `d2`
-  and `c4` (they were prerequisites for the within-subgroup sigma, so Cp/Cpk
-  could not be built without them). T-0007 extends the same module with d3, A2,
-  D3, D4, B3, B4 -- all of which are derivable from d2/d3/c4, so they should be
-  computed, not transcribed, exactly as d2/c4 are.
 - T-0008 M2b EWMA + CUSUM, validated against Montgomery / NIST Handbook
   examples.
 - T-0009 M2c Nelson rules + Western Electric rules, tested with constructed
@@ -58,6 +52,37 @@
 
 ## Done
 
+- T-0007 (2026-07-14) M2a Control-chart constants + Shewhart charts.
+  `capstat_core.constants` extended with d3, A2, A3, B3, B4, D3, D4, E2 (all
+  computed from definitions, none transcribed). `capstat_core.control_charts`:
+  `xbar_r_chart`, `xbar_s_chart`, `i_mr_chart` -> `ChartPair`.
+  317 tests, 100 % coverage.
+  * d3 (sd of the range) needs the joint density of the sample minimum and
+    maximum: f(x,y) = n(n-1) phi(x) phi(y) [Phi(y)-Phi(x)]^(n-2), integrated as
+    a double integral for E[W^2], then d3 = sqrt(E[W^2] - d2^2). Internal check:
+    the SAME joint density integrated against (y-x) reproduces d2, which comes
+    from a completely different single integral.
+  * **The published tables are wrong about E2.** They print 2.660; the exact
+    value is 2.6587. They evaluated 3/d2 with d2 already rounded to 1.128 and
+    propagated the error. Computing from the definition avoids importing it.
+    Pinned by a test that asserts the gap exceeds the table's own rounding.
+  * The published tables also disagree with each other: NIST prints D4(3)=2.575,
+    the ASTM-derived table 2.574. We compute 2.5746, which rounds to NIST's.
+    Tolerance is 1e-3 absolute -- set by the sources' precision, not ours (~1e-8).
+  * Naming hazard kept deliberately: d3 (sd of the range) vs D3 (R chart lower
+    limit factor) differ only in case. Every textbook does this; renaming would
+    make the code harder to check against its sources. Flagged loudly instead.
+  * **Design: the dispersion chart is judged first.** The X-bar limits are
+    computed FROM Rbar/sbar, so an out-of-control dispersion chart makes them
+    meaningless. `ChartPair.in_control` is the AND of both charts, and the pair
+    warns explicitly when dispersion is the one signalling. A location chart can
+    read "all in control" on a process that plainly is not.
+  * D3/B3 are zero for small n because the unclamped value is negative -- so the
+    chart cannot detect an *improvement* in spread. Warned about, not hidden.
+  * Isomorphy check on the E2 error class ("a rounded published value used as an
+    input to a computation"): the only hardcoded float in the whole library is
+    MAD_NORMAL_CONSISTENCY, and it is validated against scipy at full precision.
+    Every chart factor derives from the exact d2/d3/c4. No propagation anywhere.
 - T-0006 (2026-07-14) M1d Non-normal path. `capstat_core.nonnormal`:
   `box_cox_capability`, `percentile_capability` (ISO 22514), `fit_distribution`,
   and `analyze_capability` -> `CapabilityAnalysis`, which runs the documented
