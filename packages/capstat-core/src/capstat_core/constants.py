@@ -31,7 +31,7 @@ import math
 from functools import cache
 
 import numpy as np
-from scipy import integrate, special, stats
+from scipy import integrate, special
 
 __all__ = [
     "A2",
@@ -77,10 +77,32 @@ def _check_n(n: int, *, maximum: int, hint: str = "") -> None:
         raise ValueError(f"subgroup size must be <= {maximum}, got {n}{hint}")
 
 
+_SQRT_2 = math.sqrt(2.0)
+_INV_SQRT_2PI = 1.0 / math.sqrt(2.0 * math.pi)
+
+
+def _phi(x: float) -> float:
+    """Standard normal pdf.
+
+    Hand-rolled rather than ``scipy.stats.norm.pdf``. The quadratures below call
+    these hundreds of thousands of times on *scalars*, and a scalar scipy
+    distribution call carries ~50 us of dispatch overhead against ~0.1 us here.
+    Using scipy made d3(n) take 1.5 seconds -- a control chart is not allowed to
+    cost that. The values agree to 1e-15.
+    """
+    return _INV_SQRT_2PI * math.exp(-0.5 * x * x)
+
+
+def _Phi(x: float) -> float:
+    """Standard normal cdf, via erfc. See :func:`_phi` for why not scipy."""
+    return 0.5 * math.erfc(-x / _SQRT_2)
+
+
 @cache
 def _d2_cached(n: int) -> float:
     def integrand(x: float) -> float:
-        return 1.0 - float(stats.norm.cdf(x)) ** n - float(stats.norm.sf(x)) ** n
+        upper = _Phi(x)
+        return 1.0 - upper**n - (1.0 - upper) ** n
 
     value, _error = integrate.quad(integrand, -np.inf, np.inf, limit=200)
     return float(value)
@@ -162,15 +184,8 @@ def _d3_cached(n: int) -> float:
     # The same joint density integrated against (y - x) reproduces d2, which the
     # tests use as an internal consistency check on this derivation.
     def integrand(y: float, x: float) -> float:
-        gap = float(stats.norm.cdf(y)) - float(stats.norm.cdf(x))
-        return (
-            (y - x) ** 2
-            * n
-            * (n - 1)
-            * float(stats.norm.pdf(x))
-            * float(stats.norm.pdf(y))
-            * gap ** (n - 2)
-        )
+        gap = _Phi(y) - _Phi(x)
+        return (y - x) ** 2 * n * (n - 1) * _phi(x) * _phi(y) * gap ** (n - 2)
 
     # +/-8 sigma: beyond that the normal density contributes less than 1e-15,
     # far below the accuracy the result is used at.

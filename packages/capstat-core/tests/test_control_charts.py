@@ -11,6 +11,7 @@ equalling ``3 * sigma_within / sqrt(n)``.
 from __future__ import annotations
 
 import math
+import time
 
 import numpy as np
 import pytest
@@ -154,6 +155,31 @@ def test_d4_and_b4_bracket_one_and_shrink_towards_it() -> None:
 def test_range_constants_refuse_oversized_subgroups() -> None:
     with pytest.raises(ValueError, match="poor scale estimator"):
         d3(MAX_SUBGROUP_SIZE + 1)
+
+
+def test_constants_are_fast_enough_to_build_a_chart_with() -> None:
+    """A regression guard with teeth.
+
+    d3 is a double integral. Written with `scipy.stats.norm.pdf/cdf` in the
+    integrand it took **1.5 seconds per n** -- the scalar dispatch overhead, not
+    the quadrature -- which meant `xbar_r_chart` blocked for 1.5 s on first call.
+    The integrand now uses math.erfc/exp directly, and the same numbers come out
+    to 1e-15. If someone reaches for scipy in there again for tidiness, this test
+    fails.
+    """
+    from capstat_core.constants import _d3_cached
+
+    _d3_cached.cache_clear()
+
+    start = time.perf_counter()
+    for n in range(2, 11):
+        d3(n)
+    elapsed = time.perf_counter() - start
+
+    assert elapsed < 1.0, (
+        f"computing d3 for n=2..10 took {elapsed:.2f}s. It should take ~0.2s; "
+        f"1.5s *per call* means the integrand is calling scipy on scalars again."
+    )
 
 
 # ---------------------------------------------------------------------------
