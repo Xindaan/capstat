@@ -240,6 +240,16 @@ class NormalityAssessment:
     tests fail to reject normality. Disagreement between the two is itself
     informative and is surfaced in ``warnings`` rather than resolved silently.
 
+    One consequence of that rule is worth stating plainly: requiring *both*
+    tests to pass rejects a genuinely normal sample more often than ``alpha``
+    suggests, because a rejection by either test is enough. Measured over 2000
+    truly normal samples at ``alpha=0.05``, Anderson-Darling alone rejects 5.8 %
+    and Shapiro-Wilk alone 4.8 % (both at nominal), while this combined verdict
+    rejects **7.6 %**. That is the deliberate price of failing closed: on
+    capability work, wrongly trusting the normal model is the more expensive
+    error. If you need a test at exactly ``alpha``, call one of the two tests
+    directly.
+
     ``warnings`` holds every reason the verdict might be misleading -- material
     autocorrelation, a sample too small to have power, a sample so large that
     trivial deviations become significant. An empty tuple means the verdict can

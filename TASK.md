@@ -6,13 +6,14 @@
 
 ## Next
 
-- T-0005 M1c Capability indices Cp/Cpk/Pp/Ppk/Cpm; short-term vs long-term
-  variation stated explicitly. Validated against Montgomery and AIAG SPC
-  examples.
 - T-0006 M1d Non-normal path: Box-Cox transformation + ISO 22514 percentile
   method; documented decision path instead of a silent normality assumption.
-- T-0007 M2a Control-chart constants (d2, d3, c4, A2, D3, D4, B3, B4; source:
-  Montgomery Appendix / ASTM E2587) + I-MR, X-bar-R, X-bar-S.
+- T-0007 M2a Control-chart constants + I-MR, X-bar-R, X-bar-S.
+  **Scope reduced by T-0005**: `capstat_core.constants` already provides `d2`
+  and `c4` (they were prerequisites for the within-subgroup sigma, so Cp/Cpk
+  could not be built without them). T-0007 extends the same module with d3, A2,
+  D3, D4, B3, B4 -- all of which are derivable from d2/d3/c4, so they should be
+  computed, not transcribed, exactly as d2/c4 are.
 - T-0008 M2b EWMA + CUSUM, validated against Montgomery / NIST Handbook
   examples.
 - T-0009 M2c Nelson rules + Western Electric rules, tested with constructed
@@ -59,6 +60,36 @@
 
 ## Done
 
+- T-0005 (2026-07-14) M1c Capability indices. `capstat_core.capability`
+  (`capability` -> `CapabilityReport` with Cp/Cpl/Cpu/Cpk/Cpm and
+  Pp/Ppl/Ppu/Ppk) and `capstat_core.constants` (`d2`, `c4`). 234 tests,
+  100 % coverage.
+  * **Plan delta:** d2/c4 were pulled forward from T-0007. Cp/Cpk require a
+    within-subgroup sigma (Rbar/d2 or sbar/c4); without them there is no
+    short-term sigma, only a number mislabelled Cpk. T-0007's scope shrinks
+    accordingly (see Next).
+  * Constants are **computed from their definitions**, not transcribed:
+    d2 = E[range of n standard normals] by quadrature, c4 = the closed-form
+    gamma ratio via lgamma. A copied table can hide a typo that the test never
+    catches, because the test was written by copying the same table. Validated
+    three ways: the published d2 table; NIST's A2 table via A2 = 3/(d2*sqrt(n))
+    (a source that never states d2); and Monte-Carlo E[range].
+  * The within/overall split is enforced, not documented-and-ignored. On a
+    drifting process the tests confirm Cpk > Ppk, and the report warns when
+    sigma_overall/sigma_within > 1.25.
+  * `cpm` is `None` without an explicit target -- no silent midpoint assumption,
+    which is wrong for an asymmetric tolerance.
+  * The NIST worked example estimates sigma with the sample s, so it maps onto
+    capstat's **Pp/Ppk**, not Cp/Cpk. That mapping is pinned by a test.
+  * Bug found: `@cache` on a public function erases its type signature (mypy
+    sees `_lru_cache_wrapper.__call__(*args: Hashable)`), so `d2(5.0)` type-
+    checked clean -- for us and for any user. Fixed by wrapping a private
+    cached impl behind a typed public function; a load-bearing `type: ignore`
+    in the tests now guards the regression. Isomorphy check: these were the only
+    two cache decorators in the package.
+  * Measured, not assumed: the `assess_normality` fail-closed AND-rule rejects
+    7.6 % of genuinely normal samples (vs 5.8 % / 4.8 % for the individual tests
+    at alpha=0.05). Documented in the docstring and pinned by a calibration test.
 - T-0004 (2026-07-14) M1b Normality tests. `capstat_core.normality`:
   `anderson_darling` (own implementation, with the p-value scipy does not
   provide), `shapiro_wilk` (delegates to scipy's AS R94), and

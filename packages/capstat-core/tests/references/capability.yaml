@@ -1,0 +1,135 @@
+# Capability indices and control-chart constants -- reference values
+#
+# ---------------------------------------------------------------------------
+# Constants: computed, then checked against sources that did not compute them
+# ---------------------------------------------------------------------------
+# capstat does not transcribe the d2/c4 tables. It evaluates their definitions
+# (d2 = E[range of n standard normals]; c4 = the closed-form gamma ratio) and
+# validates the results against independent publications. A copied table can
+# carry a typo that the test never catches, because the test was written by
+# copying the same table.
+#
+# d2 is checked three ways, none of which share a source:
+#   1. against the classical published table (Montgomery Appendix VI / ASTM
+#      E2587), printed to three decimals;
+#   2. against the NIST/SEMATECH A2 table, via the identity A2 = 3/(d2*sqrt(n)).
+#      NIST publishes A2 but not d2, so this recovers d2 from a table that was
+#      never meant to state it;
+#   3. against a Monte-Carlo estimate of E[range] (2e6 draws), which shares no
+#      code path with the quadrature at all.
+#
+# c4 is checked against NIST's own stated check value: "the c4 factor for n=10
+# is 0.9727" (e-Handbook 6.3.2).
+
+sources:
+  capability_indices:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.16 / 6.1.6
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section1/pmc16.htm
+    retrieved: 2026-07-14
+  cpm:
+    title: >
+      Chan, L. K., Cheng, S. W., & Spiring, F. A. (1988). A new measure of
+      process capability: Cpm. Journal of Quality Technology, 20(3), 162-175.
+    note: >
+      Formula as stated by the NIST e-Handbook:
+      Cpm = (USL - LSL) / (6 * sqrt(sigma^2 + (mu - T)^2)).
+  d2_table:
+    title: >
+      Montgomery, D. C. Introduction to Statistical Quality Control,
+      Appendix VI; ASTM E2587.
+  a2_table:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2.1
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc321.htm
+    retrieved: 2026-07-14
+  c4_check_value:
+    title: NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2
+    quote: "the c4 factor for n=10 is 0.9727"
+
+cases:
+  # -------------------------------------------------------------------------
+  # The NIST worked example. Parameters are given directly (mean and sigma),
+  # not as raw data, so this pins the index formulas themselves.
+  # -------------------------------------------------------------------------
+  - id: nist-capability-worked-example
+    method: capability_indices
+    description: >
+      NIST e-Handbook worked example. Note the process is off-centre: Cp = 1.0
+      says the spread would fit the tolerance, while Cpk = 0.6667 says the
+      process is nevertheless producing scrap. That gap is the entire reason
+      Cpk exists, and this case pins it.
+    input:
+      usl: 20.0
+      lsl: 8.0
+      mean: 16.0
+      sigma: 2.0
+    expected:
+      cp: 1.0
+      cpk: 0.6667
+      cpu: 0.6667
+      cpl: 1.3333
+    tolerance:
+      abs: 5.0e-5
+
+  # -------------------------------------------------------------------------
+  # d2: computed from its definition, checked against published tables.
+  # -------------------------------------------------------------------------
+  - id: d2-published-table
+    method: d2
+    description: >
+      Classical d2 table, printed to three decimals. Our quadrature evaluates
+      the defining integral to ~1e-8, so a 5e-4 absolute tolerance is set by
+      the precision of the *published* values, not of our computation.
+    expected:
+      2: 1.128
+      3: 1.693
+      4: 2.059
+      5: 2.326
+      6: 2.534
+      7: 2.704
+      8: 2.847
+      9: 2.970
+      10: 3.078
+    tolerance:
+      abs: 5.0e-4
+
+  - id: d2-recovered-from-nist-a2
+    method: d2_from_a2
+    description: >
+      NIST publishes A2 but not d2. Since A2 = 3 / (d2 * sqrt(n)), d2 can be
+      recovered from their table -- an independent check against a source that
+      never states the quantity being checked. A2 is printed to three decimals,
+      which limits the recovered d2 to about +/- 0.004; hence the loose
+      tolerance. It is a corroboration, not a precision measurement.
+    input:
+      a2:
+        2: 1.880
+        3: 1.023
+        4: 0.729
+        5: 0.577
+        6: 0.483
+        7: 0.419
+        8: 0.373
+        9: 0.337
+        10: 0.308
+    tolerance:
+      abs: 5.0e-3
+
+  # -------------------------------------------------------------------------
+  # c4: closed form, checked against NIST's stated value.
+  # -------------------------------------------------------------------------
+  - id: c4-published-values
+    method: c4
+    description: >
+      NIST states c4(10) = 0.9727. c4(2) = 0.7979 is the classical value, and
+      shows how badly the uncorrected sample standard deviation underestimates
+      sigma for tiny subgroups (by 20 %).
+    expected:
+      2: 0.7979
+      5: 0.9400
+      10: 0.9727
+      25: 0.9896
+    tolerance:
+      # The published values are quoted to four decimals, so they carry up to
+      # 5e-5 of rounding themselves. A 5e-5 tolerance would sit exactly on that
+      # boundary; 1e-4 leaves room for the source's rounding, not for our error.
+      abs: 1.0e-4

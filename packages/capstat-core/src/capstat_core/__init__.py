@@ -10,6 +10,11 @@ normality testing.
 
 from __future__ import annotations
 
+from capstat_core.capability import (
+    CapabilityReport,
+    capability,
+)
+from capstat_core.constants import c4, d2
 from capstat_core.descriptive import (
     DescriptiveSummary,
     describe,
@@ -39,6 +44,7 @@ from capstat_core.robust import (
 
 __all__ = [
     "MAD_NORMAL_CONSISTENCY",
+    "CapabilityReport",
     "DescriptiveSummary",
     "NormalityAssessment",
     "NormalityTestResult",
@@ -46,6 +52,9 @@ __all__ = [
     "anderson_darling",
     "anderson_darling_pvalue",
     "assess_normality",
+    "c4",
+    "capability",
+    "d2",
     "describe",
     "iqr",
     "kurtosis",

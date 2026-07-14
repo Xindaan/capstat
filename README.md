@@ -86,6 +86,33 @@ p-value would be confidently reporting a number it had no right to compute.
 that trivial deviations turn "significant", and cases where the two tests
 disagree (which fail closed, as non-normal).
 
+### Capability — Cpk and Ppk, never one without the other
+
+```python
+from capstat_core import capability
+
+report = capability(subgroups, lsl=90.0, usl=110.0, target=100.0)
+```
+
+On a process whose mean drifts between subgroups, capstat reports:
+
+| | potential (short-term) | actual (long-term) |
+|---|---|---|
+| spread | Cp = 3.61 | Pp = 1.26 |
+| centred | **Cpk = 3.25** | **Ppk = 1.13** |
+
+Same data. `Cpk = 3.25` looks world-class; `Ppk = 1.13` is what the customer
+actually receives. The gap *is* the instability — `sigma_overall` is 2.87× the
+within-subgroup sigma — and capstat says so in `report.warnings` rather than
+letting you quote the flattering number.
+
+Cp/Cpk need subgroup structure to mean anything. Given a flat list of
+measurements, capstat estimates the short-term sigma from the moving range and
+tells you it did, instead of quietly substituting the overall sigma and still
+calling the result Cpk. Given no `target`, it returns `cpm = None` rather than
+assuming your target is the midpoint of the tolerance — for an asymmetric
+tolerance, that assumption is simply wrong.
+
 **On accuracy.** The variance and every other centered moment use a two-pass
 algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
 one-pass formula returns a *negative* variance. capstat reproduces the NIST
