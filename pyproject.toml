@@ -25,6 +25,10 @@ dev = [
     "mypy>=1.13",
     "ruff>=0.8",
     "pre-commit>=4",
+    # Test-only: parses the reference-value YAML. Deliberately NOT a core
+    # dependency -- capstat-core ships with numpy + scipy and nothing else.
+    "pyyaml>=6",
+    "types-pyyaml>=6",
 ]
 
 # ---------------------------------------------------------------------------
@@ -47,7 +51,10 @@ select = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+# Deliberately no `python_version`: mypy then targets whichever interpreter it
+# runs under, which is what we want across the CI matrix. Pinning it to the
+# 3.11 floor breaks on 3.12+, where numpy's stubs use PEP 695 `type` statements
+# that mypy only parses when the target version is >= 3.12.
 strict = true
 warn_unused_configs = true
 files = ["packages/capstat-core/src", "packages/capstat-core/tests"]

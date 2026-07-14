@@ -6,9 +6,6 @@
 
 ## Next
 
-- T-0003 M1a Descriptive statistics + robust variants in capstat-core,
-  validated against NIST StRD "Univariate Summary Statistics" (certified
-  values, 15 digits).
 - T-0004 M1b Normality tests: Anderson-Darling, Shapiro-Wilk; clear reporting
   on non-normality. Reference values from published examples / R comparison
   values.
@@ -53,6 +50,23 @@
 
 ## Done
 
+- T-0003 (2026-07-14) M1a Descriptive statistics + robust variants.
+  `capstat_core.descriptive` (mean, variance, std_dev, skewness, kurtosis,
+  lag1_autocorrelation, `describe` -> immutable `DescriptiveSummary`) and
+  `capstat_core.robust` (median, mad, iqr, trimmed_mean, winsorized_mean).
+  Validated against all 9 NIST StRD Univariate datasets (archived verbatim
+  in-tree with their certified-value headers); robust estimators validated by
+  hand-computed values + scipy cross-check. 152 tests, 100 % coverage.
+  Findings worth keeping:
+  * The one-pass variance returns a *negative* variance (-0.032) on NumAcc4.
+    All centered moments therefore use a two-pass algorithm, pinned by a
+    regression test plus a shift-stability test across the whole family.
+  * The residual 5.6e-09 error on NumAcc4 is a float64 *input representation*
+    floor, not an algorithmic one (proven in exact rational arithmetic); the
+    loosened tolerance there is justified in the reference YAML.
+  * Bug found and fixed in the T-0002 config: `mypy python_version = "3.11"`
+    breaks against numpy >= 2.5 stubs (PEP 695) and was masking two real
+    strict-mode errors. mypy now infers the version from the interpreter.
 - T-0002 (2026-07-14) M0 Repo bootstrap: git init; MIT LICENSE (© André
   Leopold); root README with CI/license/python badges; CONTRIBUTING,
   CODE_OF_CONDUCT, SECURITY; `.github/` (CI workflow, dependabot, issue/PR

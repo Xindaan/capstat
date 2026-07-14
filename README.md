@@ -36,15 +36,37 @@ uv pip install ./packages/capstat-core
 
 ## Usage
 
-The public API is populated milestone by milestone. Today the core package
-exposes its version; the first statistical methods (descriptive statistics,
-normality tests, capability indices) land in Week 1.
+The public API is populated milestone by milestone. Available today:
+descriptive statistics and robust (outlier-resistant) estimators.
 
 ```python
-import capstat_core
+from capstat_core import describe, mad, median, trimmed_mean
 
-print(capstat_core.__version__)
+measurements = [10.1, 10.3, 9.8, 10.0, 10.2, 9.9, 10.4, 25.0]  # one bad reading
+
+summary = describe(measurements)
+summary.mean        # 11.9625   -- dragged up by the one bad reading
+summary.std_dev     # 5.2717    -- and so is the spread
+summary.skewness    # skewness / kurtosis for a normality gut-check
+summary.lag1_autocorrelation  # serial correlation: are the data independent?
+
+# Robust alternatives, which the outlier barely moves:
+median(measurements)              # ~10.15
+trimmed_mean(measurements, 0.125) # 10.15
+mad(measurements)                 # ~0.2965 -- a sigma estimate, scaled for
+                                  # normal data, vs. std_dev's 5.2717
 ```
+
+`describe` returns an immutable `DescriptiveSummary` with `n`, `mean`,
+`variance`, `std_dev`, `minimum`, `maximum`, `range`, `median`, `q1`, `q3`,
+`iqr`, `skewness`, `kurtosis`, and `lag1_autocorrelation`.
+
+**On accuracy.** The variance and every other centered moment use a two-pass
+algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
+one-pass formula returns a *negative* variance. capstat reproduces the NIST
+certified values to the limit of double precision — see
+[the reference suite](packages/capstat-core/tests/references/) for the sources,
+the certified numbers, and a written justification for every tolerance.
 
 ## Configuration
 

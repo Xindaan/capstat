@@ -1,0 +1,160 @@
+# NIST StRD — Univariate Summary Statistics
+#
+# Certified values transcribed verbatim from the header of each .dat file
+# (lines 41-43), which are archived unmodified under data/nist_strd/ so that
+# every expected value below can be audited against its source in-tree.
+#
+# NIST certifies three statistics per dataset:
+#   ybar : sample mean
+#   s    : sample standard deviation, denominator n-1
+#   r(1) : lag-1 autocorrelation coefficient, defined as
+#            sum_{i=1}^{n-1} (y_i - ybar)(y_{i+1} - ybar)
+#            / sum_{i=1}^{n} (y_i - ybar)^2
+#
+# ---------------------------------------------------------------------------
+# On tolerances
+# ---------------------------------------------------------------------------
+# The NumAcc datasets are deliberately constructed to break numerically naive
+# formulas. The one-pass variance (sum(x^2) - n*mean^2)/(n-1) does not merely
+# lose digits on NumAcc4 -- it returns a *negative* variance, about -0.032,
+# where the true value is 0.01. A negative variance is mathematically
+# impossible; the formula has failed completely. (On NumAcc3 it returns
+# 0.00975, a 2.5 % error.) capstat uses a two-pass algorithm, which lands
+# within 5.6e-09 relative of the certified standard deviation.
+#
+# The residual error on NumAcc3/NumAcc4 is NOT algorithmic. It is forced by
+# the float64 representation of the input itself: the values cluster near 1e6
+# / 1e7, where the float64 spacing is ~2e-10 / ~2e-9, while the true standard
+# deviation is only 0.1. Computing the standard deviation of the float64-cast
+# data in *exact* rational arithmetic yields:
+#
+#   NumAcc3 -> 0.1000000000349246   (3.49e-10 relative to the certified 0.1)
+#   NumAcc4 -> 0.10000000055879354  (5.59e-09 relative to the certified 0.1)
+#
+# Our two-pass implementation reproduces exactly these figures, i.e. it is at
+# the theoretical optimum for double precision; no algorithm reading float64
+# input can do better. The loosened tolerances on those two datasets encode
+# that hard floor, with roughly 2x headroom. Every other tolerance is 1e-12
+# relative, which still leaves >10x headroom over the measured error.
+
+source:
+  title: NIST/ITL Statistical Reference Datasets (StRD) - Univariate Summary Statistics
+  publisher: National Institute of Standards and Technology
+  url: https://www.itl.nist.gov/div898/strd/univ/homepage.html
+  retrieved: 2026-07-14
+  note: >
+    Certified values are given to 15 significant digits. Per-dataset citation
+    is the .dat header, lines 41-43 (archived under data/nist_strd/).
+
+defaults:
+  method: describe
+  tolerance:
+    rel: 1.0e-12
+
+cases:
+  - id: nist-strd-pidigits
+    dataset: data/nist_strd/PiDigits.dat
+    description: First 5000 digits of pi (constructed, tests accuracy).
+    expected:
+      n: 5000
+      mean: 4.53480000000000
+      std_dev: 2.86733906028871
+      lag1_autocorrelation: -0.00355099287237972
+
+  - id: nist-strd-lottery
+    dataset: data/nist_strd/Lottery.dat
+    description: 218 observed 3-digit lottery values (Sep 1989 - Apr 1990).
+    expected:
+      n: 218
+      mean: 518.958715596330
+      std_dev: 291.699727470969
+      lag1_autocorrelation: -0.120948622967393
+
+  - id: nist-strd-lew
+    dataset: data/nist_strd/Lew.dat
+    description: 200 beam-deflection measurements (H. S. Lew, NIST).
+    expected:
+      n: 200
+      mean: -177.435000000000
+      std_dev: 277.332168044316
+      lag1_autocorrelation: -0.307304800605679
+
+  - id: nist-strd-mavro
+    dataset: data/nist_strd/Mavro.dat
+    description: 50 filter-transmittance measurements (nominal value 2).
+    expected:
+      n: 50
+      mean: 2.00185600000000
+      std_dev: 0.000429123454003053
+      lag1_autocorrelation: 0.937989183438248
+
+  - id: nist-strd-michelso
+    dataset: data/nist_strd/Michelso.dat
+    description: Michelson 1879 speed-of-light measurements (100 obs).
+    expected:
+      n: 100
+      mean: 299.852400000000
+      std_dev: 0.0790105478190518
+      lag1_autocorrelation: 0.535199668621283
+
+  - id: nist-strd-numacc1
+    dataset: data/nist_strd/NumAcc1.dat
+    description: >
+      Three 8-digit integers differing in the last place. All certified values
+      are exact; a correct implementation must match them to the bit.
+    expected:
+      n: 3
+      mean: 10000002.0
+      std_dev: 1.0
+      lag1_autocorrelation: -0.5
+    tolerance:
+      rel: 0.0
+      abs: 0.0
+
+  - id: nist-strd-numacc2
+    dataset: data/nist_strd/NumAcc2.dat
+    description: 1001 two-digit floats differing only in the last place.
+    expected:
+      n: 1001
+      mean: 1.2
+      std_dev: 0.1
+      lag1_autocorrelation: -0.999
+
+  - id: nist-strd-numacc3
+    dataset: data/nist_strd/NumAcc3.dat
+    description: >
+      1001 eight-digit floats differing only in the last place. Values cluster
+      near 1e6, so float64 representation alone perturbs the standard
+      deviation by 3.49e-10 relative (see the tolerance note at the top).
+    expected:
+      n: 1001
+      mean: 1000000.2
+      std_dev: 0.1
+      lag1_autocorrelation: -0.999
+    tolerance:
+      rel: 1.0e-12
+      per_statistic:
+        std_dev:
+          rel: 1.0e-9
+        lag1_autocorrelation:
+          rel: 1.0e-11
+
+  - id: nist-strd-numacc4
+    dataset: data/nist_strd/NumAcc4.dat
+    description: >
+      1001 nine-digit floats differing only in the last place. The hardest
+      case: float64 representation alone perturbs the standard deviation by
+      5.59e-09 relative. A one-pass variance returns -0.032 here (negative,
+      i.e. impossible).
+    expected:
+      n: 1001
+      mean: 10000000.2
+      std_dev: 0.1
+      lag1_autocorrelation: -0.999
+    tolerance:
+      rel: 1.0e-12
+      per_statistic:
+        std_dev:
+          rel: 1.0e-8
+        lag1_autocorrelation:
+          rel: 1.0e-10
