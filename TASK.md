@@ -6,9 +6,6 @@
 
 ## Next
 
-- T-0004 M1b Normality tests: Anderson-Darling, Shapiro-Wilk; clear reporting
-  on non-normality. Reference values from published examples / R comparison
-  values.
 - T-0005 M1c Capability indices Cp/Cpk/Pp/Ppk/Cpm; short-term vs long-term
   variation stated explicitly. Validated against Montgomery and AIAG SPC
   examples.
@@ -43,6 +40,13 @@
   screenshots, quickstart, demo link).
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
   multi-user auth, persistence/database, server PDF.
+- T-0021 scipy deprecation: `scipy.stats.anderson` drops its `critical_values`
+  / `significance_level` / `fit_result` attributes in scipy 1.19 (FutureWarning
+  since 1.17). capstat's *library* code is unaffected -- it implements the
+  Anderson-Darling statistic itself -- but two cross-check tests in
+  `test_normality.py` use those attributes and currently suppress the warning
+  via `pytestmark`. Before scipy 1.19, pin Stephens' critical values in the
+  reference YAML instead of reading them from scipy.
 - T-0020 CI: `actions/checkout@v4` and `astral-sh/setup-uv@v6` still target the
   deprecated Node.js 20 runtime (GitHub forces them onto Node 24 and warns on
   every run). Bump to the Node-24 native majors when released; dependabot
@@ -55,6 +59,37 @@
 
 ## Done
 
+- T-0004 (2026-07-14) M1b Normality tests. `capstat_core.normality`:
+  `anderson_darling` (own implementation, with the p-value scipy does not
+  provide), `shapiro_wilk` (delegates to scipy's AS R94), and
+  `assess_normality` -> `NormalityAssessment` with an explicit verdict,
+  recommendation, and warnings. 193 tests, 100 % coverage.
+  Validation rests on four independent legs, because the AD p-value is the one
+  piece capstat owns outright and a mis-transcribed coefficient there would be
+  invisible:
+  * AD statistic cross-checked against `scipy.stats.anderson` on 8 NIST
+    datasets (rel 1e-10; Mavro's tiny sd of 4.3e-04 amplifies rounding to
+    ~2e-12, hence not machine epsilon).
+  * AD p-value formula transcribed verbatim from CRAN `nortest` 1.0-4
+    (D'Agostino & Stephens 1986), NOT from memory.
+  * Round-trip: feeding Stephens' *independently published* critical values
+    into that formula returns the nominal alphas to within 2 %. Two sources
+    that never touched each other agree.
+  * Shapiro-Wilk validated against a published R `shapiro.test` result
+    (W = 0.7888, p = 0.006704) -- testing scipy against scipy would be circular.
+  Design decisions worth keeping:
+  * `assess_normality` fails closed: `normal` is the AND of both tests, and a
+    disagreement is surfaced as a warning rather than silently resolved.
+  * It warns on material autocorrelation (|r1| > 0.2). Both tests assume
+    independence; NIST Mavro has r1 = 0.94, so its p-values are meaningless.
+    A tool reporting only the p-value there would be actively misleading.
+  * It warns on low power (n < 20) and on large n, where a practically
+    irrelevant deviation becomes "significant".
+  * AD requires n >= 8 (the p-value approximation is undefined below), matching
+    R's `nortest::ad.test` guard.
+  * The branches of the p-value approximation are genuinely discontinuous (up
+    to 3.3e-03 at A*^2 = 0.34); that is the published fit, not our error, and
+    is pinned by a test at 5e-3.
 - T-0003 (2026-07-14) M1a Descriptive statistics + robust variants.
   `capstat_core.descriptive` (mean, variance, std_dev, skewness, kurtosis,
   lag1_autocorrelation, `describe` -> immutable `DescriptiveSummary`) and

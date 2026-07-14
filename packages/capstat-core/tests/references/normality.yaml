@@ -1,0 +1,120 @@
+# Normality tests -- reference values
+#
+# ---------------------------------------------------------------------------
+# Why these sources
+# ---------------------------------------------------------------------------
+# scipy provides the Anderson-Darling *statistic* and Stephens' *critical
+# values*, but no p-value. capstat supplies the p-value, which is the one part
+# of this module that is genuinely ours -- and therefore the one part where a
+# mis-transcribed coefficient would slip through unnoticed. It is validated
+# from two directions that do not share a source:
+#
+#   1. The four-branch approximation is transcribed verbatim from the canonical
+#      R implementation (CRAN `nortest` 1.0-4, `ad.test`, Juergen Gross), which
+#      implements D'Agostino & Stephens (1986).
+#   2. Evaluating that approximation at Stephens' *independently published*
+#      critical values must return the nominal significance levels. It does, to
+#      within 2 % -- see the `ad-pvalue-calibration` case. The two sources agree
+#      without ever having been derived from one another here.
+#
+# The 5 % critical value 0.752 is additionally confirmed by the NIST/SEMATECH
+# e-Handbook (section 1.3.5.14), which states "Critical value: 0.752" for
+# alpha = 0.05 -- matching scipy's table entry exactly.
+#
+# Shapiro-Wilk is delegated to scipy's AS R94 (Royston 1995) implementation, the
+# same algorithm R's shapiro.test uses. Testing scipy against scipy would be
+# circular, so it is validated against a *published* R result instead.
+
+sources:
+  anderson_darling_statistic:
+    title: >
+      Anderson, T. W., & Darling, D. A. (1954). A test of goodness of fit.
+      Journal of the American Statistical Association, 49(268), 765-769.
+    note: >
+      Statistic cross-validated against scipy.stats.anderson, an independent
+      implementation, on all nine NIST StRD univariate datasets (see
+      test_normality.py).
+  anderson_darling_pvalue:
+    title: >
+      D'Agostino, R. B., & Stephens, M. A. (1986). Goodness-of-Fit Techniques.
+      Marcel Dekker.
+    implementation: CRAN nortest 1.0-4, ad.test() -- transcribed verbatim
+    url: https://cran.r-project.org/package=nortest
+    retrieved: 2026-07-14
+  anderson_darling_critical_values:
+    title: >
+      Stephens, M. A. (1974). EDF statistics for goodness of fit and some
+      comparisons. JASA, 69(347), 730-737.
+    corroboration: >
+      NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.14, states
+      the alpha = 0.05 critical value as 0.752.
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm
+  shapiro_wilk:
+    title: >
+      Royston, P. (1995). Remark AS R94: A remark on Algorithm AS 181: The W
+      test for normality. Applied Statistics, 44(4), 547-551.
+    published_example: >
+      StatsRef (statsref.com/HTML/shapiro-wilk.html), worked example on Shapiro
+      & Wilk's original data, evaluated with R's shapiro.test().
+    retrieved: 2026-07-14
+
+cases:
+  # -------------------------------------------------------------------------
+  # Shapiro-Wilk against a published R shapiro.test() result.
+  # -------------------------------------------------------------------------
+  - id: shapiro-wilk-published-r-value
+    method: shapiro_wilk
+    description: >
+      Shapiro & Wilk's original example data. R's shapiro.test() reports
+      W = 0.7888 and p-value = 0.006704; the published values are quoted to
+      four significant figures, so the tolerance is set accordingly.
+    input: [148, 154, 158, 160, 161, 162, 166, 170, 182, 195, 236]
+    expected:
+      statistic: 0.7888
+      p_value: 0.006704
+    tolerance:
+      abs: 5.0e-5
+
+  # -------------------------------------------------------------------------
+  # Anderson-Darling p-value calibration.
+  #
+  # Stephens' critical values for the adjusted statistic A*^2, and the nominal
+  # significance levels they correspond to. Feeding each critical value into
+  # our p-value approximation must return its own alpha back. The two sides of
+  # this table come from different publications; agreement is meaningful.
+  # -------------------------------------------------------------------------
+  - id: ad-pvalue-calibration
+    method: anderson_darling_pvalue
+    description: >
+      Round-trip check: p_value(A*^2 = critical value at alpha) == alpha.
+      The approximation is not exact, hence the 2.5 % relative tolerance; the
+      worst observed deviation is 2.0 % (at alpha = 0.15).
+    input:
+      adjusted_statistic: [0.561, 0.631, 0.752, 0.873, 1.035]
+    expected:
+      alpha: [0.15, 0.10, 0.05, 0.025, 0.01]
+    tolerance:
+      rel: 0.025
+
+  # -------------------------------------------------------------------------
+  # Anderson-Darling p-value: the branch boundaries of the approximation.
+  # A discontinuity here would mean a mis-transcribed coefficient.
+  # -------------------------------------------------------------------------
+  - id: ad-pvalue-branch-continuity
+    method: anderson_darling_pvalue
+    description: >
+      The four branches must very nearly agree where they meet. They do not
+      agree exactly: D'Agostino & Stephens fitted each branch separately, so
+      the piecewise function has small genuine discontinuities. Measured gaps:
+
+        A*^2 = 0.20  ->  1.0e-04   (branch 1 | branch 2)
+        A*^2 = 0.34  ->  3.3e-03   (branch 2 | branch 3)
+        A*^2 = 0.60  ->  2.5e-03   (branch 3 | branch 4)
+
+      These are properties of the published approximation, not transcription
+      errors. The test pins them at 5e-3: any mistyped coefficient would blow
+      a boundary open far wider than that, while the real jumps stay under it.
+    input:
+      boundaries: [0.2, 0.34, 0.6]
+    tolerance:
+      abs: 5.0e-3

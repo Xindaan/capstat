@@ -61,6 +61,31 @@ mad(measurements)                 # ~0.2965 -- a sigma estimate, scaled for
 `variance`, `std_dev`, `minimum`, `maximum`, `range`, `median`, `q1`, `q3`,
 `iqr`, `skewness`, `kurtosis`, and `lag1_autocorrelation`.
 
+### Normality — with the caveats attached
+
+Capability indices assume a normal process. `assess_normality` runs both the
+Anderson-Darling and Shapiro-Wilk tests and returns a verdict you can act on,
+together with every reason that verdict might mislead you:
+
+```python
+from capstat_core import assess_normality
+
+report = assess_normality(measurements)
+
+report.normal            # False -- True only if BOTH tests fail to reject
+report.recommendation    # what to do next, in words
+report.warnings          # why the verdict might be wrong; () means "take it at face value"
+```
+
+On the NIST `Mavro` dataset (50 filter-transmittance readings) it reports
+non-normality (Anderson-Darling p = 2.4e-04, Shapiro-Wilk p = 5.1e-04) — and
+also warns that the lag-1 autocorrelation is **0.938**, which violates the
+independence assumption *both tests are built on*. A tool that printed only the
+p-value would be confidently reporting a number it had no right to compute.
+`assess_normality` also flags samples too small to have power, samples so large
+that trivial deviations turn "significant", and cases where the two tests
+disagree (which fail closed, as non-normal).
+
 **On accuracy.** The variance and every other centered moment use a two-pass
 algorithm. This is not pedantry: on the NIST `NumAcc4` dataset the textbook
 one-pass formula returns a *negative* variance. capstat reproduces the NIST
