@@ -1,0 +1,39 @@
+name: Incorrect statistical result
+description: A computed value disagrees with an authoritative reference
+labels: ["correctness"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Correctness is capstat's core promise. Please give us enough to
+        reproduce the discrepancy and check it against the source.
+  - type: input
+    id: method
+    attributes:
+      label: Method
+      placeholder: "Cpk / Anderson-Darling / Gage R&R (ANOVA) / ..."
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input data
+      description: The exact input (inline values or an attached dataset).
+    validations:
+      required: true
+  - type: textarea
+    id: expected-vs-actual
+    attributes:
+      label: Expected vs. actual
+      description: The value capstat returned and the value you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Authoritative source
+      description: >
+        Title, edition, and section/page of the reference you are comparing
+        against (e.g. Montgomery 8th ed., Example 6.1).
+    validations:
+      required: true

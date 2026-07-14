@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# uv
+.uv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Node / TypeScript (apps/web, apps/api client — added in later milestones)
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+
+# Docs build
+site/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

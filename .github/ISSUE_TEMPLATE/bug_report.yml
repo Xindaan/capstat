@@ -1,0 +1,26 @@
+name: Bug report
+description: Report incorrect behavior (not a statistical-correctness issue)
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal steps or code to reproduce.
+      render: python
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: capstat / Python version
+      placeholder: "capstat-core 0.0.0, Python 3.12"
+    validations:
+      required: true
