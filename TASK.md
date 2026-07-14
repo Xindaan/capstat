@@ -43,6 +43,11 @@
   screenshots, quickstart, demo link).
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
   multi-user auth, persistence/database, server PDF.
+- T-0020 CI: `actions/checkout@v4` and `astral-sh/setup-uv@v6` still target the
+  deprecated Node.js 20 runtime (GitHub forces them onto Node 24 and warns on
+  every run). Bump to the Node-24 native majors when released; dependabot
+  (github-actions, weekly) will likely raise this PR on its own. Cosmetic
+  today, breaking once GitHub drops the shim.
 - T-0019 Decide demo hosting (due Week 3, before T-0015): recommendation
   Vercel Hobby (web, free) + Render Free (API container, sleeps when idle);
   alternative Fly.io (a few EUR/month). Needs one account each (GitHub login
