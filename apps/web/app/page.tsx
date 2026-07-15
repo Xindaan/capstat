@@ -1,4 +1,4 @@
-import { UploadPanel } from "@/components/upload-panel";
+import { Workspace } from "@/components/workspace";
 
 export default function Home() {
   return (
@@ -11,7 +11,7 @@ export default function Home() {
           published reference values.
         </p>
       </header>
-      <UploadPanel />
+      <Workspace />
     </main>
   );
 }

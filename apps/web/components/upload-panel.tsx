@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { ingestFile, type IngestColumn, type IngestResponse } from "@/lib/api-client";
 
@@ -42,7 +42,12 @@ function describeError(error: unknown): string {
   return "The file could not be ingested.";
 }
 
-export function UploadPanel() {
+export function UploadPanel({
+  onSelect,
+}: {
+  /** Fires with the chosen numeric column, or null on reset / no selection. */
+  onSelect?: (column: IngestColumn | null) => void;
+}) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -97,6 +102,12 @@ export function UploadPanel() {
   const result = status.kind === "done" ? status.result : null;
   const selectedColumn =
     result?.columns.find((c) => c.name === selected) ?? null;
+
+  // Lift the chosen column so a parent can drive the capability dashboard; the
+  // upload/parse state itself stays private to this component.
+  useEffect(() => {
+    onSelect?.(selectedColumn);
+  }, [selectedColumn, onSelect]);
 
   return (
     <section className="flex flex-col gap-6" aria-label="Data upload">

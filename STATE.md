@@ -25,11 +25,13 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 - **T-0011 (Next.js app) is in progress.** Done: the typed TS client
   (`openapi-typescript` -> `apps/web/lib/api-client/schema.d.ts`, drift-checked
   in CI, closing the M3 contract); the Next 16 / React 19 / Tailwind v4
-  scaffold with the `openapi-fetch` client wired in; and the **upload flow** --
-  a `UploadPanel` that POSTs a file to `/ingest`, surfaces ignored columns and
-  dropped cells, and lets the user pick a numeric column (verified end-to-end
-  in the browser). The API now sends CORS headers for the :3000 dev origin.
-  Next: the capability dashboard and ECharts control charts.
+  scaffold; the **upload flow** (`UploadPanel` -> `/ingest`, CORS on the API);
+  and the **capability dashboard** -- `Workspace` lifts the chosen column into
+  a `CapabilityDashboard` that runs the `/compute/capability/analyze` decision
+  path (normal / Box-Cox / percentile) and renders Pp/Ppk + Cp/Cpk, the path
+  rationale, the normality verdict, and an ECharts density histogram with
+  spec-limit lines + a fitted normal curve (verified in-browser on both a
+  normal and a skewed dataset). Next: ECharts control charts.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -56,15 +58,19 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0011 sub-increment 4 — **capability dashboard**: `/compute/capability` +
-   `/analyze`, histogram with spec limits + fitted distribution (ECharts). The
-   selected column from `UploadPanel` is the input; wire it through.
-2. T-0011 sub-increment 5 — ECharts control charts (I-MR/Xbar, limits + zones,
-   violation markers, run-rule overlay).
+1. T-0011 sub-increment 5 — **ECharts control charts**: I-MR/Xbar via
+   `markLine`/`markArea` for limits + zones, violation markers, run-rule
+   overlay. The chosen column (and/or subgroups) from `Workspace` is the input.
+2. T-0011 sub-increment 6 — eslint/prettier/vitest + a Playwright smoke test;
+   polish (incl. a "run the web app" section in the README).
 3. T-0012 M5a Gage R&R (the MSA credibility centrepiece).
 
 ## Last done
 
+- 2026-07-15: T-0011 sub-increment 4 — capability dashboard: decision-path
+  analyze call, Pp/Ppk + Cp/Cpk, ECharts histogram with spec limits + normal
+  fit; verified in-browser on normal + Box-Cox data. Fixed two chart bugs
+  (empty canvas from an async-init race; spec limit clipped off the x-axis).
 - 2026-07-15: T-0020 — CI actions bumped off Node.js 20 (checkout v7, setup-uv
   v7, setup-node v7); no input breakage, warnings gone.
 - 2026-07-15: T-0011 sub-increment 3 — upload flow: `UploadPanel` POSTs to

@@ -19,6 +19,35 @@ import type { components } from "./schema";
 
 export type IngestResponse = components["schemas"]["IngestResponse"];
 export type IngestColumn = components["schemas"]["IngestColumn"];
+export type CapabilityAnalysis = components["schemas"]["CapabilityAnalysisOut"];
+export type CapabilityReport = components["schemas"]["CapabilityReportOut"];
+export type NormalityAssessment =
+  components["schemas"]["NormalityAssessmentOut"];
+
+/** Spec limits for a capability study; at least one of lsl/usl is required. */
+export interface SpecLimits {
+  lsl: number | null;
+  usl: number | null;
+  target: number | null;
+  alpha?: number;
+}
+
+/**
+ * Run the full capability decision path (`/compute/capability/analyze`):
+ * normality assessment -> normal / Box-Cox / percentile -> Pp, Ppk. The core
+ * rejects a call with no spec limits (surfaced here as the API's 422).
+ */
+export function analyzeCapability(data: number[], limits: SpecLimits) {
+  return api.POST("/compute/capability/analyze", {
+    body: {
+      data,
+      lsl: limits.lsl,
+      usl: limits.usl,
+      target: limits.target,
+      alpha: limits.alpha ?? 0.05,
+    },
+  });
+}
 
 /**
  * POST a file to `/ingest` as multipart/form-data.

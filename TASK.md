@@ -26,10 +26,26 @@
      browser (real cross-origin upload, 200 OK, warnings + stats correct).
      Also fixed: the `apps/*` uv-workspace glob claimed the new Node `apps/web`
      as a Python member and broke `uv run`; excluded it in the root pyproject.
-  4. **[next]** Capability dashboard: `/compute/capability` + `/analyze`;
-     histogram with spec limits + fitted distribution (ECharts).
-  5. Control charts: I-MR/Xbar via ECharts `markLine`/`markArea` for limits +
-     zones; violation markers; run-rule overlay.
+  4. **[done 2026-07-15]** Capability dashboard: `Workspace` lifts the chosen
+     column; `CapabilityDashboard` takes spec limits (LSL/Target/USL, >=1 of
+     LSL/USL) and POSTs `/compute/capability/analyze` -- the decision-path call
+     -- rendering Pp/Ppk + Cp/Cpk (Cp/Cpk sourced from the active path's report:
+     normal fit, or the Box-Cox fit on the transformed scale; percentile has
+     none), the path badge + rationale, the normality verdict, and warnings.
+     `CapabilityHistogram` (ECharts, added as a dep) draws a density histogram
+     (FD binning) with spec-limit markLines and a fitted normal curve on the
+     normal path only (a Box-Cox normal lives in transformed space and would be
+     wrong over original-scale bars). Verified in-browser on both a normal and
+     a right-skewed (Box-Cox) dataset; indices, path, and the rendered chart
+     (bars/curve/spec-lines, pixel-checked) all correct.
+     Two bugs found + fixed during verification: (a) the async echarts import
+     left `setOption` racing an unset chart ref (and StrictMode remounts), so
+     the canvas stayed empty -- fixed with an init-nonce that re-applies the
+     option after every (re)init; (b) a spec limit outside the data range was
+     clipped by the auto-fit x-axis and silently vanished -- fixed by pinning
+     `xAxis.min/max` to a domain that always includes the limits.
+  5. **[next]** Control charts: I-MR/Xbar via ECharts `markLine`/`markArea` for
+     limits + zones; violation markers; run-rule overlay.
   6. eslint/prettier/vitest + a Playwright smoke test; polish.
 
 ## Backlog
@@ -65,6 +81,13 @@
   Vercel Hobby (web, free) + Render Free (API container, sleeps when idle);
   alternative Fly.io (a few EUR/month). Needs one account each (GitHub login
   is enough).
+- T-0023 web `npm audit`: 2 moderate advisories in `postcss` (<8.5.10, XSS in
+  the CSS stringify output), pulled in transitively via Next's build tooling --
+  not from `echarts`, and a build-time path with no runtime exposure for us.
+  `npm audit fix --force` would downgrade `next` to 9.3.3 (a destructive
+  breaking change), so leave it. Clears itself when Next ships a patch that
+  bumps its postcss floor; dependabot (npm ecosystem is not yet configured --
+  only github-actions is) or a routine `next` bump will resolve it.
 
 ## Done
 
