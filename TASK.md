@@ -4,87 +4,33 @@
 
 <!-- max 3 -->
 
-- **T-0011 [ALL SUB-INCREMENTS DONE 2026-07-15]** M4 Next.js app: upload
-  (CSV/XLSX), capability dashboard, histogram with spec limits + fitted
-  distribution, control charts with run-rule markers (ECharts), test safety net.
-  Move to Done when T-0012 starts. Sub-increments:
-  1. **[done 2026-07-15]** TS client: `apps/web` with `openapi-typescript`
-     generating `lib/api-client/schema.d.ts` from `apps/api/openapi.json`,
-     committed + drift-checked in CI (`npm run check:api`). Closes the Node
-     half of the M3 contract deferred from T-0010.
-  2. **[done 2026-07-15]** Next.js scaffold: Next 16 App Router + React 19 +
-     Tailwind v4 + ESLint 9 (flat), typed `api` client wired via
-     `openapi-fetch`. `npm run build` green (lint + typecheck + static /).
-     Web CI job added (npm ci -> drift -> lint -> build).
-  3. **[done 2026-07-15]** Upload flow: `UploadPanel` client component
-     (drag-drop + browse) POSTs to `/ingest` via a typed `ingestFile` helper
-     (the one place that reconciles the binary-body / FormData mismatch),
-     surfaces ignored columns + dropped cells as ingestion notes, offers a
-     numeric-column picker with an n/min/max/mean preview. `CORSMiddleware`
-     added to the API (origins from `CAPSTAT_CORS_ORIGINS`, default
-     localhost/127.0.0.1:3000) -- browser-only, so the OpenAPI contract and its
-     drift check are untouched; 4 CORS tests added. Verified end-to-end in the
-     browser (real cross-origin upload, 200 OK, warnings + stats correct).
-     Also fixed: the `apps/*` uv-workspace glob claimed the new Node `apps/web`
-     as a Python member and broke `uv run`; excluded it in the root pyproject.
-  4. **[done 2026-07-15]** Capability dashboard: `Workspace` lifts the chosen
-     column; `CapabilityDashboard` takes spec limits (LSL/Target/USL, >=1 of
-     LSL/USL) and POSTs `/compute/capability/analyze` -- the decision-path call
-     -- rendering Pp/Ppk + Cp/Cpk (Cp/Cpk sourced from the active path's report:
-     normal fit, or the Box-Cox fit on the transformed scale; percentile has
-     none), the path badge + rationale, the normality verdict, and warnings.
-     `CapabilityHistogram` (ECharts, added as a dep) draws a density histogram
-     (FD binning) with spec-limit markLines and a fitted normal curve on the
-     normal path only (a Box-Cox normal lives in transformed space and would be
-     wrong over original-scale bars). Verified in-browser on both a normal and
-     a right-skewed (Box-Cox) dataset; indices, path, and the rendered chart
-     (bars/curve/spec-lines, pixel-checked) all correct.
-     Two bugs found + fixed during verification: (a) the async echarts import
-     left `setOption` racing an unset chart ref (and StrictMode remounts), so
-     the canvas stayed empty -- fixed with an init-nonce that re-applies the
-     option after every (re)init; (b) a spec limit outside the data range was
-     clipped by the auto-fit x-axis and silently vanished -- fixed by pinning
-     `xAxis.min/max` to a domain that always includes the limits.
-  5. **[done 2026-07-15]** Control charts: `ControlChartPanel` auto-runs
-     `/control-chart/i-mr` on the chosen column and renders two `ControlChart`s
-     (Individuals + Moving Range) with CL / UCL / LCL markLines, +/-1 & +/-2
-     sigma zone lines (individuals), red out-of-control markers, and an amber
-     run-rule overlay + list from `/rules/nelson` (default rules 1-4, honouring
-     the API's advice against all eight at once). In-control badge; chart
-     warnings surfaced. The fragile async-echarts init logic was extracted into
-     a shared `useEchart` hook (`lib/echarts.ts`) and the histogram refactored
-     onto it -- one place owns the init-nonce / ResizeObserver / dispose dance,
-     both charts share it. Verified in-browser on a seeded dataset with a
-     deliberate out-of-limit spike + a run (both charts, markers, and rule list
-     correct; histogram re-verified post-refactor).
-     Note (core, not web): a non-normal column whose Box-Cox transform collapses
-     LSL and USL to near-equal values yields a core 422 "lsl must be strictly
-     below usl" on the transformed scale; the dashboard surfaces it faithfully.
-     Possibly worth a clearer core message later. Not filed as a task yet.
-     Deferred: Xbar-R/S needs subgroup input (ingest gives flat columns) -- a
-     grouping UI, later.
-  6. **[done 2026-07-15]** Test safety net + polish. Extracted the pure numerics
-     (binning, density, capability domain, column stats) into `lib/stats.ts` and
-     the shared error formatter into `lib/errors.ts` (three duplicated copies
-     removed), then covered them with **vitest** (21 tests). Added a **Playwright**
-     smoke test (`e2e/smoke.spec.ts`) that mocks the four API endpoints and walks
-     upload -> capability -> control chart -- so it needs only the Next dev
-     server, no Python backend. Both wired into the web CI job (unit tests +
-     `playwright install --with-deps chromium` + smoke). README gained a "Web
-     app" section (run it, test it, `NEXT_PUBLIC_API_URL`). Fixed an echarts 6
-     deprecation (literal fill instead of `api.style()` in the custom renderItem).
-     Deferred deliberately: prettier (the code is already consistently formatted;
-     eslint covers it -- adding it now is churn, not value) and the run-rule
-     selection UI (a feature, not a safety net) -- see T-0024.
+- T-0012 M5a Gage R&R (measurement-system analysis), `capstat-core`.
+  Acceptance: ANOVA + average-and-range methods; %Contribution, %Study
+  Variation, ndc; validated against an AIAG worked example.
+  a. **[done 2026-07-15]** ANOVA method. Crossed two-way random-effects model
+     (`gage_rr()` -> frozen `GageRRReport`). Variance components via the AIAG
+     estimators, with the interaction-drop rule (pool the interaction into
+     repeatability when its F-test is not significant, p > 0.25) and
+     negative-variance clamping (a component below zero is reported as zero with
+     a warning). Exposes %Contribution, %Study Variation, ndc (1.41 * PV/GRR),
+     optional precision-to-tolerance, and AIAG verdict warnings. Validated
+     against the SPC-for-Excel AIAG worked example (5x3x3) -- whose ANOVA table
+     and every component I recomputed independently in plain numpy first -- plus
+     a constructed interaction-kept case cross-checked against a second ANOVA
+     implementation, and algebraic identities. 403 core tests, 100% coverage,
+     mypy strict + ruff clean.
+  b. **[next]** Average-and-range method. Needs the d2* (bias-corrected d2)
+     constants for the operator-range and part-range; compute them from their
+     definition (finite number of subgroups), not the AIAG K1/K2/K3 table --
+     same "compute, don't transcribe" rule as the control-chart constants.
+     Then GRR = sqrt(EV^2 + AV^2), and the same %/ndc summary. Cross-check that
+     it lands close to the ANOVA result on the same data.
 
 ## Backlog
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
   drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
-- T-0012 M5a Gage R&R: ANOVA method + average-and-range method;
-  %Contribution, %Study Variation, ndc. Validated against the AIAG MSA-4
-  worked examples (core credibility).
 - T-0013 M5b Bias, linearity, stability.
 - T-0014 M6a PDF report: print-optimized report route with vector charts
   (ECharts SVG renderer); server PDF as roadmap.
@@ -124,6 +70,14 @@
 
 ## Done
 
+- T-0011 (2026-07-15) M4 Next.js app -- all six sub-increments: typed TS client
+  (openapi-typescript, drift-checked); Next 16 / React 19 / Tailwind v4 scaffold;
+  upload flow (`/ingest` + CORS); capability dashboard (decision-path analyze +
+  ECharts histogram); I-MR control charts with a Nelson run-rule overlay (shared
+  `useEchart` hook); and a test safety net (vitest for the pure numerics +
+  Playwright smoke, both in CI). The app now covers upload -> capability ->
+  control charts, typed against the API and tested. Detail in the commits
+  (ec3e1ac, 23b40d5, 7c8bdd3, ed2fe9a).
 - T-0020 (2026-07-15) CI actions bumped off the deprecated Node.js 20 runtime:
   `actions/checkout@v4->v7`, `astral-sh/setup-uv@v6->v7`,
   `actions/setup-node@v4->v7`. Verified none of the breaking changes touch

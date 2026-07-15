@@ -280,6 +280,36 @@ certified values to the limit of double precision — see
 [the reference suite](packages/capstat-core/tests/references/) for the sources,
 the certified numbers, and a written justification for every tolerance.
 
+### Gage R&R — how much of the spread is the gage, not the parts
+
+Before you trust a measurement, find out how much of the variation you are
+seeing is the measurement system itself. `gage_rr` runs the crossed ANOVA
+method (parts × operators × trials) and partitions the variance into
+repeatability, reproducibility, and the real part-to-part spread.
+
+```python
+import numpy as np
+from capstat_core import gage_rr
+
+# data[part, operator, trial]
+report = gage_rr(measurements)
+print(report.pct_study_var_gage_rr)   # 33.1  -> unacceptable (> 30%)
+print(report.ndc)                     # 4     -> < 5, can't tell parts apart
+for w in report.warnings:
+    print(w)
+```
+
+Two things that quietly bias other tools are handled explicitly. When the
+part-by-operator **interaction is not significant** (AIAG's generous
+`p > 0.25`), it is dropped and pooled back into repeatability before the
+components are re-estimated — keeping a phantom interaction inflates
+reproducibility and hides a good gage. And when a variance estimate comes out
+**negative** (mean-square differences can, for a component near zero), it is
+clamped to zero and reported honestly as "indistinguishable from zero", with a
+warning, rather than printed as a negative variance. %Contribution, %Study
+Variation, and the number of distinct categories all fall out of the same
+components.
+
 ## HTTP API
 
 `apps/api` is a stateless FastAPI service that exposes every core statistic

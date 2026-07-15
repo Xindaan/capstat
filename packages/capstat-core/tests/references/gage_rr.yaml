@@ -1,0 +1,69 @@
+# Gage R&R (ANOVA method) -- reference values
+#
+# ---------------------------------------------------------------------------
+# The worked example is SPC for Excel's ANOVA Gage R&R series, which applies
+# the AIAG MSA-4 ANOVA method to a 5-part x 3-operator x 3-trial study. It is a
+# deliberately good test case because it exercises the two hardest paths at
+# once:
+#   * the part*operator interaction is NOT significant (F = 0.142, p = 0.9964),
+#     so it is dropped and pooled back into repeatability before the variance
+#     components are re-estimated; and
+#   * the full-model interaction variance is negative (-0.0163), the exact
+#     situation the negative-variance clamp exists for.
+#
+# Per the project rule (validate against a source that did not produce the
+# value), the published ANOVA table and every variance component were also
+# recomputed independently from the raw data with a plain-numpy two-way ANOVA
+# before being written here; both agree to the printed precision. Tolerances are
+# therefore set by the precision of the *published* numbers, not our own.
+
+sources:
+  anova_method:
+    title: >
+      AIAG. Measurement Systems Analysis (MSA), 4th ed., 2010, ch. III sec. B
+      (Gage R&R -- ANOVA method).
+  worked_example:
+    title: "SPC for Excel: ANOVA Gage R&R (Part 3)"
+    url: https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/anova-gage-rr-part-3/
+    retrieved: 2026-07-15
+    note: >
+      5 parts, 3 operators, 3 trials. Interaction not significant (p = 0.9964),
+      so the ANOVA is re-run without it and the components pooled.
+
+cases:
+  - id: spc-anova-gage-rr-pooled
+    method: gage_rr
+    description: >
+      The full AIAG ANOVA method with a dropped (pooled) interaction and a
+      clamped-negative interaction variance. Pins the pooling decision, the
+      variance-component estimators, both percentage conventions, and ndc.
+    input:
+      # (parts x operators x trials)
+      data:
+        - [[3.29, 3.41, 3.64], [3.08, 3.25, 3.07], [3.04, 2.89, 2.85]]
+        - [[2.44, 2.32, 2.42], [2.53, 1.78, 2.32], [1.62, 1.87, 2.04]]
+        - [[4.34, 4.17, 4.27], [4.19, 3.94, 4.34], [3.88, 4.09, 3.67]]
+        - [[3.47, 3.50, 3.64], [3.01, 4.03, 3.20], [3.14, 3.20, 3.11]]
+        - [[2.20, 2.08, 2.16], [2.44, 1.80, 1.72], [1.54, 1.93, 1.55]]
+    expected:
+      interaction_included: false
+      interaction_pvalue: 0.9964
+      var_repeatability: 0.0468
+      var_operator: 0.0512
+      var_interaction: 0.0
+      var_part: 0.7978
+      var_gage_rr: 0.0980
+      var_total: 0.8958
+      pct_contribution_gage_rr: 10.94
+      pct_contribution_repeatability: 5.22
+      pct_contribution_reproducibility: 5.72
+      pct_contribution_part: 89.06
+      pct_study_var_gage_rr: 33.07
+      pct_study_var_repeatability: 22.85
+      pct_study_var_reproducibility: 23.91
+      pct_study_var_part: 94.37
+      ndc: 4
+    tolerance:
+      var: 5.0e-4
+      pct: 0.01
+      pvalue: 5.0e-4

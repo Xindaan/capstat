@@ -33,6 +33,10 @@ from capstat_core.descriptive import (
     std_dev,
     variance,
 )
+from capstat_core.gage_rr import (
+    GageRRReport,
+    gage_rr,
+)
 from capstat_core.nonnormal import (
     BoxCoxCapability,
     CapabilityAnalysis,
@@ -94,6 +98,7 @@ __all__ = [
     "DescriptiveSummary",
     "DistributionFit",
     "EwmaChart",
+    "GageRRReport",
     "NormalityAssessment",
     "NormalityTestResult",
     "PercentileCapability",
@@ -112,6 +117,7 @@ __all__ = [
     "describe",
     "ewma_chart",
     "fit_distribution",
+    "gage_rr",
     "i_mr_chart",
     "iqr",
     "kurtosis",

@@ -14,29 +14,27 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **412 tests, 100 % coverage on both packages**, mypy strict, ruff clean,
-  OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
+- **403 core + 34 API tests, 100 % coverage on both packages**, mypy strict,
+  ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
+- **T-0011 (M4 Next.js app) is complete** (upload -> capability -> control
+  charts; vitest + Playwright in CI). **T-0012 (M5a Gage R&R) is in progress**:
+  the ANOVA method landed in `capstat-core` (`gage_rr`), average-and-range next.
 - **The core stays web-free.** fastapi/pandas/openpyxl live only in `apps/api`;
   `capstat-core` remains numpy+scipy and independently PyPI-publishable.
 - **The API is a faithful serialisation layer**, not a reinterpretation: every
   response mirrors a core dataclass (warnings tuples preserved, nullable
   indices kept as `null`, `nan` coerced to `null`, derived properties read by
   attribute). Every endpoint test asserts equality with the core's own output.
-- **T-0011 (Next.js app) is in progress.** Done: the typed TS client
-  (`openapi-typescript` -> `apps/web/lib/api-client/schema.d.ts`, drift-checked
-  in CI, closing the M3 contract); the Next 16 / React 19 / Tailwind v4
-  scaffold; the **upload flow** (`UploadPanel` -> `/ingest`, CORS on the API);
-  and the **capability dashboard** -- `Workspace` lifts the chosen column into
-  a `CapabilityDashboard` that runs the `/compute/capability/analyze` decision
-  path (normal / Box-Cox / percentile) and renders Pp/Ppk + Cp/Cpk, the path
-  rationale, the normality verdict, and an ECharts density histogram with
-  spec-limit lines + a fitted normal curve; plus **I-MR control charts** --
-  `ControlChartPanel` runs `/control-chart/i-mr` + `/rules/nelson` and draws the
-  Individuals and Moving-Range charts with limits, sigma zones, out-of-control
-  markers, and a Nelson run-rule overlay (all echarts work goes through a shared
-  `useEchart` hook). Pure numerics live in `lib/stats.ts` under **vitest** (21
-  tests) and a **Playwright** smoke test (API mocked) guards the whole flow;
-  both run in CI. **T-0011 M4 is complete.** Next milestone: T-0012 Gage R&R.
+- **Gage R&R (T-0012a, ANOVA method) landed in `capstat-core`.** `gage_rr()`
+  runs the crossed two-way random-effects model, applies the AIAG
+  interaction-drop rule (pool into repeatability when p > 0.25) and clamps
+  negative variance components to zero with a warning, and reports
+  %Contribution, %Study Variation, and ndc. Validated against the SPC-for-Excel
+  AIAG worked example (independently recomputed first) and a constructed
+  interaction-kept case. The average-and-range method (T-0012b) is next; it
+  needs d2* constants, computed from their definition rather than transcribed.
+- The core still exposes nothing web-facing for Gage R&R yet -- no API endpoint
+  or UI. That wiring is a later increment; T-0012 is core credibility first.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -63,15 +61,19 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0012 M5a Gage R&R (the MSA credibility centrepiece): ANOVA + average-and-
-   range methods; %Contribution, %Study Variation, ndc; validated against the
-   AIAG MSA-4 worked examples. When starting, move the finished T-0011 block
-   from Doing to Done.
+1. T-0012b — Gage R&R **average-and-range method** in `capstat-core`: compute
+   the d2* (bias-corrected, finite-subgroup) constants from their definition,
+   then EV/AV/PV -> GRR; cross-check it lands near the ANOVA result on the same
+   data. Same %/ndc summary as the ANOVA path.
 2. T-0013 M5b Bias, linearity, stability.
 3. T-0024 web run-rule selection UI (small, low priority).
 
 ## Last done
 
+- 2026-07-15: T-0012a — Gage R&R ANOVA method (`gage_rr`) in capstat-core:
+  variance components with AIAG interaction-drop + negative-variance clamp;
+  %Contribution/%Study Variation/ndc. Validated against an independently
+  recomputed AIAG worked example. 403 core tests, 100% coverage.
 - 2026-07-15: T-0011 sub-increment 6 — test safety net: pure numerics extracted
   to `lib/stats.ts` + vitest (21 tests); Playwright smoke test (API mocked);
   both wired into CI; README "Web app" section. **T-0011 M4 complete.**
