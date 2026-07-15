@@ -1,0 +1,2086 @@
+{
+  "components": {
+    "schemas": {
+      "AnalyzeCapabilityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "alpha": {
+            "default": 0.05,
+            "title": "Alpha",
+            "type": "number"
+          },
+          "data": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Data",
+            "type": "array"
+          },
+          "lsl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lsl"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "usl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usl"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "AnalyzeCapabilityRequest",
+        "type": "object"
+      },
+      "Body_ingest_file_ingest_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_file_ingest_post",
+        "type": "object"
+      },
+      "BoxCoxCapabilityOut": {
+        "properties": {
+          "capability": {
+            "$ref": "#/components/schemas/CapabilityReportOut"
+          },
+          "lmbda": {
+            "title": "Lmbda",
+            "type": "number"
+          },
+          "lsl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lsl"
+          },
+          "lsl_transformed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lsl Transformed"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "normality_after": {
+            "$ref": "#/components/schemas/NormalityAssessmentOut"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "target_transformed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Transformed"
+          },
+          "transform_successful": {
+            "title": "Transform Successful",
+            "type": "boolean"
+          },
+          "usl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usl"
+          },
+          "usl_transformed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usl Transformed"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lmbda",
+          "n",
+          "lsl",
+          "usl",
+          "target",
+          "lsl_transformed",
+          "usl_transformed",
+          "target_transformed",
+          "normality_after",
+          "transform_successful",
+          "capability",
+          "warnings"
+        ],
+        "title": "BoxCoxCapabilityOut",
+        "type": "object"
+      },
+      "CapabilityAnalysisOut": {
+        "properties": {
+          "box_cox": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoxCoxCapabilityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "normal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CapabilityReportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "normality": {
+            "$ref": "#/components/schemas/NormalityAssessmentOut"
+          },
+          "path": {
+            "enum": [
+              "normal",
+              "box-cox",
+              "percentile"
+            ],
+            "title": "Path",
+            "type": "string"
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PercentileCapabilityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp"
+          },
+          "ppk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppk"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "rationale",
+          "normality",
+          "normal",
+          "box_cox",
+          "percentile",
+          "pp",
+          "ppk",
+          "warnings"
+        ],
+        "title": "CapabilityAnalysisOut",
+        "type": "object"
+      },
+      "CapabilityReportOut": {
+        "properties": {
+          "cp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cp"
+          },
+          "cpk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpk"
+          },
+          "cpl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpl"
+          },
+          "cpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpm"
+          },
+          "cpu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu"
+          },
+          "lsl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lsl"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "normality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NormalityAssessmentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp"
+          },
+          "ppk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppk"
+          },
+          "ppl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppl"
+          },
+          "ppu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppu"
+          },
+          "sigma_overall": {
+            "title": "Sigma Overall",
+            "type": "number"
+          },
+          "sigma_within": {
+            "title": "Sigma Within",
+            "type": "number"
+          },
+          "stability_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stability Ratio"
+          },
+          "subgroup_size": {
+            "title": "Subgroup Size",
+            "type": "integer"
+          },
+          "subgroups": {
+            "title": "Subgroups",
+            "type": "integer"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "usl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usl"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "within_method": {
+            "enum": [
+              "pooled",
+              "rbar_d2",
+              "sbar_c4",
+              "moving_range"
+            ],
+            "title": "Within Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "n",
+          "subgroup_size",
+          "subgroups",
+          "mean",
+          "sigma_within",
+          "sigma_overall",
+          "within_method",
+          "lsl",
+          "usl",
+          "target",
+          "cp",
+          "cpl",
+          "cpu",
+          "cpk",
+          "cpm",
+          "pp",
+          "ppl",
+          "ppu",
+          "ppk",
+          "normality",
+          "warnings",
+          "stability_ratio"
+        ],
+        "title": "CapabilityReportOut",
+        "type": "object"
+      },
+      "CapabilityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "alpha": {
+            "default": 0.05,
+            "title": "Alpha",
+            "type": "number"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              }
+            ],
+            "minLength": 1,
+            "title": "Data"
+          },
+          "lsl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lsl"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "usl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usl"
+          },
+          "within_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pooled",
+                  "rbar_d2",
+                  "sbar_c4",
+                  "moving_range"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Within Method"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "CapabilityRequest",
+        "type": "object"
+      },
+      "ChartPairOut": {
+        "properties": {
+          "dispersion": {
+            "$ref": "#/components/schemas/ControlChartOut"
+          },
+          "in_control": {
+            "title": "In Control",
+            "type": "boolean"
+          },
+          "location": {
+            "$ref": "#/components/schemas/ControlChartOut"
+          },
+          "sigma_within": {
+            "title": "Sigma Within",
+            "type": "number"
+          },
+          "subgroup_size": {
+            "title": "Subgroup Size",
+            "type": "integer"
+          },
+          "subgroups": {
+            "title": "Subgroups",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "location",
+          "dispersion",
+          "sigma_within",
+          "subgroup_size",
+          "subgroups",
+          "warnings",
+          "in_control"
+        ],
+        "title": "ChartPairOut",
+        "type": "object"
+      },
+      "ControlChartOut": {
+        "properties": {
+          "in_control": {
+            "title": "In Control",
+            "type": "boolean"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/ControlLimitsOut"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "violations": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "points",
+          "limits",
+          "violations",
+          "in_control"
+        ],
+        "title": "ControlChartOut",
+        "type": "object"
+      },
+      "ControlLimitsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "center": {
+            "title": "Center",
+            "type": "number"
+          },
+          "lower": {
+            "title": "Lower",
+            "type": "number"
+          },
+          "upper": {
+            "title": "Upper",
+            "type": "number"
+          }
+        },
+        "required": [
+          "center",
+          "lower",
+          "upper"
+        ],
+        "title": "ControlLimitsIn",
+        "type": "object"
+      },
+      "ControlLimitsOut": {
+        "properties": {
+          "center": {
+            "title": "Center",
+            "type": "number"
+          },
+          "lower": {
+            "title": "Lower",
+            "type": "number"
+          },
+          "upper": {
+            "title": "Upper",
+            "type": "number"
+          }
+        },
+        "required": [
+          "center",
+          "lower",
+          "upper"
+        ],
+        "title": "ControlLimitsOut",
+        "type": "object"
+      },
+      "CusumChartOut": {
+        "properties": {
+          "H": {
+            "title": "H",
+            "type": "number"
+          },
+          "K": {
+            "title": "K",
+            "type": "number"
+          },
+          "h": {
+            "title": "H",
+            "type": "number"
+          },
+          "in_control": {
+            "title": "In Control",
+            "type": "boolean"
+          },
+          "k": {
+            "title": "K",
+            "type": "number"
+          },
+          "lower": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Lower",
+            "type": "array"
+          },
+          "sigma": {
+            "title": "Sigma",
+            "type": "number"
+          },
+          "target": {
+            "title": "Target",
+            "type": "number"
+          },
+          "upper": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Upper",
+            "type": "array"
+          },
+          "violations": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Violations",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "target",
+          "sigma",
+          "k",
+          "h",
+          "K",
+          "H",
+          "upper",
+          "lower",
+          "violations",
+          "warnings",
+          "in_control"
+        ],
+        "title": "CusumChartOut",
+        "type": "object"
+      },
+      "CusumRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Data",
+            "type": "array"
+          },
+          "h": {
+            "default": 5.0,
+            "title": "H",
+            "type": "number"
+          },
+          "k": {
+            "default": 0.5,
+            "title": "K",
+            "type": "number"
+          },
+          "sigma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "CusumRequest",
+        "type": "object"
+      },
+      "DescriptiveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "DescriptiveRequest",
+        "type": "object"
+      },
+      "DescriptiveSummaryOut": {
+        "properties": {
+          "iqr": {
+            "title": "Iqr",
+            "type": "number"
+          },
+          "kurtosis": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kurtosis"
+          },
+          "lag1_autocorrelation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lag1 Autocorrelation"
+          },
+          "maximum": {
+            "title": "Maximum",
+            "type": "number"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "median": {
+            "title": "Median",
+            "type": "number"
+          },
+          "minimum": {
+            "title": "Minimum",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "q1": {
+            "title": "Q1",
+            "type": "number"
+          },
+          "q3": {
+            "title": "Q3",
+            "type": "number"
+          },
+          "range": {
+            "title": "Range",
+            "type": "number"
+          },
+          "skewness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skewness"
+          },
+          "std_dev": {
+            "title": "Std Dev",
+            "type": "number"
+          },
+          "variance": {
+            "title": "Variance",
+            "type": "number"
+          }
+        },
+        "required": [
+          "n",
+          "mean",
+          "variance",
+          "std_dev",
+          "minimum",
+          "maximum",
+          "range",
+          "median",
+          "q1",
+          "q3",
+          "iqr",
+          "skewness",
+          "kurtosis",
+          "lag1_autocorrelation"
+        ],
+        "title": "DescriptiveSummaryOut",
+        "type": "object"
+      },
+      "EwmaChartOut": {
+        "properties": {
+          "L": {
+            "title": "L",
+            "type": "number"
+          },
+          "in_control": {
+            "title": "In Control",
+            "type": "boolean"
+          },
+          "lmbda": {
+            "title": "Lmbda",
+            "type": "number"
+          },
+          "lower": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Lower",
+            "type": "array"
+          },
+          "points": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "sigma": {
+            "title": "Sigma",
+            "type": "number"
+          },
+          "steady_state_limits": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Steady State Limits",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "number"
+          },
+          "upper": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Upper",
+            "type": "array"
+          },
+          "violations": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Violations",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lmbda",
+          "L",
+          "target",
+          "sigma",
+          "points",
+          "upper",
+          "lower",
+          "steady_state_limits",
+          "violations",
+          "warnings",
+          "in_control"
+        ],
+        "title": "EwmaChartOut",
+        "type": "object"
+      },
+      "EwmaRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "L": {
+            "default": 3.0,
+            "title": "L",
+            "type": "number"
+          },
+          "data": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Data",
+            "type": "array"
+          },
+          "lmbda": {
+            "default": 0.2,
+            "title": "Lmbda",
+            "type": "number"
+          },
+          "sigma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "time_varying_limits": {
+            "default": true,
+            "title": "Time Varying Limits",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "EwmaRequest",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IMRRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "IMRRequest",
+        "type": "object"
+      },
+      "IngestColumn": {
+        "properties": {
+          "dropped_missing": {
+            "title": "Dropped Missing",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "values",
+          "dropped_missing"
+        ],
+        "title": "IngestColumn",
+        "type": "object"
+      },
+      "IngestResponse": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/IngestColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "ignored_columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ignored Columns",
+            "type": "array"
+          },
+          "n_rows": {
+            "title": "N Rows",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "n_rows",
+          "columns",
+          "ignored_columns",
+          "warnings"
+        ],
+        "title": "IngestResponse",
+        "type": "object"
+      },
+      "NormalityAssessmentOut": {
+        "properties": {
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "anderson_darling": {
+            "$ref": "#/components/schemas/NormalityTestResultOut"
+          },
+          "lag1_autocorrelation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lag1 Autocorrelation"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "normal": {
+            "title": "Normal",
+            "type": "boolean"
+          },
+          "recommendation": {
+            "title": "Recommendation",
+            "type": "string"
+          },
+          "shapiro_wilk": {
+            "$ref": "#/components/schemas/NormalityTestResultOut"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "n",
+          "alpha",
+          "anderson_darling",
+          "shapiro_wilk",
+          "lag1_autocorrelation",
+          "normal",
+          "warnings",
+          "recommendation"
+        ],
+        "title": "NormalityAssessmentOut",
+        "type": "object"
+      },
+      "NormalityTestResultOut": {
+        "properties": {
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "normal": {
+            "title": "Normal",
+            "type": "boolean"
+          },
+          "p_value": {
+            "title": "P Value",
+            "type": "number"
+          },
+          "statistic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statistic"
+          },
+          "test": {
+            "title": "Test",
+            "type": "string"
+          }
+        },
+        "required": [
+          "test",
+          "n",
+          "statistic",
+          "p_value",
+          "alpha",
+          "normal"
+        ],
+        "title": "NormalityTestResultOut",
+        "type": "object"
+      },
+      "PercentileCapabilityOut": {
+        "properties": {
+          "distribution": {
+            "title": "Distribution",
+            "type": "string"
+          },
+          "fit_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fit Score"
+          },
+          "lsl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lsl"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "p_lower": {
+            "title": "P Lower",
+            "type": "number"
+          },
+          "p_median": {
+            "title": "P Median",
+            "type": "number"
+          },
+          "p_upper": {
+            "title": "P Upper",
+            "type": "number"
+          },
+          "params": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Params",
+            "type": "array"
+          },
+          "pp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pp"
+          },
+          "ppk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppk"
+          },
+          "ppl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppl"
+          },
+          "ppu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ppu"
+          },
+          "usl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usl"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "n",
+          "distribution",
+          "params",
+          "fit_score",
+          "lsl",
+          "usl",
+          "p_lower",
+          "p_median",
+          "p_upper",
+          "pp",
+          "ppl",
+          "ppu",
+          "ppk",
+          "warnings"
+        ],
+        "title": "PercentileCapabilityOut",
+        "type": "object"
+      },
+      "RuleViolationOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "point": {
+            "title": "Point",
+            "type": "integer"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "integer"
+          },
+          "rule_set": {
+            "title": "Rule Set",
+            "type": "string"
+          },
+          "window": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Window",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_set",
+          "rule",
+          "description",
+          "point",
+          "window"
+        ],
+        "title": "RuleViolationOut",
+        "type": "object"
+      },
+      "RulesRequest": {
+        "additionalProperties": false,
+        "description": "Run run-rules against an already-computed chart.\n\nThe rules are a lens over a chart: they derive their sigma zones from the\nchart's own limits, so the client passes the plotted points and the limits\nrather than raw data. ``rules`` selects a subset (Nelson himself advised\nagainst enabling all eight at once); ``None`` means all rules in the set.",
+        "properties": {
+          "limits": {
+            "$ref": "#/components/schemas/ControlLimitsIn"
+          },
+          "points": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          }
+        },
+        "required": [
+          "points",
+          "limits"
+        ],
+        "title": "RulesRequest",
+        "type": "object"
+      },
+      "SubgroupRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "subgroups": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "minItems": 1,
+            "title": "Subgroups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "subgroups"
+        ],
+        "title": "SubgroupRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Stateless HTTP surface over capstat-core: reference-validated SPC, process-capability and run-rule statistics, plus CSV/XLSX ingestion. Every response mirrors a core dataclass faithfully, warnings included.",
+    "title": "capstat API",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/compute/capability": {
+      "post": {
+        "operationId": "compute_capability_compute_capability_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CapabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Capability",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/capability/analyze": {
+      "post": {
+        "operationId": "compute_capability_analyze_compute_capability_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeCapabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityAnalysisOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Capability Analyze",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/control-chart/cusum": {
+      "post": {
+        "operationId": "compute_cusum_compute_control_chart_cusum_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CusumRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CusumChartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Cusum",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/control-chart/ewma": {
+      "post": {
+        "operationId": "compute_ewma_compute_control_chart_ewma_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EwmaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EwmaChartOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Ewma",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/control-chart/i-mr": {
+      "post": {
+        "operationId": "compute_i_mr_compute_control_chart_i_mr_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IMRRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartPairOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute I Mr",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/control-chart/xbar-r": {
+      "post": {
+        "operationId": "compute_xbar_r_compute_control_chart_xbar_r_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubgroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartPairOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Xbar R",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/control-chart/xbar-s": {
+      "post": {
+        "operationId": "compute_xbar_s_compute_control_chart_xbar_s_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubgroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartPairOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Xbar S",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/descriptive": {
+      "post": {
+        "operationId": "compute_descriptive_compute_descriptive_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptiveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescriptiveSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Descriptive",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/rules/nelson": {
+      "post": {
+        "operationId": "compute_nelson_rules_compute_rules_nelson_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleViolationOut"
+                  },
+                  "title": "Response Compute Nelson Rules Compute Rules Nelson Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Nelson Rules",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/rules/western-electric": {
+      "post": {
+        "operationId": "compute_western_electric_rules_compute_rules_western_electric_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleViolationOut"
+                  },
+                  "title": "Response Compute Western Electric Rules Compute Rules Western Electric Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Western Electric Rules",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/ingest": {
+      "post": {
+        "operationId": "ingest_file_ingest_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_file_ingest_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest File",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/rules/catalogue": {
+      "get": {
+        "description": "The human-readable rule descriptions, keyed by rule number.",
+        "operationId": "rules_catalogue_rules_catalogue_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "title": "Response Rules Catalogue Rules Catalogue Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rules Catalogue",
+        "tags": [
+          "meta"
+        ]
+      }
+    }
+  }
+}

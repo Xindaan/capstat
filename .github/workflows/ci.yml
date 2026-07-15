@@ -38,5 +38,8 @@ jobs:
       - name: Mypy (strict)
         run: uv run mypy
 
+      - name: OpenAPI schema drift
+        run: uv run python -m capstat_api.export_openapi --check
+
       - name: Pytest with coverage
-        run: uv run pytest --cov=capstat_core --cov-report=term-missing
+        run: uv run pytest --cov=capstat_core --cov=capstat_api --cov-report=term-missing

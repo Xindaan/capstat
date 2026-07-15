@@ -32,3 +32,10 @@ repos:
         types_or: [python, pyi]
         pass_filenames: false
         require_serial: true
+      - id: openapi-drift
+        name: openapi schema up to date
+        entry: uv run python -m capstat_api.export_openapi --check
+        language: system
+        files: ^apps/api/
+        pass_filenames: false
+        require_serial: true

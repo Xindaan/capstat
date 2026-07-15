@@ -280,11 +280,42 @@ certified values to the limit of double precision — see
 [the reference suite](packages/capstat-core/tests/references/) for the sources,
 the certified numbers, and a written justification for every tolerance.
 
+## HTTP API
+
+`apps/api` is a stateless FastAPI service that exposes every core statistic
+over HTTP and adds CSV/XLSX ingestion. The core stays web-free (numpy + scipy);
+pandas/openpyxl live only in the API package.
+
+```bash
+uv run uvicorn capstat_api.main:app --reload   # http://127.0.0.1:8000/docs
+```
+
+```bash
+curl -s http://127.0.0.1:8000/compute/capability \
+  -H 'content-type: application/json' \
+  -d '{"data": [10.1, 9.9, 10.0, 10.2, 9.8, 10.05], "lsl": 9.5, "usl": 10.5}'
+```
+
+Every response mirrors a core dataclass faithfully — the `warnings` arrays and
+the nullable capability indices survive serialisation rather than being
+flattened away. Endpoints: `/compute/descriptive`, `/compute/capability`,
+`/compute/capability/analyze`, `/compute/control-chart/{i-mr,xbar-r,xbar-s,ewma,cusum}`,
+`/compute/rules/{nelson,western-electric}`, and `/ingest` for files.
+
+The OpenAPI schema at `apps/api/openapi.json` is the single source of truth for
+the generated TypeScript client (added with the web app) and is checked for
+drift in CI:
+
+```bash
+uv run python -m capstat_api.export_openapi           # regenerate
+uv run python -m capstat_api.export_openapi --check    # fail on drift
+```
+
 ## Configuration
 
-capstat-core is configuration-free. The API server and web app (later
-milestones) are configured via environment variables, documented when they
-land.
+capstat-core is configuration-free. The API is stateless and needs no
+configuration to run; deployment-specific settings (CORS, host) are documented
+when the demo deployment lands.
 
 ## Troubleshooting
 
@@ -301,11 +332,12 @@ uv run pre-commit install     # enable pre-commit hooks
 uv run ruff check .           # lint
 uv run ruff format .          # format
 uv run mypy                   # type-check (strict)
-uv run pytest --cov=capstat_core   # tests with coverage
+uv run pytest --cov=capstat_core --cov=capstat_api   # tests with coverage
 ```
 
-Quality gates (enforced in CI): ruff (lint + format), mypy `--strict`, and
-pytest with ≥ 95 % coverage on capstat-core. See [AGENTS.md](AGENTS.md) for
+Quality gates (enforced in CI): ruff (lint + format), mypy `--strict`, an
+OpenAPI drift check, and pytest with ≥ 95 % coverage (currently 100 % on both
+capstat-core and capstat-api). See [AGENTS.md](AGENTS.md) for
 the full contributor workflow and [CONTRIBUTING.md](CONTRIBUTING.md) to get
 started.
 
@@ -315,7 +347,7 @@ capstat is a uv-managed monorepo:
 
 ```
 packages/capstat-core/   # pure numpy+scipy stats library, PyPI-publishable
-apps/api/                # FastAPI compute service (wraps the core)   [later]
+apps/api/                # FastAPI compute service (wraps the core)
 apps/web/                # Next.js dashboard                          [later]
 docs/                    # mkdocs-material site                       [later]
 ```
