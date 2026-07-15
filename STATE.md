@@ -65,6 +65,8 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Last done
 
+- 2026-07-15: T-0020 — CI actions bumped off Node.js 20 (checkout v7, setup-uv
+  v8, setup-node v7); no input breakage, warnings gone.
 - 2026-07-15: T-0011 sub-increment 3 — upload flow: `UploadPanel` POSTs to
   `/ingest`, ingestion warnings + column picker surfaced, verified in-browser;
   API `CORSMiddleware` (env-configurable), 4 CORS tests; uv-workspace excludes

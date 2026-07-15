@@ -54,11 +54,6 @@
   `test_normality.py` use those attributes and currently suppress the warning
   via `pytestmark`. Before scipy 1.19, pin Stephens' critical values in the
   reference YAML instead of reading them from scipy.
-- T-0020 CI: `actions/checkout@v4` and `astral-sh/setup-uv@v6` still target the
-  deprecated Node.js 20 runtime (GitHub forces them onto Node 24 and warns on
-  every run). Bump to the Node-24 native majors when released; dependabot
-  (github-actions, weekly) will likely raise this PR on its own. Cosmetic
-  today, breaking once GitHub drops the shim.
 - T-0022 starlette TestClient deprecation: FastAPI's `TestClient` rides on
   `httpx`, and starlette 1.3 warns "install `httpx2` instead"; it also renamed
   the `HTTP_4xx_*` status constants (ENTITY -> CONTENT). capstat's API code
@@ -73,6 +68,12 @@
 
 ## Done
 
+- T-0020 (2026-07-15) CI actions bumped off the deprecated Node.js 20 runtime:
+  `actions/checkout@v4->v7`, `astral-sh/setup-uv@v6->v8`,
+  `actions/setup-node@v4->v7`. Verified none of the breaking changes touch
+  inputs we use (checkout takes none; setup-node's v5 auto-cache is additive to
+  our explicit `cache: npm`; setup-uv dropped only `server-url` / the old custom
+  manifest). CI green, Node-20 warnings gone.
 - T-0010 (2026-07-15) M3 FastAPI service. New workspace member `apps/api`
   (`capstat_api`): stateless compute endpoints over every core entry point,
   `/ingest` for CSV/XLSX, `/health`, `/rules/catalogue`. OpenAPI schema
