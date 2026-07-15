@@ -69,11 +69,12 @@
 ## Done
 
 - T-0020 (2026-07-15) CI actions bumped off the deprecated Node.js 20 runtime:
-  `actions/checkout@v4->v7`, `astral-sh/setup-uv@v6->v8`,
+  `actions/checkout@v4->v7`, `astral-sh/setup-uv@v6->v7`,
   `actions/setup-node@v4->v7`. Verified none of the breaking changes touch
   inputs we use (checkout takes none; setup-node's v5 auto-cache is additive to
   our explicit `cache: npm`; setup-uv dropped only `server-url` / the old custom
-  manifest). CI green, Node-20 warnings gone.
+  manifest). setup-uv stopped at v7 on purpose: v8 removed the moving major tag,
+  so `@v8` does not resolve -- only full versions do. CI green, warnings gone.
 - T-0010 (2026-07-15) M3 FastAPI service. New workspace member `apps/api`
   (`capstat_api`): stateless compute endpoints over every core entry point,
   `/ingest` for CSV/XLSX, `/health`, `/rules/catalogue`. OpenAPI schema
