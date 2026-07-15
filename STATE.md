@@ -30,8 +30,11 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   a `CapabilityDashboard` that runs the `/compute/capability/analyze` decision
   path (normal / Box-Cox / percentile) and renders Pp/Ppk + Cp/Cpk, the path
   rationale, the normality verdict, and an ECharts density histogram with
-  spec-limit lines + a fitted normal curve (verified in-browser on both a
-  normal and a skewed dataset). Next: ECharts control charts.
+  spec-limit lines + a fitted normal curve; plus **I-MR control charts** --
+  `ControlChartPanel` runs `/control-chart/i-mr` + `/rules/nelson` and draws the
+  Individuals and Moving-Range charts with limits, sigma zones, out-of-control
+  markers, and a Nelson run-rule overlay (all echarts work now goes through a
+  shared `useEchart` hook). Next: eslint/prettier/vitest + Playwright + polish.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -58,15 +61,16 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0011 sub-increment 5 — **ECharts control charts**: I-MR/Xbar via
-   `markLine`/`markArea` for limits + zones, violation markers, run-rule
-   overlay. The chosen column (and/or subgroups) from `Workspace` is the input.
-2. T-0011 sub-increment 6 — eslint/prettier/vitest + a Playwright smoke test;
-   polish (incl. a "run the web app" section in the README).
-3. T-0012 M5a Gage R&R (the MSA credibility centrepiece).
+1. T-0011 sub-increment 6 — eslint/prettier/vitest + a Playwright smoke test;
+   polish (run-rule selection UI; a "run the web app" section in the README).
+2. T-0012 M5a Gage R&R (the MSA credibility centrepiece).
+3. T-0013 M5b Bias, linearity, stability.
 
 ## Last done
 
+- 2026-07-15: T-0011 sub-increment 5 — I-MR control charts (Individuals + MR,
+  limits/zones/violations + Nelson run-rule overlay); shared `useEchart` hook,
+  histogram refactored onto it. Verified in-browser (spike + run dataset).
 - 2026-07-15: T-0011 sub-increment 4 — capability dashboard: decision-path
   analyze call, Pp/Ppk + Cp/Cpk, ECharts histogram with spec limits + normal
   fit; verified in-browser on normal + Box-Cox data. Fixed two chart bugs

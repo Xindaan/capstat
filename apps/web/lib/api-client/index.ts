@@ -37,6 +37,31 @@ export interface SpecLimits {
  * normality assessment -> normal / Box-Cox / percentile -> Pp, Ppk. The core
  * rejects a call with no spec limits (surfaced here as the API's 422).
  */
+export type ChartPair = components["schemas"]["ChartPairOut"];
+export type ControlChartData = components["schemas"]["ControlChartOut"];
+export type ControlLimits = components["schemas"]["ControlLimitsOut"];
+export type RuleViolation = components["schemas"]["RuleViolationOut"];
+
+/** Individuals + moving-range chart from ungrouped measurements. */
+export function imrChart(data: number[]) {
+  return api.POST("/compute/control-chart/i-mr", { body: { data } });
+}
+
+/**
+ * Nelson run-rules over an already-computed chart. The rules read their sigma
+ * zones from the chart's own limits, so the caller passes plotted points +
+ * limits, not raw data. `rules` selects a subset (null = the whole set).
+ */
+export function nelsonRules(
+  points: number[],
+  limits: ControlLimits,
+  rules: number[] | null = null,
+) {
+  return api.POST("/compute/rules/nelson", {
+    body: { points, limits, rules },
+  });
+}
+
 export function analyzeCapability(data: number[], limits: SpecLimits) {
   return api.POST("/compute/capability/analyze", {
     body: {

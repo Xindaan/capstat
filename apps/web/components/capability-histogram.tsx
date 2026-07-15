@@ -1,13 +1,13 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import type { ECharts } from "echarts";
+import { useMemo } from "react";
+import type { EChartsOption } from "echarts";
+import type {
+  CustomSeriesRenderItemAPI,
+  CustomSeriesRenderItemParams,
+} from "echarts";
+
+import { useEchart, usePrefersDark } from "@/lib/echarts";
 
 export interface NormalFit {
   mean: number;
@@ -111,24 +111,7 @@ function themeFor(dark: boolean): Theme {
       };
 }
 
-const DARK_QUERY = "(prefers-color-scheme: dark)";
-
-/** Track the colour scheme without a setState-in-effect (React's blessed way). */
-function usePrefersDark(): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const mq = window.matchMedia(DARK_QUERY);
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    },
-    () => window.matchMedia(DARK_QUERY).matches,
-    () => false,
-  );
-}
-
 export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<ECharts | null>(null);
   const dark = usePrefersDark();
 
   const bins = useMemo(() => histogram(values), [values]);
@@ -156,38 +139,7 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
     });
   }, [fit, domain]);
 
-  // Bumped once the chart is live. echarts is imported asynchronously, so the
-  // option effect below cannot rely on chartRef being set on first paint (nor
-  // after a StrictMode remount) -- keying it on this nonce re-applies the option
-  // every time a fresh chart is created.
-  const [initNonce, setInitNonce] = useState(0);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    let disposed = false;
-    let observer: ResizeObserver | undefined;
-
-    void import("echarts").then((echarts) => {
-      if (disposed) return;
-      const chart = echarts.init(el, undefined, { renderer: "canvas" });
-      chartRef.current = chart;
-      observer = new ResizeObserver(() => chart.resize());
-      observer.observe(el);
-      setInitNonce((n) => n + 1);
-    });
-
-    return () => {
-      disposed = true;
-      observer?.disconnect();
-      chartRef.current?.dispose();
-      chartRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
+  const buildOption = (): EChartsOption => {
     const t = themeFor(dark);
 
     const specLine = (value: number, color: string, name: string) => ({
@@ -206,8 +158,7 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
       target != null ? specLine(target, t.target, "Target") : null,
     ].filter((v): v is NonNullable<typeof v> => v != null);
 
-    chart.setOption(
-      {
+    return {
         animation: false,
         grid: { left: 8, right: 16, top: 24, bottom: 24, containLabel: true },
         tooltip: {
@@ -239,16 +190,12 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
             encode: { x: [0, 1], y: 2, tooltip: [2] },
             data: bins.bars,
             renderItem: (
-              _params: unknown,
-              api: {
-                value: (i: number) => number;
-                coord: (p: [number, number]) => [number, number];
-                style: () => object;
-              },
+              _params: CustomSeriesRenderItemParams,
+              api: CustomSeriesRenderItemAPI,
             ) => {
-              const x0 = api.value(0);
-              const x1 = api.value(1);
-              const y = api.value(2);
+              const x0 = api.value(0) as number;
+              const x1 = api.value(1) as number;
+              const y = api.value(2) as number;
               const start = api.coord([x0, y]);
               const base = api.coord([x1, 0]);
               return {
@@ -285,13 +232,10 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
               ]
             : []),
         ],
-      },
-      { notMerge: true },
-    );
-    // If the chart initialised before layout settled (0-width), the option
-    // above is drawn at the real size now.
-    chart.resize();
-  }, [bins, pdfLine, domain, lsl, usl, target, dark, initNonce]);
+    };
+  };
 
-  return <div ref={containerRef} className="h-72 w-full" />;
+  const ref = useEchart(buildOption, [bins, pdfLine, domain, lsl, usl, target, dark]);
+
+  return <div ref={ref} className="h-72 w-full" />;
 }

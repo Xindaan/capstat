@@ -44,9 +44,26 @@
      option after every (re)init; (b) a spec limit outside the data range was
      clipped by the auto-fit x-axis and silently vanished -- fixed by pinning
      `xAxis.min/max` to a domain that always includes the limits.
-  5. **[next]** Control charts: I-MR/Xbar via ECharts `markLine`/`markArea` for
-     limits + zones; violation markers; run-rule overlay.
-  6. eslint/prettier/vitest + a Playwright smoke test; polish.
+  5. **[done 2026-07-15]** Control charts: `ControlChartPanel` auto-runs
+     `/control-chart/i-mr` on the chosen column and renders two `ControlChart`s
+     (Individuals + Moving Range) with CL / UCL / LCL markLines, +/-1 & +/-2
+     sigma zone lines (individuals), red out-of-control markers, and an amber
+     run-rule overlay + list from `/rules/nelson` (default rules 1-4, honouring
+     the API's advice against all eight at once). In-control badge; chart
+     warnings surfaced. The fragile async-echarts init logic was extracted into
+     a shared `useEchart` hook (`lib/echarts.ts`) and the histogram refactored
+     onto it -- one place owns the init-nonce / ResizeObserver / dispose dance,
+     both charts share it. Verified in-browser on a seeded dataset with a
+     deliberate out-of-limit spike + a run (both charts, markers, and rule list
+     correct; histogram re-verified post-refactor).
+     Note (core, not web): a non-normal column whose Box-Cox transform collapses
+     LSL and USL to near-equal values yields a core 422 "lsl must be strictly
+     below usl" on the transformed scale; the dashboard surfaces it faithfully.
+     Possibly worth a clearer core message later. Not filed as a task yet.
+     Deferred: Xbar-R/S needs subgroup input (ingest gives flat columns) -- a
+     grouping UI, later.
+  6. **[next]** eslint/prettier/vitest + a Playwright smoke test; polish
+     (run-rule selection UI; a "run the web app" README section).
 
 ## Backlog
 - T-0012 M5a Gage R&R: ANOVA method + average-and-range method;
