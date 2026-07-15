@@ -4,27 +4,8 @@
 
 <!-- max 3 -->
 
-- T-0012 M5a Gage R&R (measurement-system analysis), `capstat-core`.
-  Acceptance: ANOVA + average-and-range methods; %Contribution, %Study
-  Variation, ndc; validated against an AIAG worked example.
-  a. **[done 2026-07-15]** ANOVA method. Crossed two-way random-effects model
-     (`gage_rr()` -> frozen `GageRRReport`). Variance components via the AIAG
-     estimators, with the interaction-drop rule (pool the interaction into
-     repeatability when its F-test is not significant, p > 0.25) and
-     negative-variance clamping (a component below zero is reported as zero with
-     a warning). Exposes %Contribution, %Study Variation, ndc (1.41 * PV/GRR),
-     optional precision-to-tolerance, and AIAG verdict warnings. Validated
-     against the SPC-for-Excel AIAG worked example (5x3x3) -- whose ANOVA table
-     and every component I recomputed independently in plain numpy first -- plus
-     a constructed interaction-kept case cross-checked against a second ANOVA
-     implementation, and algebraic identities. 403 core tests, 100% coverage,
-     mypy strict + ruff clean.
-  b. **[next]** Average-and-range method. Needs the d2* (bias-corrected d2)
-     constants for the operator-range and part-range; compute them from their
-     definition (finite number of subgroups), not the AIAG K1/K2/K3 table --
-     same "compute, don't transcribe" rule as the control-chart constants.
-     Then GRR = sqrt(EV^2 + AV^2), and the same %/ndc summary. Cross-check that
-     it lands close to the ANOVA result on the same data.
+- (Doing is clear -- T-0012 M5a Gage R&R shipped, both methods. Next milestone
+  in Backlog: T-0013 M5b bias/linearity/stability, or the Gage R&R API/UI.)
 
 ## Backlog
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
@@ -70,6 +51,28 @@
 
 ## Done
 
+- T-0012 (2026-07-15) M5a Gage R&R (measurement-system analysis) in
+  `capstat-core`, both AIAG methods.
+  * **ANOVA** (`gage_rr`): crossed two-way random-effects model; variance
+    components with the interaction-drop rule (pool when the F-test's p > 0.25)
+    and negative-variance clamping; %Contribution, %Study Variation, ndc
+    (1.41 * PV/GRR), optional precision-to-tolerance, AIAG verdict warnings.
+  * **Average-and-range** (`gage_rr_range`): EV = Rbar/d2(r),
+    AV = sqrt((Xdiff/d2*(o,1))^2 - EV^2/(pr)), PV = Rp/d2*(p,1); shares the same
+    `GageRRReport`. New `d2_star(n, g) = sqrt(d2^2 + d3^2/g)` in constants.py,
+    computed from the existing d2/d3 (not transcribed) and validated against
+    Duncan's published table -- it is exactly what the AIAG K2/K3 constants
+    encode.
+  * Validation: the ANOVA path against the SPC-for-Excel AIAG worked example
+    (independently recomputed in plain numpy first); the average-and-range path
+    against the published AIAG 10-part summary and an independent oracle on the
+    5-part data; the two methods cross-checked to agree on the same data
+    (33% vs 34% GRR). 412 core tests, 100% coverage, mypy strict + ruff clean.
+  * Also hardened a pre-existing d3 timing test that flakes under coverage
+    instrumentation (sub-second wall-clock assert): the tight bound now applies
+    only when no line tracer is active; under coverage a generous ceiling still
+    catches the order-of-magnitude scipy regression it guards against.
+  * Core-only: no Gage R&R API endpoint or UI yet (a later increment).
 - T-0011 (2026-07-15) M4 Next.js app -- all six sub-increments: typed TS client
   (openapi-typescript, drift-checked); Next 16 / React 19 / Tailwind v4 scaffold;
   upload flow (`/ingest` + CORS); capability dashboard (decision-path analyze +

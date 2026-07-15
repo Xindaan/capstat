@@ -14,27 +14,27 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **403 core + 34 API tests, 100 % coverage on both packages**, mypy strict,
+- **412 core + 34 API tests, 100 % coverage on both packages**, mypy strict,
   ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-- **T-0011 (M4 Next.js app) is complete** (upload -> capability -> control
-  charts; vitest + Playwright in CI). **T-0012 (M5a Gage R&R) is in progress**:
-  the ANOVA method landed in `capstat-core` (`gage_rr`), average-and-range next.
+- **T-0011 (M4 Next.js app) and T-0012 (M5a Gage R&R, both methods) are
+  complete.** The web app covers upload -> capability -> control charts; the
+  core now has ANOVA and average-and-range Gage R&R.
 - **The core stays web-free.** fastapi/pandas/openpyxl live only in `apps/api`;
   `capstat-core` remains numpy+scipy and independently PyPI-publishable.
 - **The API is a faithful serialisation layer**, not a reinterpretation: every
   response mirrors a core dataclass (warnings tuples preserved, nullable
   indices kept as `null`, `nan` coerced to `null`, derived properties read by
   attribute). Every endpoint test asserts equality with the core's own output.
-- **Gage R&R (T-0012a, ANOVA method) landed in `capstat-core`.** `gage_rr()`
-  runs the crossed two-way random-effects model, applies the AIAG
-  interaction-drop rule (pool into repeatability when p > 0.25) and clamps
-  negative variance components to zero with a warning, and reports
-  %Contribution, %Study Variation, and ndc. Validated against the SPC-for-Excel
-  AIAG worked example (independently recomputed first) and a constructed
-  interaction-kept case. The average-and-range method (T-0012b) is next; it
-  needs d2* constants, computed from their definition rather than transcribed.
-- The core still exposes nothing web-facing for Gage R&R yet -- no API endpoint
-  or UI. That wiring is a later increment; T-0012 is core credibility first.
+- **Gage R&R (T-0012) is complete in `capstat-core`, both AIAG methods.**
+  `gage_rr()` (ANOVA: crossed random-effects model, interaction-drop rule,
+  negative-variance clamp) and `gage_rr_range()` (average-and-range: EV/AV/PV
+  from ranges and the new `d2_star(n,g)=sqrt(d2^2+d3^2/g)` constant) share one
+  `GageRRReport` and report %Contribution, %Study Variation, and ndc. Validated
+  against AIAG worked examples (independently recomputed) and cross-checked
+  method-to-method. d2_star is computed from the core's own d2/d3, not
+  transcribed, and matches Duncan's published table.
+- The core exposes nothing web-facing for Gage R&R yet -- no API endpoint or UI.
+  That wiring is a later increment; T-0012 was core credibility first.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -61,19 +61,20 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0012b — Gage R&R **average-and-range method** in `capstat-core`: compute
-   the d2* (bias-corrected, finite-subgroup) constants from their definition,
-   then EV/AV/PV -> GRR; cross-check it lands near the ANOVA result on the same
-   data. Same %/ndc summary as the ANOVA path.
-2. T-0013 M5b Bias, linearity, stability.
+1. Gage R&R API + UI (deferred from T-0012): expose `/compute/gage-rr` (and the
+   average-and-range variant) in `apps/api`, then a data-entry grid + report in
+   `apps/web`. The one genuinely new wrinkle is 3-D input (parts x operators x
+   trials) through the ingest/JSON layer.
+2. T-0013 M5b Bias, linearity, stability (core).
 3. T-0024 web run-rule selection UI (small, low priority).
 
 ## Last done
 
-- 2026-07-15: T-0012a — Gage R&R ANOVA method (`gage_rr`) in capstat-core:
-  variance components with AIAG interaction-drop + negative-variance clamp;
-  %Contribution/%Study Variation/ndc. Validated against an independently
-  recomputed AIAG worked example. 403 core tests, 100% coverage.
+- 2026-07-15: T-0012 — Gage R&R complete in capstat-core, both AIAG methods:
+  `gage_rr` (ANOVA) + `gage_rr_range` (average-and-range) sharing one report;
+  new `d2_star` constant from d2/d3, validated against Duncan's table; methods
+  cross-checked to agree. Hardened a coverage-flaky d3 timing test. 412 core
+  tests, 100% coverage.
 - 2026-07-15: T-0011 sub-increment 6 — test safety net: pure numerics extracted
   to `lib/stats.ts` + vitest (21 tests); Playwright smoke test (API mocked);
   both wired into CI; README "Web app" section. **T-0011 M4 complete.**

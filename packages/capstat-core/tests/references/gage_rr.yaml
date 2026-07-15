@@ -29,6 +29,22 @@ sources:
     note: >
       5 parts, 3 operators, 3 trials. Interaction not significant (p = 0.9964),
       so the ANOVA is re-run without it and the components pooled.
+  duncan_d2_star:
+    title: >
+      Duncan, A. J. Quality Control and Industrial Statistics, 5th ed.,
+      Table D3 (d2* factors); reproduced in the AIAG MSA manual appendix.
+    note: >
+      capstat computes d2*(n, g) = sqrt(d2(n)^2 + d3(n)^2 / g) from its own d2/d3
+      rather than copying the table. The AIAG K2 and K3 constants are 1 / d2*(.,
+      1): K2(2 operators) = 1/1.4142 = 0.7071, K3(10 parts) = 1/3.179 = 0.3146.
+  average_range_10part:
+    title: "SPC for Excel: Three Methods to Analyze Gage R&R Studies"
+    url: https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/three-methods-analyze-gage-rr-studies/
+    retrieved: 2026-07-15
+    note: >
+      The canonical AIAG 10-part x 3-operator x 3-trial average-and-range
+      example. Summary ranges Rbar = 0.342, X_diff = 0.445, Rp = 3.511 give
+      EV = 0.202, AV = 0.230, PV = 1.104, GRR = 0.306, TV = 1.146, %GRR = 26.68.
 
 cases:
   - id: spc-anova-gage-rr-pooled
@@ -67,3 +83,48 @@ cases:
       var: 5.0e-4
       pct: 0.01
       pvalue: 5.0e-4
+
+  # d2*(n, 1): computed from d2/d3, checked against Duncan's published table.
+  - id: d2-star-duncan-table
+    method: d2_star
+    description: >
+      d2* for a single range (g = 1), the case the average-and-range method
+      leans on. Printed to two decimals in the table, so the tolerance is set by
+      the table, not by our computation.
+    expected:
+      2: 1.41
+      3: 1.91
+      4: 2.24
+      5: 2.48
+      6: 2.67
+      7: 2.83
+      8: 2.96
+      9: 3.08
+      10: 3.18
+    tolerance:
+      abs: 5.0e-3
+
+  # The published AIAG 10-part average-and-range worked example, pinned at the
+  # summary-range level (we do not have its 90 raw values). This checks the
+  # constants (d2, d2*) and the EV/AV/PV/GRR formulas against AIAG's own numbers.
+  - id: average-range-aiag-10part-summary
+    method: gage_rr_range_from_ranges
+    description: >
+      Rbar, X_diff and Rp from AIAG's 10x3x3 example -> EV, AV, PV, GRR, %GRR.
+    input:
+      rbar_bar: 0.342
+      x_diff: 0.445
+      range_parts: 3.511
+      parts: 10
+      operators: 3
+      trials: 3
+    expected:
+      ev: 0.202
+      av: 0.230
+      pv: 1.104
+      gage_rr: 0.306
+      total: 1.146
+      pct_study_var_gage_rr: 26.68
+    tolerance:
+      sd: 1.0e-3
+      pct: 0.05

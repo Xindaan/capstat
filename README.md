@@ -310,6 +310,13 @@ warning, rather than printed as a negative variance. %Contribution, %Study
 Variation, and the number of distinct categories all fall out of the same
 components.
 
+The older **average-and-range** method is available too (`gage_rr_range`), for
+comparison or hand-calculation parity. It estimates each standard deviation from
+a range and a bias-correction constant — including `d2_star(n, g)`, the
+finite-sample d2 that the AIAG K2/K3 tables encode. capstat computes it from its
+own `d2`/`d3` as `sqrt(d2² + d3²/g)` rather than copying the table, and checks it
+against the published values. On the same data the two methods agree closely.
+
 ## HTTP API
 
 `apps/api` is a stateless FastAPI service that exposes every core statistic

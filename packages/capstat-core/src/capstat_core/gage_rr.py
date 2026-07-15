@@ -68,16 +68,23 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
+from capstat_core.constants import d2, d2_star
+
 __all__ = [
     "NDC_MULTIPLIER",
+    "GageRRMethod",
     "GageRRReport",
     "gage_rr",
+    "gage_rr_range",
 ]
+
+GageRRMethod = Literal["anova", "average_range"]
 
 #: AIAG MSA-4 defines ndc = 1.41 * (PV / GRR); 1.41 is its rounding of sqrt(2),
 #: which is the signal-to-noise factor behind the number of distinct categories.
@@ -104,12 +111,15 @@ class GageRRReport:
     parts apart at all (>= 5 wanted).
     """
 
+    method: GageRRMethod
     n_parts: int
     n_operators: int
     n_trials: int
 
+    # ANOVA only; the average-and-range method does not model an interaction, so
+    # ``interaction_pvalue`` is ``None`` and ``var_interaction`` is zero there.
     interaction_included: bool
-    interaction_pvalue: float
+    interaction_pvalue: float | None
 
     # Independent variance components; the rest derive from these.
     var_repeatability: float
@@ -325,6 +335,7 @@ def gage_rr(
     )
 
     return GageRRReport(
+        method="anova",
         n_parts=p,
         n_operators=o,
         n_trials=r,
@@ -333,6 +344,88 @@ def gage_rr(
         var_repeatability=var_repeatability,
         var_operator=var_operator,
         var_interaction=var_interaction,
+        var_part=var_part,
+        study_var_multiplier=study_var_multiplier,
+        tolerance=tolerance,
+        warnings=tuple(warnings),
+    )
+
+
+def gage_rr_range(
+    data: npt.ArrayLike,
+    *,
+    tolerance: float | None = None,
+    study_var_multiplier: float = DEFAULT_STUDY_VAR_MULTIPLIER,
+) -> GageRRReport:
+    """The classic average-and-range Gage R&R (AIAG's older, hand-computable one).
+
+    Rather than an ANOVA, this estimates each standard deviation from a range and
+    a bias-correction constant::
+
+        EV = Rbar_bar / d2(r)                            (repeatability)
+        AV = sqrt( (X_diff / d2*(o, 1))^2 - EV^2 / (p*r) )   (reproducibility)
+        PV = Rp / d2*(p, 1)                              (part variation)
+
+    where ``Rbar_bar`` is the mean of the p*o part-operator ranges, ``X_diff``
+    the range of the operator averages, and ``Rp`` the range of the part
+    averages. ``GRR = sqrt(EV^2 + AV^2)``. The ``d2*`` constants (see
+    :func:`~capstat_core.constants.d2_star`) are what the AIAG K2/K3 tables
+    encode; EV uses the ordinary ``d2`` because it pools many ranges.
+
+    It cannot separate the operator effect from the part-operator interaction --
+    that is the ANOVA method's advantage (:func:`gage_rr`) -- so the returned
+    report carries all of reproducibility under ``var_operator`` with
+    ``var_interaction = 0`` and ``interaction_pvalue = None``. The two methods
+    agree closely when the interaction is small.
+
+    Parameters and errors are as for :func:`gage_rr` (a balanced 3-D
+    ``(parts, operators, trials)`` array). When the appraiser-range term is
+    smaller than the repeatability it removes, ``AV`` would be imaginary; it is
+    clamped to zero with a warning instead.
+    """
+    if tolerance is not None and tolerance <= 0.0:
+        raise ValueError(f"tolerance must be positive, got {tolerance}")
+
+    arr = _as_layout(data)
+    p, o, r = arr.shape
+
+    ranges = arr.max(axis=2) - arr.min(axis=2)  # (parts x operators)
+    rbar_bar = float(ranges.mean())
+    operator_means = arr.mean(axis=(0, 2))
+    part_means = arr.mean(axis=(1, 2))
+    x_diff = float(operator_means.max() - operator_means.min())
+    range_parts = float(part_means.max() - part_means.min())
+
+    warnings: list[str] = []
+
+    ev = rbar_bar / d2(r)
+    av_squared = (x_diff / d2_star(o, 1)) ** 2 - ev**2 / (p * r)
+    if av_squared < 0.0:
+        av = 0.0
+        warnings.append(
+            "appraiser variation came out below repeatability and was clamped "
+            "to zero (reproducibility is indistinguishable from zero)"
+        )
+    else:
+        av = math.sqrt(av_squared)
+    pv = range_parts / d2_star(p, 1)
+
+    var_repeatability = ev**2
+    var_operator = av**2
+    var_part = pv**2
+
+    warnings += _verdict_warnings(var_repeatability + var_operator, var_part)
+
+    return GageRRReport(
+        method="average_range",
+        n_parts=p,
+        n_operators=o,
+        n_trials=r,
+        interaction_included=False,
+        interaction_pvalue=None,
+        var_repeatability=var_repeatability,
+        var_operator=var_operator,
+        var_interaction=0.0,
         var_part=var_part,
         study_var_multiplier=study_var_multiplier,
         tolerance=tolerance,

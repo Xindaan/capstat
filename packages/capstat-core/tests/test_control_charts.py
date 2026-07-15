@@ -11,6 +11,7 @@ equalling ``3 * sigma_within / sqrt(n)``.
 from __future__ import annotations
 
 import math
+import sys
 import time
 
 import numpy as np
@@ -176,10 +177,28 @@ def test_constants_are_fast_enough_to_build_a_chart_with() -> None:
         d3(n)
     elapsed = time.perf_counter() - start
 
-    assert elapsed < 1.0, (
-        f"computing d3 for n=2..10 took {elapsed:.2f}s. It should take ~0.2s; "
-        f"1.5s *per call* means the integrand is calling scipy on scalars again."
+    # Under coverage the integrand's line-by-line tracing dominates the wall
+    # clock (~0.2s of real work becomes several seconds), so a sub-second bound
+    # would flake there. The regression this guards against is orders of
+    # magnitude -- 1.5s *per call*, i.e. ~13.5s bare and far worse instrumented --
+    # so a generous ceiling under instrumentation still catches it with room to
+    # spare, while the uninstrumented run keeps the tight bound.
+    limit = 12.0 if _line_tracing_active() else 1.0
+    assert elapsed < limit, (
+        f"computing d3 for n=2..10 took {elapsed:.2f}s (limit {limit}s). It "
+        "should take ~0.2s; 1.5s *per call* means the integrand is calling "
+        "scipy on scalars again."
     )
+
+
+def _line_tracing_active() -> bool:
+    """True when a line tracer (coverage) is running, via either mechanism."""
+    if sys.gettrace() is not None:
+        return True
+    monitoring = getattr(sys, "monitoring", None)
+    if monitoring is not None:
+        return monitoring.get_tool(monitoring.COVERAGE_ID) is not None
+    return False
 
 
 # ---------------------------------------------------------------------------

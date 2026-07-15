@@ -11,10 +11,12 @@ hold for any input.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pytest
 import yaml
-from capstat_core import GageRRReport, gage_rr
+from capstat_core import GageRRReport, d2, d2_star, gage_rr, gage_rr_range
 from capstat_core.gage_rr import NDC_MULTIPLIER
 from conftest import REFERENCES
 
@@ -222,6 +224,115 @@ def test_perfect_gage_has_no_distinct_category_ceiling() -> None:
     report = gage_rr(data)
     assert report.var_gage_rr == 0.0
     assert report.ndc is None
+
+
+# ---------------------------------------------------------------------------
+# Average-and-range method (and its d2* constant)
+# ---------------------------------------------------------------------------
+
+
+def _average_range_oracle(data: np.ndarray) -> dict[str, float]:
+    """Independent average-and-range computation, for cross-checking the module."""
+    p, o, r = data.shape
+    rbar = (data.max(axis=2) - data.min(axis=2)).mean()
+    op = data.mean(axis=(0, 2))
+    part = data.mean(axis=(1, 2))
+    x_diff = op.max() - op.min()
+    rp = part.max() - part.min()
+    ev = rbar / d2(r)
+    av = math.sqrt(max(0.0, (x_diff / d2_star(o, 1)) ** 2 - ev**2 / (p * r)))
+    pv = rp / d2_star(p, 1)
+    return {"ev": ev, "av": av, "pv": pv}
+
+
+def test_d2_star_matches_duncan_table() -> None:
+    case = CASES["d2-star-duncan-table"]
+    tol = case["tolerance"]["abs"]
+    for n, expected in case["expected"].items():
+        assert d2_star(int(n), 1) == pytest.approx(expected, abs=tol), f"d2*({n},1)"
+
+
+def test_d2_star_collapses_to_d2_for_many_ranges() -> None:
+    # With infinitely many ranges the finite-g correction vanishes.
+    for n in (2, 3, 5, 10):
+        assert d2_star(n, 10**9) == pytest.approx(d2(n), rel=1e-6)
+
+
+def test_d2_star_rejects_bad_range_count() -> None:
+    with pytest.raises(ValueError, match="number of ranges must be >= 1"):
+        d2_star(3, 0)
+    with pytest.raises(TypeError, match="number of ranges must be an int"):
+        d2_star(3, 1.5)  # type: ignore[arg-type]
+
+
+def test_average_range_reproduces_published_aiag_summary() -> None:
+    # AIAG's 10-part example, pinned at the range-summary level: this checks the
+    # constants (d2, d2*) and the EV/AV/PV/GRR formulas against AIAG's numbers.
+    case = CASES["average-range-aiag-10part-summary"]
+    inp, exp, tol = case["input"], case["expected"], case["tolerance"]
+    p, o, r = inp["parts"], inp["operators"], inp["trials"]
+    ev = inp["rbar_bar"] / d2(r)
+    av = math.sqrt((inp["x_diff"] / d2_star(o, 1)) ** 2 - ev**2 / (p * r))
+    pv = inp["range_parts"] / d2_star(p, 1)
+    grr = math.sqrt(ev**2 + av**2)
+    total = math.sqrt(grr**2 + pv**2)
+    assert ev == pytest.approx(exp["ev"], abs=tol["sd"])
+    assert av == pytest.approx(exp["av"], abs=tol["sd"])
+    assert pv == pytest.approx(exp["pv"], abs=tol["sd"])
+    assert grr == pytest.approx(exp["gage_rr"], abs=tol["sd"])
+    assert total == pytest.approx(exp["total"], abs=tol["sd"])
+    assert 100.0 * grr / total == pytest.approx(
+        exp["pct_study_var_gage_rr"], abs=tol["pct"]
+    )
+
+
+def test_average_range_pipeline_matches_independent_oracle() -> None:
+    data = np.array(CASES["spc-anova-gage-rr-pooled"]["input"]["data"])
+    report = gage_rr_range(data)
+    oracle = _average_range_oracle(data)
+
+    assert report.method == "average_range"
+    assert report.interaction_pvalue is None
+    assert report.interaction_included is False
+    assert report.var_interaction == 0.0
+    assert math.sqrt(report.var_repeatability) == pytest.approx(oracle["ev"], rel=1e-12)
+    assert math.sqrt(report.var_operator) == pytest.approx(oracle["av"], rel=1e-12)
+    assert math.sqrt(report.var_part) == pytest.approx(oracle["pv"], rel=1e-12)
+
+
+def test_the_two_methods_agree_on_the_same_data() -> None:
+    # ANOVA and average-and-range are different estimators; on data with a small
+    # interaction they should still land within a few points of each other.
+    data = np.array(CASES["spc-anova-gage-rr-pooled"]["input"]["data"])
+    anova = gage_rr(data)
+    rng = gage_rr_range(data)
+    assert rng.pct_study_var_gage_rr == pytest.approx(
+        anova.pct_study_var_gage_rr, abs=2.0
+    )
+
+
+def test_average_range_clamps_negative_appraiser_variation() -> None:
+    # Identical operators (no reproducibility) but noisy trials: the appraiser
+    # term is smaller than the repeatability it subtracts, so AV clamps to zero.
+    part_base = np.array([10.0, 20.0, 30.0, 40.0])
+    trial_noise = np.array([-1.0, 0.0, 1.0])
+    data = np.empty((4, 3, 3))
+    for i in range(4):
+        for j in range(3):
+            data[i, j, :] = part_base[i] + trial_noise
+    report = gage_rr_range(data)
+    assert report.var_operator == 0.0
+    assert any("clamped to zero" in w for w in report.warnings)
+
+
+def test_average_range_rejects_two_dimensional_data() -> None:
+    with pytest.raises(ValueError, match="3-D"):
+        gage_rr_range(np.zeros((3, 3)))
+
+
+def test_average_range_rejects_non_positive_tolerance() -> None:
+    with pytest.raises(ValueError, match="tolerance must be positive"):
+        gage_rr_range(_strong_interaction(), tolerance=-1.0)
 
 
 # ---------------------------------------------------------------------------

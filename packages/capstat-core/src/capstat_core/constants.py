@@ -44,6 +44,7 @@ __all__ = [
     "MAX_SUBGROUP_SIZE",
     "c4",
     "d2",
+    "d2_star",
     "d3",
 ]
 
@@ -211,6 +212,41 @@ def d3(n: int) -> float:
         hint="; the range is a poor scale estimator for subgroups that large",
     )
     return _d3_cached(n)
+
+
+def d2_star(n: int, g: int) -> float:
+    """Bias-corrected ``d2`` for the mean of ``g`` ranges of size ``n``.
+
+    When a scale estimate is built from the *average* of only a few ranges --
+    as the average-and-range Gage R&R does, with a single range of the operator
+    means or the part means -- the plain ``d2`` under-corrects. The relative
+    range ``W = R / sigma`` has mean ``d2(n)`` and standard deviation ``d3(n)``,
+    so the average of ``g`` independent ranges satisfies::
+
+        E[Rbar^2] = sigma^2 * (d2(n)^2 + d3(n)^2 / g)
+
+    and the divisor that makes ``Rbar / d2_star`` unbiased in that mean-square
+    sense is::
+
+        d2_star(n, g) = sqrt(d2(n)^2 + d3(n)^2 / g)
+
+    As ``g -> infinity`` this collapses to ``d2(n)`` (many ranges, no
+    correction). For ``g = 1`` it reproduces Duncan's tabulated d2* -- e.g.
+    ``d2_star(2, 1) = 1.4142``, ``d2_star(10, 1) = 3.179`` -- which is exactly
+    where the AIAG K2 and K3 constants come from (``K = 1 / d2_star``). Computed
+    from ``d2`` and ``d3`` rather than transcribed, for the reason this whole
+    module exists.
+
+    Raises
+    ------
+    ValueError
+        If ``n < 2``, ``n`` exceeds :data:`MAX_SUBGROUP_SIZE`, or ``g < 1``.
+    """
+    if not isinstance(g, int) or isinstance(g, bool):
+        raise TypeError(f"number of ranges must be an int, got {type(g).__name__}")
+    if g < 1:
+        raise ValueError(f"number of ranges must be >= 1, got {g}")
+    return math.sqrt(d2(n) ** 2 + d3(n) ** 2 / g)
 
 
 def A2(n: int) -> float:

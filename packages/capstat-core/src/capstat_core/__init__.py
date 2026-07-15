@@ -14,7 +14,7 @@ from capstat_core.capability import (
     CapabilityReport,
     capability,
 )
-from capstat_core.constants import A2, A3, B3, B4, D3, D4, E2, c4, d2, d3
+from capstat_core.constants import A2, A3, B3, B4, D3, D4, E2, c4, d2, d2_star, d3
 from capstat_core.control_charts import (
     ChartPair,
     ControlChart,
@@ -36,6 +36,7 @@ from capstat_core.descriptive import (
 from capstat_core.gage_rr import (
     GageRRReport,
     gage_rr,
+    gage_rr_range,
 )
 from capstat_core.nonnormal import (
     BoxCoxCapability,
@@ -113,11 +114,13 @@ __all__ = [
     "capability",
     "cusum_chart",
     "d2",
+    "d2_star",
     "d3",
     "describe",
     "ewma_chart",
     "fit_distribution",
     "gage_rr",
+    "gage_rr_range",
     "i_mr_chart",
     "iqr",
     "kurtosis",
