@@ -33,8 +33,9 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   against AIAG worked examples (independently recomputed) and cross-checked
   method-to-method. d2_star is computed from the core's own d2/d3, not
   transcribed, and matches Duncan's published table.
-- The core exposes nothing web-facing for Gage R&R yet -- no API endpoint or UI.
-  That wiring is a later increment; T-0012 was core credibility first.
+- **Gage R&R is wired end-to-end**: core (`gage_rr`/`gage_rr_range`) ->
+  `/compute/gage-rr` (both methods, faithful serialisation) -> a `/gage-rr` web
+  page with a data-entry grid and a variance/%/ndc report. Verified in-browser.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -61,15 +62,17 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. Gage R&R **web UI**: a data-entry grid (parts x operators x trials) that
-   POSTs to `/compute/gage-rr` and renders the variance breakdown, %/ndc, and
-   verdict warnings. The API side is done (`/compute/gage-rr`, both methods,
-   typed client regenerated).
-2. T-0013 M5b Bias, linearity, stability (core).
-3. T-0024 web run-rule selection UI (small, low priority).
+1. T-0013 M5b Bias, linearity, stability (core) -- the next MSA piece.
+2. T-0024 web run-rule selection UI (small, low priority).
+3. T-0014 M6a print-optimized PDF report route.
 
 ## Last done
 
+- 2026-07-15: Gage R&R **web UI** -- a `/gage-rr` route with a data-entry grid
+  (parts x operators x trials, pre-filled with the AIAG example), method toggle
+  (ANOVA / average-and-range), and a report (variance table, %/ndc cards,
+  verdict warnings). Nav added. Verified in-browser on both methods; 2 Playwright
+  smoke tests. Gage R&R is now end-to-end: core -> API -> UI.
 - 2026-07-15: Gage R&R API — `/compute/gage-rr` in apps/api (both methods,
   faithful `GageRRReportOut` incl. derived %/ndc; degenerate input -> null, not
   500, via a core nan-guard fix); typed TS client regenerated. 38 API tests.

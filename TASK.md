@@ -4,8 +4,8 @@
 
 <!-- max 3 -->
 
-- (Doing is clear -- T-0012 M5a Gage R&R shipped, both methods. Next milestone
-  in Backlog: T-0013 M5b bias/linearity/stability, or the Gage R&R API/UI.)
+- (Doing is clear -- T-0012 M5a Gage R&R shipped end-to-end (core + API + UI).
+  Next in Backlog: T-0013 M5b bias/linearity/stability.)
 
 ## Backlog
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
@@ -51,6 +51,13 @@
 
 ## Done
 
+- T-0012 web+API (2026-07-15) Gage R&R wired out of the core: `/compute/gage-rr`
+  (both methods, faithful `GageRRReportOut` with the derived %/ndc read via
+  from_attributes; a nan-guard so degenerate input serialises as null, not a
+  500) and a `/gage-rr` web page -- data-entry grid (parts x operators x trials,
+  pre-filled with the AIAG example), method toggle, variance/%/ndc report with
+  verdict warnings, nav link. 38 API tests; 2 Playwright smoke tests. Verified
+  in-browser on both methods (ANOVA 33% / ndc 4, avg-range 34% / ndc 3).
 - T-0012 (2026-07-15) M5a Gage R&R (measurement-system analysis) in
   `capstat-core`, both AIAG methods.
   * **ANOVA** (`gage_rr`): crossed two-way random-effects model; variance

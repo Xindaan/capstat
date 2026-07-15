@@ -62,6 +62,32 @@ export function nelsonRules(
   });
 }
 
+export type GageRRReport = components["schemas"]["GageRRReportOut"];
+export type GageRRMethod = GageRRReport["method"];
+
+export interface GageRROptions {
+  method: GageRRMethod;
+  tolerance: number | null;
+}
+
+/**
+ * Gage R&R over a balanced 3-D layout (parts x operators x trials). `method`
+ * selects the crossed ANOVA or the average-and-range estimator.
+ */
+export function gageRR(data: number[][][], opts: GageRROptions) {
+  return api.POST("/compute/gage-rr", {
+    body: {
+      data,
+      method: opts.method,
+      tolerance: opts.tolerance,
+      // openapi-typescript types defaulted fields as required, so pass the
+      // server defaults explicitly (the UI does not expose these knobs).
+      interaction_alpha: 0.25,
+      study_var_multiplier: 6.0,
+    },
+  });
+}
+
 export function analyzeCapability(data: number[], limits: SpecLimits) {
   return api.POST("/compute/capability/analyze", {
     body: {
