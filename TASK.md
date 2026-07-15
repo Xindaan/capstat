@@ -15,10 +15,19 @@
      Tailwind v4 + ESLint 9 (flat), typed `api` client wired via
      `openapi-fetch`. `npm run build` green (lint + typecheck + static /).
      Web CI job added (npm ci -> drift -> lint -> build).
-  3. **[next]** Upload flow: `/ingest` call, column picker, error/warning
-     surfacing. Verify in a browser (API running locally).
-  4. Capability dashboard: `/compute/capability` + `/analyze`; histogram with
-     spec limits + fitted distribution (ECharts).
+  3. **[done 2026-07-15]** Upload flow: `UploadPanel` client component
+     (drag-drop + browse) POSTs to `/ingest` via a typed `ingestFile` helper
+     (the one place that reconciles the binary-body / FormData mismatch),
+     surfaces ignored columns + dropped cells as ingestion notes, offers a
+     numeric-column picker with an n/min/max/mean preview. `CORSMiddleware`
+     added to the API (origins from `CAPSTAT_CORS_ORIGINS`, default
+     localhost/127.0.0.1:3000) -- browser-only, so the OpenAPI contract and its
+     drift check are untouched; 4 CORS tests added. Verified end-to-end in the
+     browser (real cross-origin upload, 200 OK, warnings + stats correct).
+     Also fixed: the `apps/*` uv-workspace glob claimed the new Node `apps/web`
+     as a Python member and broke `uv run`; excluded it in the root pyproject.
+  4. **[next]** Capability dashboard: `/compute/capability` + `/analyze`;
+     histogram with spec limits + fitted distribution (ECharts).
   5. Control charts: I-MR/Xbar via ECharts `markLine`/`markArea` for limits +
      zones; violation markers; run-rule overlay.
   6. eslint/prettier/vitest + a Playwright smoke test; polish.

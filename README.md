@@ -314,8 +314,14 @@ uv run python -m capstat_api.export_openapi --check    # fail on drift
 ## Configuration
 
 capstat-core is configuration-free. The API is stateless and needs no
-configuration to run; deployment-specific settings (CORS, host) are documented
-when the demo deployment lands.
+configuration to run. One optional knob exists for the browser client:
+
+- **`CAPSTAT_CORS_ORIGINS`** — comma-separated list of allowed browser origins
+  (default `http://localhost:3000,http://127.0.0.1:3000`, the Next.js dev
+  server). Set it to your web app's origin when deploying elsewhere.
+
+The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
+(default `http://127.0.0.1:8000`).
 
 ## Troubleshooting
 

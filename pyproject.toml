@@ -13,6 +13,10 @@ package = false
 
 [tool.uv.workspace]
 members = ["packages/*", "apps/*"]
+# apps/web is a Node/Next.js package, not a Python one; without this exclude the
+# apps/* glob claims it as a workspace member and uv fails on the missing
+# pyproject.toml.
+exclude = ["apps/web"]
 
 [tool.uv.sources]
 capstat-core = { workspace = true }

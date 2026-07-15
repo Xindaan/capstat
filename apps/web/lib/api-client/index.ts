@@ -14,3 +14,30 @@ const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 export const api = createClient<paths>({ baseUrl });
 
 export type { paths, components } from "./schema";
+
+import type { components } from "./schema";
+
+export type IngestResponse = components["schemas"]["IngestResponse"];
+export type IngestColumn = components["schemas"]["IngestColumn"];
+
+/**
+ * POST a file to `/ingest` as multipart/form-data.
+ *
+ * `openapi-typescript` maps the binary body field to `string`, and
+ * `openapi-fetch` JSON-serialises bodies by default; both are wrong for a file
+ * upload. This helper is the single place that reconciles them — it builds a
+ * `FormData` so the browser sets the multipart boundary, while the response
+ * stays fully typed as {@link IngestResponse}.
+ */
+export function ingestFile(file: File) {
+  return api.POST("/ingest", {
+    // The field is typed `string` (binary); the File is what actually goes on
+    // the wire via the serializer below.
+    body: { file: file as unknown as string },
+    bodySerializer() {
+      const form = new FormData();
+      form.set("file", file);
+      return form;
+    },
+  });
+}

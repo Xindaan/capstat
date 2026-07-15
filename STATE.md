@@ -24,10 +24,12 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   attribute). Every endpoint test asserts equality with the core's own output.
 - **T-0011 (Next.js app) is in progress.** Done: the typed TS client
   (`openapi-typescript` -> `apps/web/lib/api-client/schema.d.ts`, drift-checked
-  in CI, closing the M3 contract) and the Next 16 / React 19 / Tailwind v4
-  scaffold with the `openapi-fetch` client wired in (`npm run build` green,
-  web CI job added). Next: the upload flow, then the capability dashboard and
-  ECharts control charts.
+  in CI, closing the M3 contract); the Next 16 / React 19 / Tailwind v4
+  scaffold with the `openapi-fetch` client wired in; and the **upload flow** --
+  a `UploadPanel` that POSTs a file to `/ingest`, surfaces ignored columns and
+  dropped cells, and lets the user pick a numeric column (verified end-to-end
+  in the browser). The API now sends CORS headers for the :3000 dev origin.
+  Next: the capability dashboard and ECharts control charts.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -54,16 +56,19 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0011 sub-increment 3 — **upload flow**: a client page that POSTs a file to
-   `/ingest`, lets the user pick a numeric column, and surfaces the ingestion
-   warnings (ignored columns, dropped cells). Verify in a browser with the API
-   running (`uv run uvicorn capstat_api.main:app`). Needs CORS on the API for
-   the browser's cross-origin call — add `CORSMiddleware` as the first step.
-2. T-0011 sub-increment 4-5 — capability dashboard + ECharts control charts.
+1. T-0011 sub-increment 4 — **capability dashboard**: `/compute/capability` +
+   `/analyze`, histogram with spec limits + fitted distribution (ECharts). The
+   selected column from `UploadPanel` is the input; wire it through.
+2. T-0011 sub-increment 5 — ECharts control charts (I-MR/Xbar, limits + zones,
+   violation markers, run-rule overlay).
 3. T-0012 M5a Gage R&R (the MSA credibility centrepiece).
 
 ## Last done
 
+- 2026-07-15: T-0011 sub-increment 3 — upload flow: `UploadPanel` POSTs to
+  `/ingest`, ingestion warnings + column picker surfaced, verified in-browser;
+  API `CORSMiddleware` (env-configurable), 4 CORS tests; uv-workspace excludes
+  `apps/web`. 34 API tests pass, web lint/build/drift green.
 - 2026-07-15: T-0011 (in progress) TS client + Next.js scaffold; typed
   `openapi-fetch` client wired, `npm run build` green, web CI job added.
 - 2026-07-15: T-0010 FastAPI service (`apps/api`): faithful serialisation,
