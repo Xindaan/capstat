@@ -61,15 +61,18 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. Gage R&R API + UI (deferred from T-0012): expose `/compute/gage-rr` (and the
-   average-and-range variant) in `apps/api`, then a data-entry grid + report in
-   `apps/web`. The one genuinely new wrinkle is 3-D input (parts x operators x
-   trials) through the ingest/JSON layer.
+1. Gage R&R **web UI**: a data-entry grid (parts x operators x trials) that
+   POSTs to `/compute/gage-rr` and renders the variance breakdown, %/ndc, and
+   verdict warnings. The API side is done (`/compute/gage-rr`, both methods,
+   typed client regenerated).
 2. T-0013 M5b Bias, linearity, stability (core).
 3. T-0024 web run-rule selection UI (small, low priority).
 
 ## Last done
 
+- 2026-07-15: Gage R&R API — `/compute/gage-rr` in apps/api (both methods,
+  faithful `GageRRReportOut` incl. derived %/ndc; degenerate input -> null, not
+  500, via a core nan-guard fix); typed TS client regenerated. 38 API tests.
 - 2026-07-15: T-0012 — Gage R&R complete in capstat-core, both AIAG methods:
   `gage_rr` (ANOVA) + `gage_rr_range` (average-and-range) sharing one report;
   new `d2_star` constant from d2/d3, validated against Duncan's table; methods

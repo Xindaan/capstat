@@ -140,6 +140,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compute/gage-rr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Gage Rr */
+        post: operations["compute_gage_rr_compute_gage_rr_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compute/rules/nelson": {
         parameters: {
             query?: never;
@@ -542,6 +559,94 @@ export interface components {
              */
             time_varying_limits: boolean;
         };
+        /** GageRRReportOut */
+        GageRRReportOut: {
+            /** Interaction Included */
+            interaction_included: boolean;
+            /** Interaction Pvalue */
+            interaction_pvalue: number | null;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "anova" | "average_range";
+            /** N Operators */
+            n_operators: number;
+            /** N Parts */
+            n_parts: number;
+            /** N Trials */
+            n_trials: number;
+            /** Ndc */
+            ndc: number | null;
+            /** Pct Contribution Gage Rr */
+            pct_contribution_gage_rr: number | null;
+            /** Pct Contribution Part */
+            pct_contribution_part: number | null;
+            /** Pct Contribution Repeatability */
+            pct_contribution_repeatability: number | null;
+            /** Pct Contribution Reproducibility */
+            pct_contribution_reproducibility: number | null;
+            /** Pct Study Var Gage Rr */
+            pct_study_var_gage_rr: number | null;
+            /** Pct Study Var Part */
+            pct_study_var_part: number | null;
+            /** Pct Study Var Repeatability */
+            pct_study_var_repeatability: number | null;
+            /** Pct Study Var Reproducibility */
+            pct_study_var_reproducibility: number | null;
+            /** Pct Tolerance Gage Rr */
+            pct_tolerance_gage_rr: number | null;
+            /** Study Var Multiplier */
+            study_var_multiplier: number;
+            /** Tolerance */
+            tolerance: number | null;
+            /** Var Gage Rr */
+            var_gage_rr: number;
+            /** Var Interaction */
+            var_interaction: number;
+            /** Var Operator */
+            var_operator: number;
+            /** Var Part */
+            var_part: number;
+            /** Var Repeatability */
+            var_repeatability: number;
+            /** Var Reproducibility */
+            var_reproducibility: number;
+            /** Var Total */
+            var_total: number;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * GageRRRequest
+         * @description A balanced Gage R&R layout: parts x operators x trials.
+         *
+         *     Each innermost list is the trials for one part-operator cell. The core
+         *     validates the shape (>= 2 of each) and balance and raises ValueError, mapped
+         *     to 422. ``interaction_alpha`` is ignored by the average-and-range method.
+         */
+        GageRRRequest: {
+            /** Data */
+            data: number[][][];
+            /**
+             * Interaction Alpha
+             * @default 0.25
+             */
+            interaction_alpha: number;
+            /**
+             * Method
+             * @default anova
+             * @enum {string}
+             */
+            method: "anova" | "average_range";
+            /**
+             * Study Var Multiplier
+             * @default 6
+             */
+            study_var_multiplier: number;
+            /** Tolerance */
+            tolerance?: number | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -942,6 +1047,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DescriptiveSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compute_gage_rr_compute_gage_rr_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GageRRRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GageRRReportOut"];
                 };
             };
             /** @description Validation Error */

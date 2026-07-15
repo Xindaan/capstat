@@ -16,6 +16,8 @@ from capstat_core import (
     cusum_chart,
     describe,
     ewma_chart,
+    gage_rr,
+    gage_rr_range,
     i_mr_chart,
     xbar_r_chart,
     xbar_s_chart,
@@ -24,6 +26,15 @@ from fastapi.testclient import TestClient
 
 # A mildly non-normal but well-behaved series reused across cases.
 SERIES = [10.0 + (i % 5) * 0.1 + (i % 3) * 0.05 for i in range(60)]
+
+# A balanced Gage R&R layout (parts x operators x trials); the SPC/AIAG example.
+GAGE_DATA = [
+    [[3.29, 3.41, 3.64], [3.08, 3.25, 3.07], [3.04, 2.89, 2.85]],
+    [[2.44, 2.32, 2.42], [2.53, 1.78, 2.32], [1.62, 1.87, 2.04]],
+    [[4.34, 4.17, 4.27], [4.19, 3.94, 4.34], [3.88, 4.09, 3.67]],
+    [[3.47, 3.50, 3.64], [3.01, 4.03, 3.20], [3.14, 3.20, 3.11]],
+    [[2.20, 2.08, 2.16], [2.44, 1.80, 1.72], [1.54, 1.93, 1.55]],
+]
 
 
 def test_descriptive_matches_core(client: TestClient) -> None:
@@ -184,6 +195,54 @@ class TestRules:
             json={"points": points, "limits": self.LIMITS},
         ).json()
         assert 2 in {v["rule"] for v in nelson}
+
+
+def test_gage_rr_anova_matches_core(client: TestClient) -> None:
+    resp = client.post("/compute/gage-rr", json={"data": GAGE_DATA})
+    assert resp.status_code == 200
+    body = resp.json()
+    core = gage_rr(GAGE_DATA)
+    assert body["method"] == "anova"
+    assert body["var_repeatability"] == core.var_repeatability
+    assert body["var_part"] == core.var_part
+    # Derived properties are not dataclass fields; they must still serialise.
+    assert body["var_gage_rr"] == core.var_gage_rr
+    assert body["pct_study_var_gage_rr"] == core.pct_study_var_gage_rr
+    assert body["ndc"] == core.ndc
+    assert body["interaction_pvalue"] == core.interaction_pvalue
+    assert body["warnings"] == list(core.warnings)
+
+
+def test_gage_rr_average_range_matches_core(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/gage-rr", json={"data": GAGE_DATA, "method": "average_range"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = gage_rr_range(GAGE_DATA)
+    assert body["method"] == "average_range"
+    # The average-and-range method models no interaction.
+    assert body["interaction_pvalue"] is None
+    assert body["var_gage_rr"] == core.var_gage_rr
+    assert body["ndc"] == core.ndc
+
+
+def test_gage_rr_no_variation_serialises_nan_as_null(client: TestClient) -> None:
+    # Every value identical -> undefined percentages must be null, not a 500.
+    flat = [[[5.0, 5.0], [5.0, 5.0]], [[5.0, 5.0], [5.0, 5.0]]]
+    resp = client.post("/compute/gage-rr", json={"data": flat})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["pct_contribution_gage_rr"] is None
+    assert body["ndc"] is None
+
+
+def test_gage_rr_too_few_operators_maps_core_error_to_422(client: TestClient) -> None:
+    # Two parts but a single operator: passes the schema, the core rejects it,
+    # and that ValueError must surface as a 422, not a 500.
+    resp = client.post("/compute/gage-rr", json={"data": [[[1.0, 2.0]], [[3.0, 4.0]]]})
+    assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], str)
 
 
 def test_health(client: TestClient) -> None:

@@ -145,38 +145,41 @@ class GageRRReport:
         return self.var_gage_rr + self.var_part
 
     # -- %Contribution (of variance; sums to 100) -------------------------------
+    # All percentages are undefined when there is no variation at all
+    # (``var_total == 0``, i.e. every measurement identical); they return ``nan``
+    # there rather than dividing by zero.
     @property
     def pct_contribution_gage_rr(self) -> float:
-        return 100.0 * self.var_gage_rr / self.var_total
+        return _pct(self.var_gage_rr, self.var_total)
 
     @property
     def pct_contribution_repeatability(self) -> float:
-        return 100.0 * self.var_repeatability / self.var_total
+        return _pct(self.var_repeatability, self.var_total)
 
     @property
     def pct_contribution_reproducibility(self) -> float:
-        return 100.0 * self.var_reproducibility / self.var_total
+        return _pct(self.var_reproducibility, self.var_total)
 
     @property
     def pct_contribution_part(self) -> float:
-        return 100.0 * self.var_part / self.var_total
+        return _pct(self.var_part, self.var_total)
 
     # -- %Study Variation (of sigma; does not sum to 100) -----------------------
     @property
     def pct_study_var_gage_rr(self) -> float:
-        return 100.0 * math.sqrt(self.var_gage_rr / self.var_total)
+        return _pct_sd(self.var_gage_rr, self.var_total)
 
     @property
     def pct_study_var_repeatability(self) -> float:
-        return 100.0 * math.sqrt(self.var_repeatability / self.var_total)
+        return _pct_sd(self.var_repeatability, self.var_total)
 
     @property
     def pct_study_var_reproducibility(self) -> float:
-        return 100.0 * math.sqrt(self.var_reproducibility / self.var_total)
+        return _pct_sd(self.var_reproducibility, self.var_total)
 
     @property
     def pct_study_var_part(self) -> float:
-        return 100.0 * math.sqrt(self.var_part / self.var_total)
+        return _pct_sd(self.var_part, self.var_total)
 
     @property
     def pct_tolerance_gage_rr(self) -> float | None:
@@ -431,6 +434,16 @@ def gage_rr_range(
         tolerance=tolerance,
         warnings=tuple(warnings),
     )
+
+
+def _pct(var: float, total: float) -> float:
+    """Percentage of the total variance; nan when there is no variation."""
+    return 100.0 * var / total if total > 0.0 else math.nan
+
+
+def _pct_sd(var: float, total: float) -> float:
+    """Percentage of the total standard deviation; nan when there is none."""
+    return 100.0 * math.sqrt(var / total) if total > 0.0 else math.nan
 
 
 def _clamp(value: float, name: str) -> tuple[float, list[str]]:

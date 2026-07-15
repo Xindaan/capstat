@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from capstat_api.schemas import WithinMethod
+from capstat_api.schemas import GageRRMethod, WithinMethod
 
 
 class _Request(BaseModel):
@@ -77,6 +77,21 @@ class ControlLimitsIn(_Request):
     center: float
     lower: float
     upper: float
+
+
+class GageRRRequest(_Request):
+    """A balanced Gage R&R layout: parts x operators x trials.
+
+    Each innermost list is the trials for one part-operator cell. The core
+    validates the shape (>= 2 of each) and balance and raises ValueError, mapped
+    to 422. ``interaction_alpha`` is ignored by the average-and-range method.
+    """
+
+    data: list[list[list[float]]] = Field(min_length=2)
+    method: GageRRMethod = "anova"
+    tolerance: float | None = None
+    study_var_multiplier: float = 6.0
+    interaction_alpha: float = 0.25
 
 
 class RulesRequest(_Request):

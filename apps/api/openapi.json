@@ -1098,6 +1098,290 @@
         "title": "EwmaRequest",
         "type": "object"
       },
+      "GageRRReportOut": {
+        "properties": {
+          "interaction_included": {
+            "title": "Interaction Included",
+            "type": "boolean"
+          },
+          "interaction_pvalue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interaction Pvalue"
+          },
+          "method": {
+            "enum": [
+              "anova",
+              "average_range"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "n_operators": {
+            "title": "N Operators",
+            "type": "integer"
+          },
+          "n_parts": {
+            "title": "N Parts",
+            "type": "integer"
+          },
+          "n_trials": {
+            "title": "N Trials",
+            "type": "integer"
+          },
+          "ndc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ndc"
+          },
+          "pct_contribution_gage_rr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Contribution Gage Rr"
+          },
+          "pct_contribution_part": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Contribution Part"
+          },
+          "pct_contribution_repeatability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Contribution Repeatability"
+          },
+          "pct_contribution_reproducibility": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Contribution Reproducibility"
+          },
+          "pct_study_var_gage_rr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Study Var Gage Rr"
+          },
+          "pct_study_var_part": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Study Var Part"
+          },
+          "pct_study_var_repeatability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Study Var Repeatability"
+          },
+          "pct_study_var_reproducibility": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Study Var Reproducibility"
+          },
+          "pct_tolerance_gage_rr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Tolerance Gage Rr"
+          },
+          "study_var_multiplier": {
+            "title": "Study Var Multiplier",
+            "type": "number"
+          },
+          "tolerance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance"
+          },
+          "var_gage_rr": {
+            "title": "Var Gage Rr",
+            "type": "number"
+          },
+          "var_interaction": {
+            "title": "Var Interaction",
+            "type": "number"
+          },
+          "var_operator": {
+            "title": "Var Operator",
+            "type": "number"
+          },
+          "var_part": {
+            "title": "Var Part",
+            "type": "number"
+          },
+          "var_repeatability": {
+            "title": "Var Repeatability",
+            "type": "number"
+          },
+          "var_reproducibility": {
+            "title": "Var Reproducibility",
+            "type": "number"
+          },
+          "var_total": {
+            "title": "Var Total",
+            "type": "number"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "method",
+          "n_parts",
+          "n_operators",
+          "n_trials",
+          "interaction_included",
+          "interaction_pvalue",
+          "var_repeatability",
+          "var_operator",
+          "var_interaction",
+          "var_part",
+          "study_var_multiplier",
+          "tolerance",
+          "warnings",
+          "var_reproducibility",
+          "var_gage_rr",
+          "var_total",
+          "pct_contribution_gage_rr",
+          "pct_contribution_repeatability",
+          "pct_contribution_reproducibility",
+          "pct_contribution_part",
+          "pct_study_var_gage_rr",
+          "pct_study_var_repeatability",
+          "pct_study_var_reproducibility",
+          "pct_study_var_part",
+          "pct_tolerance_gage_rr",
+          "ndc"
+        ],
+        "title": "GageRRReportOut",
+        "type": "object"
+      },
+      "GageRRRequest": {
+        "additionalProperties": false,
+        "description": "A balanced Gage R&R layout: parts x operators x trials.\n\nEach innermost list is the trials for one part-operator cell. The core\nvalidates the shape (>= 2 of each) and balance and raises ValueError, mapped\nto 422. ``interaction_alpha`` is ignored by the average-and-range method.",
+        "properties": {
+          "data": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "minItems": 2,
+            "title": "Data",
+            "type": "array"
+          },
+          "interaction_alpha": {
+            "default": 0.25,
+            "title": "Interaction Alpha",
+            "type": "number"
+          },
+          "method": {
+            "default": "anova",
+            "enum": [
+              "anova",
+              "average_range"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "study_var_multiplier": {
+            "default": 6.0,
+            "title": "Study Var Multiplier",
+            "type": "number"
+          },
+          "tolerance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "GageRRRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1892,6 +2176,47 @@
           }
         },
         "summary": "Compute Descriptive",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/gage-rr": {
+      "post": {
+        "operationId": "compute_gage_rr_compute_gage_rr_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GageRRRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GageRRReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Gage Rr",
         "tags": [
           "compute"
         ]

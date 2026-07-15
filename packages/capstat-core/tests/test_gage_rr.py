@@ -216,6 +216,16 @@ def test_good_gage_earns_no_verdict_warning() -> None:
     )
 
 
+def test_no_variation_at_all_gives_nan_percentages_not_a_crash() -> None:
+    # Every measurement identical -> total variance is zero. The percentages are
+    # genuinely undefined (0/0) and must be nan, not a ZeroDivisionError.
+    report = gage_rr(np.full((3, 3, 3), 5.0))
+    assert report.var_total == 0.0
+    assert math.isnan(report.pct_contribution_gage_rr)
+    assert math.isnan(report.pct_study_var_part)
+    assert report.ndc is None
+
+
 def test_perfect_gage_has_no_distinct_category_ceiling() -> None:
     # Every operator and trial identical -> zero measurement variance -> ndc
     # undefined (infinitely many categories).

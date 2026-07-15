@@ -213,6 +213,45 @@ class CapabilityAnalysisOut(_CoreModel):
 
 
 # ---------------------------------------------------------------------------
+# gage_rr.py
+# ---------------------------------------------------------------------------
+
+GageRRMethod = Literal["anova", "average_range"]
+
+
+class GageRRReportOut(_CoreModel):
+    method: GageRRMethod
+    n_parts: int
+    n_operators: int
+    n_trials: int
+    interaction_included: bool
+    # None for the average-and-range method, which models no interaction.
+    interaction_pvalue: float | None
+    var_repeatability: float
+    var_operator: float
+    var_interaction: float
+    var_part: float
+    study_var_multiplier: float
+    tolerance: float | None
+    warnings: list[str]
+    # Derived properties on the core dataclass; read via from_attributes. The
+    # percentages are nan (-> null) when the sample has no variation at all.
+    var_reproducibility: float
+    var_gage_rr: float
+    var_total: float
+    pct_contribution_gage_rr: SafeFloat
+    pct_contribution_repeatability: SafeFloat
+    pct_contribution_reproducibility: SafeFloat
+    pct_contribution_part: SafeFloat
+    pct_study_var_gage_rr: SafeFloat
+    pct_study_var_repeatability: SafeFloat
+    pct_study_var_reproducibility: SafeFloat
+    pct_study_var_part: SafeFloat
+    pct_tolerance_gage_rr: float | None
+    ndc: int | None
+
+
+# ---------------------------------------------------------------------------
 # rules.py
 # ---------------------------------------------------------------------------
 

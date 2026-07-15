@@ -15,6 +15,8 @@ from capstat_core import (
     cusum_chart,
     describe,
     ewma_chart,
+    gage_rr,
+    gage_rr_range,
     i_mr_chart,
     nelson_rules,
     western_electric_rules,
@@ -30,6 +32,7 @@ from capstat_api.requests import (
     CusumRequest,
     DescriptiveRequest,
     EwmaRequest,
+    GageRRRequest,
     IMRRequest,
     RulesRequest,
     SubgroupRequest,
@@ -41,6 +44,7 @@ from capstat_api.schemas import (
     CusumChartOut,
     DescriptiveSummaryOut,
     EwmaChartOut,
+    GageRRReportOut,
     RuleViolationOut,
 )
 
@@ -81,6 +85,25 @@ def compute_capability_analyze(
             alpha=req.alpha,
         )
     return CapabilityAnalysisOut.model_validate(result)
+
+
+@router.post("/gage-rr", response_model=GageRRReportOut)
+def compute_gage_rr(req: GageRRRequest) -> GageRRReportOut:
+    with core_errors():
+        if req.method == "average_range":
+            result = gage_rr_range(
+                req.data,
+                tolerance=req.tolerance,
+                study_var_multiplier=req.study_var_multiplier,
+            )
+        else:
+            result = gage_rr(
+                req.data,
+                tolerance=req.tolerance,
+                study_var_multiplier=req.study_var_multiplier,
+                interaction_alpha=req.interaction_alpha,
+            )
+    return GageRRReportOut.model_validate(result)
 
 
 @router.post("/control-chart/i-mr", response_model=ChartPairOut)
