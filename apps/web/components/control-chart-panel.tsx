@@ -9,24 +9,13 @@ import {
   type IngestColumn,
   type RuleViolation,
 } from "@/lib/api-client";
+import { describeApiError } from "@/lib/errors";
 import { ControlChart } from "./control-chart";
 
 type State =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "done"; chart: ChartPair; rules: RuleViolation[] };
-
-function describeError(error: unknown): string {
-  if (error && typeof error === "object" && "detail" in error) {
-    const detail = (error as { detail: unknown }).detail;
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) {
-      const first = detail[0] as { msg?: string } | undefined;
-      if (first?.msg) return first.msg;
-    }
-  }
-  return "The control chart could not be computed.";
-}
 
 export function ControlChartPanel({ column }: { column: IngestColumn }) {
   const [state, setState] = useState<State>({ kind: "loading" });
@@ -38,7 +27,13 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
         const { data, error } = await imrChart(column.values);
         if (cancelled) return;
         if (error || !data) {
-          setState({ kind: "error", message: describeError(error) });
+          setState({
+            kind: "error",
+            message: describeApiError(
+              error,
+              "The control chart could not be computed.",
+            ),
+          });
           return;
         }
         // Run-rules read their sigma zones from the individuals chart's limits.

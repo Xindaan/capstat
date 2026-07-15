@@ -8,11 +8,14 @@ import type {
 } from "echarts";
 
 import { useEchart, usePrefersDark } from "@/lib/echarts";
+import {
+  capabilityDomain,
+  histogram,
+  normalPdf,
+  type NormalFit,
+} from "@/lib/stats";
 
-export interface NormalFit {
-  mean: number;
-  sigma: number;
-}
+export type { NormalFit };
 
 interface Props {
   values: number[];
@@ -21,59 +24,6 @@ interface Props {
   target: number | null;
   /** Fitted normal (overall) params; null when the path is non-normal. */
   fit: NormalFit | null;
-}
-
-interface Bins {
-  edges: number[];
-  /** One [x0, x1, density] triple per bin, density = count / (n * width). */
-  bars: [number, number, number][];
-}
-
-/** Freedman-Diaconis bin count, with a Sturges fallback and a sane clamp. */
-function binCount(values: number[], min: number, max: number): number {
-  const n = values.length;
-  const sorted = [...values].sort((a, b) => a - b);
-  const q = (p: number) => {
-    const idx = (n - 1) * p;
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-  };
-  const iqr = q(0.75) - q(0.25);
-  const sturges = Math.ceil(Math.log2(n) + 1);
-  if (iqr <= 0 || max <= min) return Math.max(5, Math.min(sturges, 40));
-  const width = (2 * iqr) / Math.cbrt(n);
-  const fd = Math.ceil((max - min) / width);
-  return Math.max(5, Math.min(fd, 40));
-}
-
-function histogram(values: number[]): Bins {
-  const n = values.length;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const k = binCount(values, min, max);
-  const width = (max - min) / k || 1;
-  const edges = Array.from({ length: k + 1 }, (_, i) => min + i * width);
-  const counts = new Array<number>(k).fill(0);
-  for (const v of values) {
-    // The last edge is inclusive so the maximum lands in the final bin.
-    const raw = Math.floor((v - min) / width);
-    const bin = Math.min(raw, k - 1);
-    counts[bin] += 1;
-  }
-  const bars = counts.map(
-    (c, i): [number, number, number] => [
-      edges[i],
-      edges[i + 1],
-      c / (n * width),
-    ],
-  );
-  return { edges, bars };
-}
-
-function normalPdf(x: number, mean: number, sigma: number): number {
-  const z = (x - mean) / sigma;
-  return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
 }
 
 interface Theme {
@@ -119,15 +69,10 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
   // The x-range must always span the spec limits, even when a limit sits well
   // outside the data (a capable process, or a USL far above the sample) --
   // otherwise the spec markLine is clipped and silently vanishes.
-  const domain = useMemo(() => {
-    const specs = [lsl, usl, target].filter((v): v is number => v != null);
-    const edgeLo = bins.edges[0];
-    const edgeHi = bins.edges[bins.edges.length - 1];
-    const lo = Math.min(edgeLo, ...specs, ...(fit ? [fit.mean - 4 * fit.sigma] : []));
-    const hi = Math.max(edgeHi, ...specs, ...(fit ? [fit.mean + 4 * fit.sigma] : []));
-    const pad = (hi - lo) * 0.03 || 1;
-    return { lo: lo - pad, hi: hi + pad };
-  }, [bins, lsl, usl, target, fit]);
+  const domain = useMemo(
+    () => capabilityDomain(bins.edges, [lsl, usl, target], fit),
+    [bins, lsl, usl, target, fit],
+  );
 
   // Sampled normal PDF across the full domain (null on the non-normal paths).
   const pdfLine = useMemo(() => {
@@ -206,7 +151,8 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
                   width: base[0] - start[0] - 1,
                   height: base[1] - start[1],
                 },
-                style: api.style(),
+                // Literal fill rather than the deprecated api.style().
+                style: { fill: t.bar },
               };
             },
             itemStyle: { color: t.bar },

@@ -7,6 +7,7 @@ import {
   type CapabilityAnalysis,
   type IngestColumn,
 } from "@/lib/api-client";
+import { describeApiError } from "@/lib/errors";
 import { CapabilityHistogram, type NormalFit } from "./capability-histogram";
 
 type Status =
@@ -31,18 +32,6 @@ function indexTone(value: number | null | undefined): string {
   if (value >= 1.33) return "text-emerald-600 dark:text-emerald-400";
   if (value >= 1.0) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
-}
-
-function describeError(error: unknown): string {
-  if (error && typeof error === "object" && "detail" in error) {
-    const detail = (error as { detail: unknown }).detail;
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) {
-      const first = detail[0] as { msg?: string } | undefined;
-      if (first?.msg) return first.msg;
-    }
-  }
-  return "Capability could not be computed.";
 }
 
 export function CapabilityDashboard({ column }: { column: IngestColumn }) {
@@ -73,7 +62,10 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
         target: parsed.t,
       });
       if (error || !data) {
-        setStatus({ kind: "error", message: describeError(error) });
+        setStatus({
+          kind: "error",
+          message: describeApiError(error, "Capability could not be computed."),
+        });
         return;
       }
       setStatus({ kind: "done", result: data });

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { ingestFile, type IngestColumn, type IngestResponse } from "@/lib/api-client";
+import { describeApiError } from "@/lib/errors";
+import { columnStats } from "@/lib/stats";
 
 type Status =
   | { kind: "idle" }
@@ -15,32 +17,6 @@ const ACCEPT = ".csv,.xlsx,.xlsm";
 const numberFormat = new Intl.NumberFormat(undefined, {
   maximumSignificantDigits: 6,
 });
-
-/** Min / max / mean of a column's kept values, for a quick sanity preview. */
-function columnStats(values: number[]): { min: number; max: number; mean: number } {
-  let min = values[0];
-  let max = values[0];
-  let sum = 0;
-  for (const v of values) {
-    if (v < min) min = v;
-    if (v > max) max = v;
-    sum += v;
-  }
-  return { min, max, mean: sum / values.length };
-}
-
-/** Turn an openapi-fetch error body into a single human-readable line. */
-function describeError(error: unknown): string {
-  if (error && typeof error === "object" && "detail" in error) {
-    const detail = (error as { detail: unknown }).detail;
-    if (typeof detail === "string") return detail;
-    if (Array.isArray(detail)) {
-      const first = detail[0] as { msg?: string } | undefined;
-      if (first?.msg) return first.msg;
-    }
-  }
-  return "The file could not be ingested.";
-}
 
 export function UploadPanel({
   onSelect,
@@ -60,7 +36,10 @@ export function UploadPanel({
     try {
       const { data, error } = await ingestFile(file);
       if (error || !data) {
-        setStatus({ kind: "error", message: describeError(error) });
+        setStatus({
+          kind: "error",
+          message: describeApiError(error, "The file could not be ingested."),
+        });
         return;
       }
       setStatus({ kind: "done", filename: file.name, result: data });

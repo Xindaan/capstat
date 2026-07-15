@@ -311,6 +311,30 @@ uv run python -m capstat_api.export_openapi           # regenerate
 uv run python -m capstat_api.export_openapi --check    # fail on drift
 ```
 
+## Web app
+
+`apps/web` is a Next.js (App Router) front end that talks to the API through a
+typed client generated from the same OpenAPI schema. Upload a CSV/XLSX, pick a
+numeric column, and get a capability report (with the normal / Box-Cox /
+percentile decision path and a spec-limit histogram) plus I-MR control charts
+with Nelson run-rule flags.
+
+Run it against a local API:
+
+```bash
+uv run uvicorn capstat_api.main:app          # terminal 1: the API on :8000
+cd apps/web && npm install && npm run dev     # terminal 2: the app on :3000
+```
+
+Then open <http://localhost:3000>. The client's API base URL defaults to
+`http://127.0.0.1:8000`; override it at build time with `NEXT_PUBLIC_API_URL`.
+
+```bash
+npm run test        # vitest unit tests (pure binning / stats)
+npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
+npm run build       # production build + type-check
+```
+
 ## Configuration
 
 capstat-core is configuration-free. The API is stateless and needs no

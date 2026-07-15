@@ -33,8 +33,10 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   spec-limit lines + a fitted normal curve; plus **I-MR control charts** --
   `ControlChartPanel` runs `/control-chart/i-mr` + `/rules/nelson` and draws the
   Individuals and Moving-Range charts with limits, sigma zones, out-of-control
-  markers, and a Nelson run-rule overlay (all echarts work now goes through a
-  shared `useEchart` hook). Next: eslint/prettier/vitest + Playwright + polish.
+  markers, and a Nelson run-rule overlay (all echarts work goes through a shared
+  `useEchart` hook). Pure numerics live in `lib/stats.ts` under **vitest** (21
+  tests) and a **Playwright** smoke test (API mocked) guards the whole flow;
+  both run in CI. **T-0011 M4 is complete.** Next milestone: T-0012 Gage R&R.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -61,13 +63,18 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0011 sub-increment 6 — eslint/prettier/vitest + a Playwright smoke test;
-   polish (run-rule selection UI; a "run the web app" section in the README).
-2. T-0012 M5a Gage R&R (the MSA credibility centrepiece).
-3. T-0013 M5b Bias, linearity, stability.
+1. T-0012 M5a Gage R&R (the MSA credibility centrepiece): ANOVA + average-and-
+   range methods; %Contribution, %Study Variation, ndc; validated against the
+   AIAG MSA-4 worked examples. When starting, move the finished T-0011 block
+   from Doing to Done.
+2. T-0013 M5b Bias, linearity, stability.
+3. T-0024 web run-rule selection UI (small, low priority).
 
 ## Last done
 
+- 2026-07-15: T-0011 sub-increment 6 — test safety net: pure numerics extracted
+  to `lib/stats.ts` + vitest (21 tests); Playwright smoke test (API mocked);
+  both wired into CI; README "Web app" section. **T-0011 M4 complete.**
 - 2026-07-15: T-0011 sub-increment 5 — I-MR control charts (Individuals + MR,
   limits/zones/violations + Nelson run-rule overlay); shared `useEchart` hook,
   histogram refactored onto it. Verified in-browser (spike + run dataset).

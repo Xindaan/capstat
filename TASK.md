@@ -4,9 +4,10 @@
 
 <!-- max 3 -->
 
-- T-0011 M4 Next.js app: upload (CSV/XLSX), capability dashboard, histogram
-  with spec limits + fitted distribution, control charts with violation
-  markers (ECharts). Sub-increments:
+- **T-0011 [ALL SUB-INCREMENTS DONE 2026-07-15]** M4 Next.js app: upload
+  (CSV/XLSX), capability dashboard, histogram with spec limits + fitted
+  distribution, control charts with run-rule markers (ECharts), test safety net.
+  Move to Done when T-0012 starts. Sub-increments:
   1. **[done 2026-07-15]** TS client: `apps/web` with `openapi-typescript`
      generating `lib/api-client/schema.d.ts` from `apps/api/openapi.json`,
      committed + drift-checked in CI (`npm run check:api`). Closes the Node
@@ -62,10 +63,25 @@
      Possibly worth a clearer core message later. Not filed as a task yet.
      Deferred: Xbar-R/S needs subgroup input (ingest gives flat columns) -- a
      grouping UI, later.
-  6. **[next]** eslint/prettier/vitest + a Playwright smoke test; polish
-     (run-rule selection UI; a "run the web app" README section).
+  6. **[done 2026-07-15]** Test safety net + polish. Extracted the pure numerics
+     (binning, density, capability domain, column stats) into `lib/stats.ts` and
+     the shared error formatter into `lib/errors.ts` (three duplicated copies
+     removed), then covered them with **vitest** (21 tests). Added a **Playwright**
+     smoke test (`e2e/smoke.spec.ts`) that mocks the four API endpoints and walks
+     upload -> capability -> control chart -- so it needs only the Next dev
+     server, no Python backend. Both wired into the web CI job (unit tests +
+     `playwright install --with-deps chromium` + smoke). README gained a "Web
+     app" section (run it, test it, `NEXT_PUBLIC_API_URL`). Fixed an echarts 6
+     deprecation (literal fill instead of `api.style()` in the custom renderItem).
+     Deferred deliberately: prettier (the code is already consistently formatted;
+     eslint covers it -- adding it now is churn, not value) and the run-rule
+     selection UI (a feature, not a safety net) -- see T-0024.
 
 ## Backlog
+- T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
+  control-chart panel applies (it currently hard-codes rules 1-4). Small
+  feature; low priority. Optional companion: add prettier if formatting ever
+  drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
 - T-0012 M5a Gage R&R: ANOVA method + average-and-range method;
   %Contribution, %Study Variation, ndc. Validated against the AIAG MSA-4
   worked examples (core credibility).
