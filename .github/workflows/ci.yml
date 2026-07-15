@@ -43,3 +43,33 @@ jobs:
 
       - name: Pytest with coverage
         run: uv run pytest --cov=capstat_core --cov=capstat_api --cov-report=term-missing
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The committed TS client must match the committed OpenAPI schema. The
+      # Python job already guards openapi.json against the code; this guards
+      # the generated types against openapi.json.
+      - name: TS client drift
+        run: npm run check:api
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (also type-checks)
+        run: npm run build

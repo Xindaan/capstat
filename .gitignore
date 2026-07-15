@@ -20,11 +20,13 @@ venv/
 coverage.xml
 htmlcov/
 
-# Node / TypeScript (apps/web, apps/api client — added in later milestones)
+# Node / TypeScript (apps/web)
 node_modules/
 .next/
+out/
 dist/
 *.tsbuildinfo
+next-env.d.ts
 
 # Docs build
 site/

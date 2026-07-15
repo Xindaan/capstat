@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-07-14
+Date: 2026-07-15
 
 ## Goal
 
@@ -9,17 +9,25 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Status
 
-- **`capstat-core` is feature-complete for Weeks 1 and 2.** T-0002 bootstrap,
-  T-0003 descriptive + robust, T-0004 normality, T-0005 capability + constants,
-  T-0006 non-normal path, T-0007 Shewhart charts, T-0008 EWMA/CUSUM, T-0009 run
-  rules. **382 tests, 100 % coverage**, mypy strict, CI green on 3.11/3.12/3.13.
-- The library now covers: descriptive/robust statistics; normality testing;
-  capability (normal, Box-Cox, ISO 22514) with a recorded decision path; all
-  control-chart constants; I-MR / X-bar-R / X-bar-S; EWMA / CUSUM; Nelson and
-  Western Electric run rules.
-- **The next milestone leaves the core.** T-0010 is the FastAPI service — the
-  first work that is not pure statistics. Everything after it (web app, PDF,
-  deploy) builds on that.
+- **`capstat-core` is feature-complete for Weeks 1 and 2**, and **the FastAPI
+  service (T-0010) now wraps it.** Core: T-0002..T-0009 (descriptive/robust,
+  normality, capability incl. non-normal, chart constants, Shewhart charts,
+  EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
+  CSV/XLSX ingestion, and a committed OpenAPI contract.
+- **412 tests, 100 % coverage on both packages**, mypy strict, ruff clean,
+  OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
+- **The core stays web-free.** fastapi/pandas/openpyxl live only in `apps/api`;
+  `capstat-core` remains numpy+scipy and independently PyPI-publishable.
+- **The API is a faithful serialisation layer**, not a reinterpretation: every
+  response mirrors a core dataclass (warnings tuples preserved, nullable
+  indices kept as `null`, `nan` coerced to `null`, derived properties read by
+  attribute). Every endpoint test asserts equality with the core's own output.
+- **T-0011 (Next.js app) is in progress.** Done: the typed TS client
+  (`openapi-typescript` -> `apps/web/lib/api-client/schema.d.ts`, drift-checked
+  in CI, closing the M3 contract) and the Next 16 / React 19 / Tailwind v4
+  scaffold with the `openapi-fetch` client wired in (`npm run build` green,
+  web CI job added). Next: the upload flow, then the capability dashboard and
+  ECharts control charts.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
 - Only open decision: demo hosting (T-0019, due Week 3).
@@ -46,21 +54,20 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0010 M3 FastAPI service: compute endpoints (descriptive, capability,
-   control charts), CSV/XLSX ingestion, OpenAPI schema, TS client generation
-   with a drift check in CI. Notes before starting:
-   * `capstat-core` must stay web-free (numpy + scipy only) — pandas/openpyxl
-     belong in `apps/api` alone. This is a PLAN.md non-negotiable.
-   * The core's rich `warnings` tuples and `None`-able indices are the
-     interesting part of the API surface: they must survive serialisation, not
-     be flattened away. A JSON schema that drops the warnings would undo most of
-     what Weeks 1-2 were for.
-   * The OpenAPI schema is the single source of truth; the TS client is
-     generated in CI with a `git diff --exit-code` drift check.
-2. T-0011 M4 Next.js app.
+1. T-0011 sub-increment 3 — **upload flow**: a client page that POSTs a file to
+   `/ingest`, lets the user pick a numeric column, and surfaces the ingestion
+   warnings (ignored columns, dropped cells). Verify in a browser with the API
+   running (`uv run uvicorn capstat_api.main:app`). Needs CORS on the API for
+   the browser's cross-origin call — add `CORSMiddleware` as the first step.
+2. T-0011 sub-increment 4-5 — capability dashboard + ECharts control charts.
+3. T-0012 M5a Gage R&R (the MSA credibility centrepiece).
 
 ## Last done
 
+- 2026-07-15: T-0011 (in progress) TS client + Next.js scaffold; typed
+  `openapi-fetch` client wired, `npm run build` green, web CI job added.
+- 2026-07-15: T-0010 FastAPI service (`apps/api`): faithful serialisation,
+  CSV/XLSX ingestion, committed OpenAPI + drift check. 412 tests, 100 % cov.
 - 2026-07-14: T-0009 Nelson + Western Electric run rules.
 - 2026-07-14: T-0008 EWMA + CUSUM, both NIST worked examples reproduced.
 - 2026-07-14: T-0007 chart constants + Shewhart charts; 75x d3 speedup.

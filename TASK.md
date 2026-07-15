@@ -4,17 +4,26 @@
 
 <!-- max 3 -->
 
-## Next
-
-- T-0010 M3 FastAPI service: compute endpoints (descriptive, capability,
-  control charts), CSV/XLSX ingestion, OpenAPI schema, TS client generation
-  with a drift check in CI.
-
-## Backlog
-
 - T-0011 M4 Next.js app: upload (CSV/XLSX), capability dashboard, histogram
   with spec limits + fitted distribution, control charts with violation
-  markers (ECharts).
+  markers (ECharts). Sub-increments:
+  1. **[done 2026-07-15]** TS client: `apps/web` with `openapi-typescript`
+     generating `lib/api-client/schema.d.ts` from `apps/api/openapi.json`,
+     committed + drift-checked in CI (`npm run check:api`). Closes the Node
+     half of the M3 contract deferred from T-0010.
+  2. **[done 2026-07-15]** Next.js scaffold: Next 16 App Router + React 19 +
+     Tailwind v4 + ESLint 9 (flat), typed `api` client wired via
+     `openapi-fetch`. `npm run build` green (lint + typecheck + static /).
+     Web CI job added (npm ci -> drift -> lint -> build).
+  3. **[next]** Upload flow: `/ingest` call, column picker, error/warning
+     surfacing. Verify in a browser (API running locally).
+  4. Capability dashboard: `/compute/capability` + `/analyze`; histogram with
+     spec limits + fitted distribution (ECharts).
+  5. Control charts: I-MR/Xbar via ECharts `markLine`/`markArea` for limits +
+     zones; violation markers; run-rule overlay.
+  6. eslint/prettier/vitest + a Playwright smoke test; polish.
+
+## Backlog
 - T-0012 M5a Gage R&R: ANOVA method + average-and-range method;
   %Contribution, %Study Variation, ndc. Validated against the AIAG MSA-4
   worked examples (core credibility).
@@ -41,6 +50,13 @@
   every run). Bump to the Node-24 native majors when released; dependabot
   (github-actions, weekly) will likely raise this PR on its own. Cosmetic
   today, breaking once GitHub drops the shim.
+- T-0022 starlette TestClient deprecation: FastAPI's `TestClient` rides on
+  `httpx`, and starlette 1.3 warns "install `httpx2` instead"; it also renamed
+  the `HTTP_4xx_*` status constants (ENTITY -> CONTENT). capstat's API code
+  sidesteps the constant churn by using int literals (422/413/415), but the
+  TestClient warning surfaces once per test session. Cosmetic today; revisit
+  when starlette settles the httpx2 transition. Same class as T-0020/T-0021
+  (a dependency's deprecation, not our bug).
 - T-0019 Decide demo hosting (due Week 3, before T-0015): recommendation
   Vercel Hobby (web, free) + Render Free (API container, sleeps when idle);
   alternative Fly.io (a few EUR/month). Needs one account each (GitHub login
@@ -48,6 +64,42 @@
 
 ## Done
 
+- T-0010 (2026-07-15) M3 FastAPI service. New workspace member `apps/api`
+  (`capstat_api`): stateless compute endpoints over every core entry point,
+  `/ingest` for CSV/XLSX, `/health`, `/rules/catalogue`. OpenAPI schema
+  committed at `apps/api/openapi.json` with a drift check in CI + pre-commit.
+  412 tests, 100 % coverage on both packages, mypy strict clean.
+  * **The core stays web-free.** fastapi/pandas/openpyxl live only in
+    `apps/api`; `capstat-core` is still numpy+scipy (PLAN.md non-negotiable).
+    Enforced by construction -- the api package depends on the core, never the
+    reverse.
+  * **Faithful serialisation was the whole job.** Response models are Pydantic
+    mirrors built with `model_validate(core_obj)` under `from_attributes=True`,
+    so the core's `warnings` tuples survive as JSON arrays AND the derived
+    `@property` values (`in_control`, `stability_ratio`) are read by attribute
+    -- `dataclasses.asdict` would have silently dropped them. Every compute
+    test asserts equality with the core's own output, not just a 200.
+  * **`None` is preserved, never coerced to 0.** A one-sided spec leaves
+    `cp`/`cpl` undefined; the schema carries `null`. Pinned by a test.
+  * **Non-finite floats become `null`.** A zero-variance sample yields `nan`
+    skewness; JSON has no `NaN`, so a `SafeFloat` validator maps non-finite to
+    `null` on the (few) fields that can be non-finite. Pinned by a test.
+  * **The 8-vs-9 rule discriminant carries through HTTP.** The rules endpoints
+    rebuild a minimal `ControlChart` (points + limits); a run of exactly eight
+    fires Western Electric rule 4 and not Nelson rule 2 -- the same off-by-one
+    guard as T-0009, now at the API boundary.
+  * **Ingestion says what it dropped.** Non-numeric columns are named as
+    ignored; missing cells are dropped per column and counted. A silent drop
+    would misstate the sample size.
+  * `capability` accepts 1D (individuals) or 2D (subgroups) so within-subgroup
+    Cp is reachable over HTTP, not just Ppk.
+  * **TS client split out by decision (2026-07-15):** M3 ships the committed
+    `openapi.json` + a Python drift check; the `openapi-typescript` generation
+    moves to T-0011 where the Node toolchain arrives anyway. Recorded so the
+    acceptance criterion is not silently dropped.
+  * **My own test was wrong, not the code (again).** A dropped-missing test
+    used a wholly blank CSV line; pandas skips blank lines by default, so no
+    missing value ever existed. The gap had to sit beside a populated column.
 - T-0009 (2026-07-14) M2c Nelson + Western Electric run rules.
   `capstat_core.rules`: `nelson_rules`, `western_electric_rules` ->
   `tuple[RuleViolation, ...]`; `NELSON_RULES` / `WESTERN_ELECTRIC_RULES`
