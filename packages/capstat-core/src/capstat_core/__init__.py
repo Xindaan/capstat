@@ -14,6 +14,10 @@ from capstat_core.capability import (
     CapabilityReport,
     capability,
 )
+from capstat_core.bias import (
+    BiasReport,
+    bias,
+)
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, E2, c4, d2, d2_star, d3
 from capstat_core.control_charts import (
     ChartPair,
@@ -89,6 +93,7 @@ __all__ = [
     "MAD_NORMAL_CONSISTENCY",
     "NELSON_RULES",
     "WESTERN_ELECTRIC_RULES",
+    "BiasReport",
     "BoxCoxCapability",
     "CapabilityAnalysis",
     "CapabilityReport",
@@ -109,6 +114,7 @@ __all__ = [
     "anderson_darling",
     "anderson_darling_pvalue",
     "assess_normality",
+    "bias",
     "box_cox_capability",
     "c4",
     "capability",

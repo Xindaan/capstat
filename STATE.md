@@ -62,12 +62,18 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0013 M5b Bias, linearity, stability (core) -- the next MSA piece.
+1. T-0013b — Gage **linearity** (core): regress per-reading bias on the
+   reference across master parts; slope/intercept, R^2, %linearity, slope
+   significance. Validate slope/intercept vs the AIAG example, regression vs
+   scipy. Then T-0013c stability (control chart on a master part over time).
 2. T-0024 web run-rule selection UI (small, low priority).
 3. T-0014 M6a print-optimized PDF report route.
 
 ## Last done
 
+- 2026-07-16: T-0013a — Gage **bias** (`bias()`): one-sample t-test vs a
+  reference; bias/repeatability/t/p/CI + a CI-based verdict. Validated against
+  scipy's ttest_1samp and both AIAG examples. 424 core tests, 100% coverage.
 - 2026-07-15: Gage R&R **web UI** -- a `/gage-rr` route with a data-entry grid
   (parts x operators x trials, pre-filled with the AIAG example), method toggle
   (ANOVA / average-and-range), and a report (variance table, %/ndc cards,

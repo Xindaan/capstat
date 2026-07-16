@@ -4,15 +4,25 @@
 
 <!-- max 3 -->
 
-- (Doing is clear -- T-0012 M5a Gage R&R shipped end-to-end (core + API + UI).
-  Next in Backlog: T-0013 M5b bias/linearity/stability.)
+- T-0013 M5b measurement-system studies in `capstat-core`.
+  a. **[done 2026-07-16]** Bias (`bias()` -> `BiasReport`): one-sample t-test of
+     repeated readings against a reference; bias, repeatability, t/p, a
+     confidence interval, and a CI-based verdict (robust to the zero-repeatability
+     degenerate case). Validated against scipy's `ttest_1samp` and the two AIAG
+     worked examples (hardness = no bias, colorimeter = biased).
+  b. **[next]** Linearity: regress the per-reading bias on the reference value
+     across several master parts; slope/intercept, R^2, the slope's significance,
+     and %linearity = |slope| x 100. Validate slope/intercept against the AIAG
+     example (slope -0.132, intercept 1.408) and the regression against scipy.
+  c. Stability: run repeated master-part readings through the existing I-MR /
+     Xbar-R control charts over time; the verdict is "in control". Likely a thin
+     wrapper + docs rather than new statistics -- decide when we get there.
 
 ## Backlog
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
   drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
-- T-0013 M5b Bias, linearity, stability.
 - T-0014 M6a PDF report: print-optimized report route with vector charts
   (ECharts SVG renderer); server PDF as roadmap.
 - T-0015 M6b docker-compose (api + web) + public demo deployment

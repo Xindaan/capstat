@@ -1,0 +1,68 @@
+# Bias study -- reference values
+#
+# The bias test is a one-sample t-test of the readings against the reference, so
+# it is validated two ways: the t-statistic and p-value against scipy's
+# ttest_1samp (an independent implementation, in the test itself), and the AIAG
+# worked examples below.
+#
+# The AIAG examples are published as summary statistics (mean, s, n), not raw
+# data, so each test reconstructs a sample with exactly that mean and standard
+# deviation and runs it through `bias`; the confidence interval and verdict must
+# then match AIAG's printed numbers.
+
+sources:
+  aiag_bias:
+    title: >
+      AIAG. Measurement Systems Analysis (MSA), 4th ed., 2010, ch. III sec. B
+      (Bias). Worked examples reproduced by SPC for Excel.
+    url: https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/variable-measurement-systems-part-2-bias/
+    retrieved: 2026-07-16
+  scipy_ttest:
+    title: "scipy.stats.ttest_1samp -- independent one-sample t-test."
+
+cases:
+  # The hardness tester: bias is not significant (the CI for the average
+  # straddles the reference of 36).
+  - id: bias-aiag-hardness
+    method: bias
+    description: >
+      15 readings of a hardness master (reference 36). Bias 0.00667 is not
+      significant; the 95% CI for the average contains 36.
+    input:
+      reference: 36.0
+      n: 15
+      target_mean: 36.00667
+      target_sd: 0.21202
+      alpha: 0.05
+    expected:
+      mean: 36.00667
+      bias: 0.00667
+      repeatability: 0.21202
+      # CI for the average (bias CI + reference).
+      ci_avg_lower: 35.88925
+      ci_avg_upper: 36.12408
+      bias_significant: false
+    tolerance:
+      abs: 1.0e-4
+
+  # The colorimeter: bias IS significant (the CI misses the reference of 100).
+  - id: bias-aiag-colorimeter
+    method: bias
+    description: >
+      10 readings of a white standard (reference 100). Bias -0.45 is
+      significant; the 95% CI for the average is below 100.
+    input:
+      reference: 100.0
+      n: 10
+      target_mean: 99.55
+      target_sd: 0.542115
+      alpha: 0.05
+    expected:
+      mean: 99.55
+      bias: -0.45
+      repeatability: 0.542115
+      ci_avg_lower: 99.16217
+      ci_avg_upper: 99.93783
+      bias_significant: true
+    tolerance:
+      abs: 1.0e-4
