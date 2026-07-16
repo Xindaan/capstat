@@ -11,6 +11,7 @@ from capstat_core import (
     ControlChart,
     ControlLimits,
     analyze_capability,
+    bias,
     capability,
     cusum_chart,
     describe,
@@ -18,7 +19,9 @@ from capstat_core import (
     gage_rr,
     gage_rr_range,
     i_mr_chart,
+    linearity,
     nelson_rules,
+    stability,
     western_electric_rules,
     xbar_r_chart,
     xbar_s_chart,
@@ -28,16 +31,20 @@ from fastapi import APIRouter
 from capstat_api.errors import core_errors
 from capstat_api.requests import (
     AnalyzeCapabilityRequest,
+    BiasRequest,
     CapabilityRequest,
     CusumRequest,
     DescriptiveRequest,
     EwmaRequest,
     GageRRRequest,
     IMRRequest,
+    LinearityRequest,
     RulesRequest,
+    StabilityRequest,
     SubgroupRequest,
 )
 from capstat_api.schemas import (
+    BiasReportOut,
     CapabilityAnalysisOut,
     CapabilityReportOut,
     ChartPairOut,
@@ -45,7 +52,9 @@ from capstat_api.schemas import (
     DescriptiveSummaryOut,
     EwmaChartOut,
     GageRRReportOut,
+    LinearityReportOut,
     RuleViolationOut,
+    StabilityReportOut,
 )
 
 router = APIRouter(prefix="/compute", tags=["compute"])
@@ -104,6 +113,32 @@ def compute_gage_rr(req: GageRRRequest) -> GageRRReportOut:
                 interaction_alpha=req.interaction_alpha,
             )
     return GageRRReportOut.model_validate(result)
+
+
+@router.post("/bias", response_model=BiasReportOut)
+def compute_bias(req: BiasRequest) -> BiasReportOut:
+    with core_errors():
+        result = bias(req.measurements, req.reference, alpha=req.alpha)
+    return BiasReportOut.model_validate(result)
+
+
+@router.post("/linearity", response_model=LinearityReportOut)
+def compute_linearity(req: LinearityRequest) -> LinearityReportOut:
+    with core_errors():
+        result = linearity(
+            req.references,
+            req.measurements,
+            process_variation=req.process_variation,
+            alpha=req.alpha,
+        )
+    return LinearityReportOut.model_validate(result)
+
+
+@router.post("/stability", response_model=StabilityReportOut)
+def compute_stability(req: StabilityRequest) -> StabilityReportOut:
+    with core_errors():
+        result = stability(req.measurements)
+    return StabilityReportOut.model_validate(result)
 
 
 @router.post("/control-chart/i-mr", response_model=ChartPairOut)

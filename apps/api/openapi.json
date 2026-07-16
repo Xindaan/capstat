@@ -57,6 +57,125 @@
         "title": "AnalyzeCapabilityRequest",
         "type": "object"
       },
+      "BiasReportOut": {
+        "properties": {
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "bias": {
+            "title": "Bias",
+            "type": "number"
+          },
+          "bias_significant": {
+            "title": "Bias Significant",
+            "type": "boolean"
+          },
+          "ci_lower": {
+            "title": "Ci Lower",
+            "type": "number"
+          },
+          "ci_upper": {
+            "title": "Ci Upper",
+            "type": "number"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Value"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "number"
+          },
+          "repeatability": {
+            "title": "Repeatability",
+            "type": "number"
+          },
+          "std_error": {
+            "title": "Std Error",
+            "type": "number"
+          },
+          "t_statistic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T Statistic"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "n",
+          "reference",
+          "mean",
+          "bias",
+          "repeatability",
+          "std_error",
+          "t_statistic",
+          "p_value",
+          "alpha",
+          "ci_lower",
+          "ci_upper",
+          "warnings",
+          "bias_significant"
+        ],
+        "title": "BiasReportOut",
+        "type": "object"
+      },
+      "BiasRequest": {
+        "additionalProperties": false,
+        "description": "Repeated readings of one part whose true value is known.",
+        "properties": {
+          "alpha": {
+            "default": 0.05,
+            "title": "Alpha",
+            "type": "number"
+          },
+          "measurements": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "title": "Measurements",
+            "type": "array"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "number"
+          }
+        },
+        "required": [
+          "measurements",
+          "reference"
+        ],
+        "title": "BiasRequest",
+        "type": "object"
+      },
       "Body_ingest_file_ingest_post": {
         "properties": {
           "file": {
@@ -1476,6 +1595,185 @@
         "title": "IngestResponse",
         "type": "object"
       },
+      "LinearityReportOut": {
+        "properties": {
+          "alpha": {
+            "title": "Alpha",
+            "type": "number"
+          },
+          "intercept": {
+            "title": "Intercept",
+            "type": "number"
+          },
+          "linearity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linearity"
+          },
+          "linearity_significant": {
+            "title": "Linearity Significant",
+            "type": "boolean"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "n_parts": {
+            "title": "N Parts",
+            "type": "integer"
+          },
+          "part_mean_biases": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Part Mean Biases",
+            "type": "array"
+          },
+          "percent_linearity": {
+            "title": "Percent Linearity",
+            "type": "number"
+          },
+          "process_variation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process Variation"
+          },
+          "r_squared": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R Squared"
+          },
+          "references": {
+            "items": {
+              "type": "number"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "slope": {
+            "title": "Slope",
+            "type": "number"
+          },
+          "slope_p_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope P Value"
+          },
+          "slope_std_error": {
+            "title": "Slope Std Error",
+            "type": "number"
+          },
+          "slope_t_statistic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope T Statistic"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "n",
+          "n_parts",
+          "slope",
+          "intercept",
+          "r_squared",
+          "slope_std_error",
+          "slope_t_statistic",
+          "slope_p_value",
+          "alpha",
+          "percent_linearity",
+          "process_variation",
+          "linearity",
+          "references",
+          "part_mean_biases",
+          "warnings",
+          "linearity_significant"
+        ],
+        "title": "LinearityReportOut",
+        "type": "object"
+      },
+      "LinearityRequest": {
+        "additionalProperties": false,
+        "description": "Readings of several masters spanning the range, one list per master.",
+        "properties": {
+          "alpha": {
+            "default": 0.05,
+            "title": "Alpha",
+            "type": "number"
+          },
+          "measurements": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "minItems": 2,
+            "title": "Measurements",
+            "type": "array"
+          },
+          "process_variation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process Variation"
+          },
+          "references": {
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "title": "References",
+            "type": "array"
+          }
+        },
+        "required": [
+          "references",
+          "measurements"
+        ],
+        "title": "LinearityRequest",
+        "type": "object"
+      },
       "NormalityAssessmentOut": {
         "properties": {
           "alpha": {
@@ -1783,6 +2081,63 @@
         "title": "RulesRequest",
         "type": "object"
       },
+      "StabilityReportOut": {
+        "properties": {
+          "chart": {
+            "$ref": "#/components/schemas/ChartPairOut"
+          },
+          "stable": {
+            "title": "Stable",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chart",
+          "warnings",
+          "stable"
+        ],
+        "title": "StabilityReportOut",
+        "type": "object"
+      },
+      "StabilityRequest": {
+        "additionalProperties": false,
+        "description": "Time-ordered readings of one master: 1-D individuals or 2-D subgroups.",
+        "properties": {
+          "measurements": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              }
+            ],
+            "minLength": 2,
+            "title": "Measurements"
+          }
+        },
+        "required": [
+          "measurements"
+        ],
+        "title": "StabilityRequest",
+        "type": "object"
+      },
       "SubgroupRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1853,6 +2208,47 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/compute/bias": {
+      "post": {
+        "operationId": "compute_bias_compute_bias_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BiasRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BiasReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Bias",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/capability": {
       "post": {
         "operationId": "compute_capability_compute_capability_post",
@@ -2222,6 +2618,47 @@
         ]
       }
     },
+    "/compute/linearity": {
+      "post": {
+        "operationId": "compute_linearity_compute_linearity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinearityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinearityReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Linearity",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/rules/nelson": {
       "post": {
         "operationId": "compute_nelson_rules_compute_rules_nelson_post",
@@ -2307,6 +2744,47 @@
           }
         },
         "summary": "Compute Western Electric Rules",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/stability": {
+      "post": {
+        "operationId": "compute_stability_compute_stability_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StabilityReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Stability",
         "tags": [
           "compute"
         ]

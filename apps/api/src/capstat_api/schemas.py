@@ -252,6 +252,55 @@ class GageRRReportOut(_CoreModel):
 
 
 # ---------------------------------------------------------------------------
+# bias.py / linearity.py / stability.py
+# ---------------------------------------------------------------------------
+
+
+class BiasReportOut(_CoreModel):
+    n: int
+    reference: float
+    mean: float
+    bias: float
+    repeatability: float
+    std_error: float
+    # Undefined (inf/nan) when every reading is identical; the verdict below
+    # still holds, because it comes from the interval, not the statistic.
+    t_statistic: SafeFloat
+    p_value: SafeFloat
+    alpha: float
+    ci_lower: float
+    ci_upper: float
+    warnings: list[str]
+    bias_significant: bool
+
+
+class LinearityReportOut(_CoreModel):
+    n: int
+    n_parts: int
+    slope: float
+    intercept: float
+    # nan when the bias never varies; inf/nan when the fit is exact.
+    r_squared: SafeFloat
+    slope_std_error: float
+    slope_t_statistic: SafeFloat
+    slope_p_value: SafeFloat
+    alpha: float
+    percent_linearity: float
+    process_variation: float | None
+    linearity: float | None
+    references: list[float]
+    part_mean_biases: list[float]
+    warnings: list[str]
+    linearity_significant: bool
+
+
+class StabilityReportOut(_CoreModel):
+    chart: ChartPairOut
+    warnings: list[str]
+    stable: bool
+
+
+# ---------------------------------------------------------------------------
 # rules.py
 # ---------------------------------------------------------------------------
 

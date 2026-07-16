@@ -12,6 +12,7 @@ import math
 from typing import ClassVar
 
 from capstat_core import (
+    bias,
     capability,
     cusum_chart,
     describe,
@@ -19,6 +20,8 @@ from capstat_core import (
     gage_rr,
     gage_rr_range,
     i_mr_chart,
+    linearity,
+    stability,
     xbar_r_chart,
     xbar_s_chart,
 )
@@ -243,6 +246,103 @@ def test_gage_rr_too_few_operators_maps_core_error_to_422(client: TestClient) ->
     resp = client.post("/compute/gage-rr", json={"data": [[[1.0, 2.0]], [[3.0, 4.0]]]})
     assert resp.status_code == 422
     assert isinstance(resp.json()["detail"], str)
+
+
+BIAS_READINGS = [36.1, 35.9, 36.0, 36.05, 35.95, 36.2, 35.85]
+LINEARITY_REFS = [7.0, 9.0, 11.0, 13.0, 15.0]
+LINEARITY_READINGS = [
+    [7.5, 7.4],
+    [9.2, 9.1],
+    [11.0, 11.05],
+    [12.7, 12.75],
+    [14.4, 14.35],
+]
+
+
+def test_bias_matches_core(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/bias", json={"measurements": BIAS_READINGS, "reference": 36.0}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = bias(BIAS_READINGS, 36.0)
+    assert body["bias"] == core.bias
+    assert body["t_statistic"] == core.t_statistic
+    assert body["p_value"] == core.p_value
+    assert body["ci_lower"] == core.ci_lower
+    # A derived property, not a field.
+    assert body["bias_significant"] == core.bias_significant
+    assert body["warnings"] == list(core.warnings)
+
+
+def test_bias_degenerate_serialises_infinite_t_as_null(client: TestClient) -> None:
+    # Identical readings off the reference: t is infinite, which JSON cannot
+    # hold. The verdict is interval-based and survives.
+    body = client.post(
+        "/compute/bias", json={"measurements": [7.0, 7.0, 7.0], "reference": 5.0}
+    ).json()
+    assert body["t_statistic"] is None
+    assert body["bias_significant"] is True
+
+
+def test_linearity_matches_core(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/linearity",
+        json={
+            "references": LINEARITY_REFS,
+            "measurements": LINEARITY_READINGS,
+            "process_variation": 6.0,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = linearity(LINEARITY_REFS, LINEARITY_READINGS, process_variation=6.0)
+    assert body["slope"] == core.slope
+    assert body["intercept"] == core.intercept
+    assert body["percent_linearity"] == core.percent_linearity
+    assert body["linearity"] == core.linearity
+    assert body["part_mean_biases"] == list(core.part_mean_biases)
+    assert body["linearity_significant"] == core.linearity_significant
+
+
+def test_linearity_without_process_variation_is_null(client: TestClient) -> None:
+    body = client.post(
+        "/compute/linearity",
+        json={"references": LINEARITY_REFS, "measurements": LINEARITY_READINGS},
+    ).json()
+    assert body["linearity"] is None
+    assert body["percent_linearity"] is not None
+
+
+def test_linearity_equal_references_maps_core_error_to_422(
+    client: TestClient,
+) -> None:
+    resp = client.post(
+        "/compute/linearity",
+        json={"references": [5.0, 5.0], "measurements": [[5.0, 5.1], [5.2, 4.9]]},
+    )
+    assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], str)
+
+
+def test_stability_matches_core_and_nests_the_chart(client: TestClient) -> None:
+    readings = [10.0 + 0.05 * (i % 3 - 1) for i in range(25)]
+    resp = client.post("/compute/stability", json={"measurements": readings})
+    assert resp.status_code == 200
+    body = resp.json()
+    core = stability(readings)
+    assert body["stable"] == core.stable
+    # The whole ChartPair must survive nesting, derived properties included.
+    assert body["chart"]["in_control"] == core.chart.in_control
+    assert body["chart"]["location"]["limits"]["center"] == (
+        core.chart.location.limits.center
+    )
+
+
+def test_stability_accepts_subgroups(client: TestClient) -> None:
+    subgroups = [[10.0, 10.1, 9.9] for _ in range(15)]
+    body = client.post("/compute/stability", json={"measurements": subgroups}).json()
+    assert body["chart"]["subgroup_size"] == 3
 
 
 def test_health(client: TestClient) -> None:

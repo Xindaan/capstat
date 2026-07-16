@@ -79,6 +79,29 @@ class ControlLimitsIn(_Request):
     upper: float
 
 
+class BiasRequest(_Request):
+    """Repeated readings of one part whose true value is known."""
+
+    measurements: list[float] = Field(min_length=2)
+    reference: float
+    alpha: float = 0.05
+
+
+class LinearityRequest(_Request):
+    """Readings of several masters spanning the range, one list per master."""
+
+    references: list[float] = Field(min_length=2)
+    measurements: list[list[float]] = Field(min_length=2)
+    process_variation: float | None = None
+    alpha: float = 0.05
+
+
+class StabilityRequest(_Request):
+    """Time-ordered readings of one master: 1-D individuals or 2-D subgroups."""
+
+    measurements: list[float] | list[list[float]] = Field(min_length=2)
+
+
 class GageRRRequest(_Request):
     """A balanced Gage R&R layout: parts x operators x trials.
 

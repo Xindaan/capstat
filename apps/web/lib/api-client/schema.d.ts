@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/compute/bias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Bias */
+        post: operations["compute_bias_compute_bias_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compute/capability": {
         parameters: {
             query?: never;
@@ -157,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compute/linearity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Linearity */
+        post: operations["compute_linearity_compute_linearity_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compute/rules/nelson": {
         parameters: {
             query?: never;
@@ -185,6 +219,23 @@ export interface paths {
         put?: never;
         /** Compute Western Electric Rules */
         post: operations["compute_western_electric_rules_compute_rules_western_electric_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compute/stability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Stability */
+        post: operations["compute_stability_compute_stability_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -264,6 +315,50 @@ export interface components {
             target?: number | null;
             /** Usl */
             usl?: number | null;
+        };
+        /** BiasReportOut */
+        BiasReportOut: {
+            /** Alpha */
+            alpha: number;
+            /** Bias */
+            bias: number;
+            /** Bias Significant */
+            bias_significant: boolean;
+            /** Ci Lower */
+            ci_lower: number;
+            /** Ci Upper */
+            ci_upper: number;
+            /** Mean */
+            mean: number;
+            /** N */
+            n: number;
+            /** P Value */
+            p_value: number | null;
+            /** Reference */
+            reference: number;
+            /** Repeatability */
+            repeatability: number;
+            /** Std Error */
+            std_error: number;
+            /** T Statistic */
+            t_statistic: number | null;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * BiasRequest
+         * @description Repeated readings of one part whose true value is known.
+         */
+        BiasRequest: {
+            /**
+             * Alpha
+             * @default 0.05
+             */
+            alpha: number;
+            /** Measurements */
+            measurements: number[];
+            /** Reference */
+            reference: number;
         };
         /** Body_ingest_file_ingest_post */
         Body_ingest_file_ingest_post: {
@@ -677,6 +772,58 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
+        /** LinearityReportOut */
+        LinearityReportOut: {
+            /** Alpha */
+            alpha: number;
+            /** Intercept */
+            intercept: number;
+            /** Linearity */
+            linearity: number | null;
+            /** Linearity Significant */
+            linearity_significant: boolean;
+            /** N */
+            n: number;
+            /** N Parts */
+            n_parts: number;
+            /** Part Mean Biases */
+            part_mean_biases: number[];
+            /** Percent Linearity */
+            percent_linearity: number;
+            /** Process Variation */
+            process_variation: number | null;
+            /** R Squared */
+            r_squared: number | null;
+            /** References */
+            references: number[];
+            /** Slope */
+            slope: number;
+            /** Slope P Value */
+            slope_p_value: number | null;
+            /** Slope Std Error */
+            slope_std_error: number;
+            /** Slope T Statistic */
+            slope_t_statistic: number | null;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * LinearityRequest
+         * @description Readings of several masters spanning the range, one list per master.
+         */
+        LinearityRequest: {
+            /**
+             * Alpha
+             * @default 0.05
+             */
+            alpha: number;
+            /** Measurements */
+            measurements: number[][];
+            /** Process Variation */
+            process_variation?: number | null;
+            /** References */
+            references: number[];
+        };
         /** NormalityAssessmentOut */
         NormalityAssessmentOut: {
             /** Alpha */
@@ -769,6 +916,22 @@ export interface components {
             /** Rules */
             rules?: number[] | null;
         };
+        /** StabilityReportOut */
+        StabilityReportOut: {
+            chart: components["schemas"]["ChartPairOut"];
+            /** Stable */
+            stable: boolean;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * StabilityRequest
+         * @description Time-ordered readings of one master: 1-D individuals or 2-D subgroups.
+         */
+        StabilityRequest: {
+            /** Measurements */
+            measurements: number[] | number[][];
+        };
         /** SubgroupRequest */
         SubgroupRequest: {
             /** Subgroups */
@@ -796,6 +959,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    compute_bias_compute_bias_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BiasRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BiasReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     compute_capability_compute_capability_post: {
         parameters: {
             query?: never;
@@ -1093,6 +1289,39 @@ export interface operations {
             };
         };
     };
+    compute_linearity_compute_linearity_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinearityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinearityReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     compute_nelson_rules_compute_rules_nelson_post: {
         parameters: {
             query?: never;
@@ -1146,6 +1375,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RuleViolationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compute_stability_compute_stability_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StabilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StabilityReportOut"];
                 };
             };
             /** @description Validation Error */
