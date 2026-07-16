@@ -8,6 +8,13 @@
   studies all reach the UI. Next in Backlog: the M6 release path.)
 
 ## Backlog
+- T-0028 Capability dashboard: the Cp/Cpk cards render "—" on the percentile
+  path, where those indices genuinely do not exist (no within/between split).
+  The amber warning says so, but it sits three blocks below the cards, so two
+  empty boxes read as "data missing" rather than "not defined here" -- a real
+  user asked exactly that within a minute of loading the demo CSV. Either drop
+  the cards on that path or label them in place ("not defined for the percentile
+  path"). Small; the statistics are right, the presentation misleads.
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever

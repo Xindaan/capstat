@@ -405,11 +405,18 @@ Then open <http://localhost:3000>. The client's API base URL defaults to
 
 `examples/shaft-diameter.csv` is a synthetic dataset to drop into the upload
 page: 60 shaft diameters in time order (spec 9.70 / 10.30 mm) from a process
-that is capable but drifting, with one excursion, a text column that gets
-ignored and two missing cells. It is built to make the app *say* something
-rather than to look tidy — the control chart signals, Cpk (1.77) flatters the
-process while Ppk (1.38) tells the truth, and the capability decision path lands
-on the percentile method because the drift breaks normality.
+that drifts, with one excursion, a text column that gets ignored and two missing
+cells. It is built to make the app *say* something rather than to look tidy. The
+control chart signals at part 31, and the capability decision path refuses the
+normal model — the drift breaks normality — and lands on the ISO 22514
+percentile method, reporting **Pp 1.379 / Ppk 0.942**.
+
+Cp and Cpk come out blank there, and that is the point: the percentile method
+reads percentiles off the overall fitted distribution and has no within/between
+subgroup split, so those two indices *do not exist* on that path. Software that
+printed a Cpk anyway would be inventing one. (Call `capability()` directly on
+this data and it will happily return Cpk 1.77 — along with a warning that the
+normal model was rejected and the number is therefore wrong.)
 
 ```bash
 npm run test        # vitest unit tests (pure binning / stats)
