@@ -51,6 +51,27 @@
 
 ## Done
 
+- T-0027 (2026-07-16) **Bug: a degenerate Box-Cox crashed the capability path.**
+  Found by generating a realistic demo CSV (a capable-but-drifting process,
+  spec 9.70/10.30) and running it through the app before shipping it: the
+  decision path routed to Box-Cox, the fitted lambda came out at -46, and at
+  that lambda `x**lambda` underflows across the whole range -- so *both* spec
+  limits mapped to the same float (0.0217086) and the inner `capability()` call
+  raised `lsl (0.0217...) must be strictly below usl (0.0217...)`. A user who
+  typed 9.70 and 10.30 got a 422 about 0.0217. This is the note left open in
+  T-0011 sub-increment 5; now with a repro from ordinary data.
+  * `box_cox_capability` now detects the collapse and raises an error naming the
+    limits the *caller* passed, not their transformed ghosts.
+  * `analyze_capability` catches it and routes to the percentile method -- the
+    fallback it already had for "Box-Cox didn't work", which simply was never
+    reached because Box-Cox raised first. Percentile does not transform the
+    limits, so it handles this fine (lognorm, Ppk 0.942).
+  * Tests: the collapse (forced lambda, deterministic) and the fallback
+    (seeded drift data, with a precondition asserting it really is the new
+    branch and not the older "failed to achieve normality" one).
+  * Also caught while verifying: `uvicorn --reload` watches `apps/api` only, so
+    the running server kept serving the old core. Verify through the live
+    server, not just the unit test.
 - T-0014 (2026-07-16) M6a printable report. **Scope changed on purpose**: the
   task said "report *route*", but a separate route would mean plumbing each
   page's analysis state somewhere a second route could read it -- for three

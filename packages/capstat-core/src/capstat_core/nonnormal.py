@@ -411,6 +411,21 @@ def box_cox_capability(
     usl_t = _box_cox(usl, lmbda) if usl is not None else None
     target_t = _box_cox(target, lmbda) if target is not None else None
 
+    # ... strictly increasing in exact arithmetic. In floating point a large
+    # |lambda| saturates: x**lambda underflows to ~0 for every x in the range, so
+    # (x**lambda - 1) / lambda collapses to -1/lambda for *both* limits and the
+    # spec width vanishes. The indices would then be computed against a
+    # zero-width specification, which is meaningless -- so say so, naming the
+    # limits the caller actually passed rather than their transformed ghosts.
+    if lsl_t is not None and usl_t is not None and lsl_t >= usl_t:
+        raise ValueError(
+            f"the Box-Cox transform (lambda = {lmbda:.4g}) is degenerate for this "
+            f"specification: it maps lsl={lsl} and usl={usl} to the same value "
+            f"({lsl_t:.6g}) in floating point, leaving no spec width to compute "
+            f"an index against. Use the percentile method, which does not "
+            f"transform the limits."
+        )
+
     normality_after = assess_normality(transformed, alpha=alpha)
     successful = normality_after.normal
 
@@ -530,10 +545,24 @@ def analyze_capability(
     )
 
     if positive:
-        transformed = box_cox_capability(
-            arr, lsl=lsl, usl=usl, target=target, alpha=alpha
-        )
-        if transformed.transform_successful:
+        # Box-Cox can fail outright, not just fail to fix the normality -- an
+        # extreme lambda collapses the transformed spec limits onto each other.
+        # Choosing a path that works is this function's whole job, so a failure
+        # here routes to the percentile method rather than reaching the caller.
+        # The `positive` guard above already rules out the other ValueErrors
+        # box_cox_capability raises, so what is caught here is a genuine
+        # "Box-Cox is unusable for this data" and nothing else.
+        try:
+            transformed = box_cox_capability(
+                arr, lsl=lsl, usl=usl, target=target, alpha=alpha
+            )
+        except ValueError as exc:
+            transformed = None
+            box_cox_failure: str | None = str(exc)
+        else:
+            box_cox_failure = None
+
+        if transformed is not None and transformed.transform_successful:
             return CapabilityAnalysis(
                 path="box-cox",
                 rationale=(
@@ -552,11 +581,19 @@ def analyze_capability(
                 ppk=transformed.capability.ppk,
                 warnings=transformed.warnings,
             )
-        reason = (
-            "the normal model was rejected and a Box-Cox transformation "
-            f"(lambda = {transformed.lmbda:.4f}) failed to fix it, so the "
-            f"ISO 22514 percentile method was used instead."
-        )
+        if box_cox_failure is not None:
+            reason = (
+                "the normal model was rejected, and Box-Cox could not be applied "
+                f"here at all: {box_cox_failure} The ISO 22514 percentile method "
+                f"was used instead."
+            )
+        else:
+            assert transformed is not None  # narrowed: no failure means a result
+            reason = (
+                "the normal model was rejected and a Box-Cox transformation "
+                f"(lambda = {transformed.lmbda:.4f}) failed to fix it, so the "
+                f"ISO 22514 percentile method was used instead."
+            )
     else:
         reason = (
             "the normal model was rejected, and Box-Cox is undefined here because "

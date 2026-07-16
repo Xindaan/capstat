@@ -79,6 +79,13 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Last done
 
+- 2026-07-16: T-0027 — **fixed a real crash in the capability decision path**: a
+  fitted Box-Cox lambda of -46 collapses both spec limits onto the same float,
+  and the resulting 422 quoted the transformed limits (0.0217) at a user who
+  typed 9.70/10.30. Box-Cox now reports the collapse against the caller's own
+  limits, and `analyze_capability` routes to the percentile fallback it already
+  had. Found by running a realistic demo CSV through the app before shipping it.
+  `examples/shaft-diameter.csv` is that dataset.
 - 2026-07-16: T-0014 — **printable report**: every analysis page prints itself
   (print stylesheet drops controls, keeps results), charts switched to ECharts
   **SVG** so the PDF is vector. Verified by a Playwright print-media test.

@@ -280,6 +280,46 @@ def test_box_cox_transform_rejects_non_positive_values() -> None:
         _box_cox(0.0, 0.5)
 
 
+def test_box_cox_refuses_a_lambda_that_collapses_the_limits() -> None:
+    """A large |lambda| saturates in floating point: x**lambda underflows for the
+    whole range, so both limits map to -1/lambda and the spec width vanishes.
+
+    The error must name the limits the caller passed, not their transformed
+    ghosts -- being told "lsl 0.0217 must be below usl 0.0217" when you typed
+    9.7 and 10.3 is useless.
+    """
+    data = [10.0 + 0.02 * (i % 5) for i in range(20)]
+    with pytest.raises(ValueError, match="degenerate for this specification"):
+        box_cox_capability(data, lsl=9.7, usl=10.3, lmbda=-46.0)
+    with pytest.raises(ValueError, match=r"lsl=9\.7 and usl=10\.3"):
+        box_cox_capability(data, lsl=9.7, usl=10.3, lmbda=-46.0)
+
+
+def test_analyze_falls_back_to_percentile_when_box_cox_is_degenerate() -> None:
+    """Choosing a workable path is analyze_capability's job.
+
+    A tight, drifting process around 10 fits lambda ~= -46, which collapses the
+    limits. Box-Cox is then unusable -- but the percentile method does not
+    transform the limits, so the analysis must route there rather than raising.
+    """
+    rng = np.random.default_rng(0)
+    data = 10.0 + rng.normal(0.0, 0.05, 40)
+    data[-8:] += np.linspace(0.02, 0.16, 8)
+
+    # Precondition: this really is the degenerate branch, not the older
+    # "Box-Cox failed to achieve normality" one.
+    with pytest.raises(ValueError, match="degenerate"):
+        box_cox_capability(data, lsl=9.7, usl=10.3)
+
+    analysis = analyze_capability(data, lsl=9.7, usl=10.3)
+    assert analysis.path == "percentile"
+    assert analysis.box_cox is None
+    assert analysis.percentile is not None
+    assert analysis.ppk is not None
+    assert "degenerate" in analysis.rationale
+    assert "percentile method was used instead" in analysis.rationale
+
+
 # ---------------------------------------------------------------------------
 # Identity 3: two methods, no shared code, must agree where both are valid
 # ---------------------------------------------------------------------------

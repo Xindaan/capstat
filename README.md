@@ -403,6 +403,14 @@ cd apps/web && npm install && npm run dev     # terminal 2: the app on :3000
 Then open <http://localhost:3000>. The client's API base URL defaults to
 `http://127.0.0.1:8000`; override it at build time with `NEXT_PUBLIC_API_URL`.
 
+`examples/shaft-diameter.csv` is a synthetic dataset to drop into the upload
+page: 60 shaft diameters in time order (spec 9.70 / 10.30 mm) from a process
+that is capable but drifting, with one excursion, a text column that gets
+ignored and two missing cells. It is built to make the app *say* something
+rather than to look tidy — the control chart signals, Cpk (1.77) flatters the
+process while Ppk (1.38) tells the truth, and the capability decision path lands
+on the percentile method because the drift breaks normality.
+
 ```bash
 npm run test        # vitest unit tests (pure binning / stats)
 npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
