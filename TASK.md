@@ -4,23 +4,15 @@
 
 <!-- max 3 -->
 
-- T-0013 M5b measurement-system studies in `capstat-core`.
-  a. **[done 2026-07-16]** Bias (`bias()` -> `BiasReport`): one-sample t-test of
-     repeated readings against a reference; bias, repeatability, t/p, a
-     confidence interval, and a CI-based verdict (robust to the zero-repeatability
-     degenerate case). Validated against scipy's `ttest_1samp` and the two AIAG
-     worked examples (hardness = no bias, colorimeter = biased).
-  b. **[done 2026-07-16]** Linearity (`linearity()` -> `LinearityReport`):
-     least-squares regression of per-reading bias on the reference across master
-     parts; slope/intercept, R^2, slope t-test, %linearity = |slope| x 100, and
-     an absolute linearity when a process variation is given. Validated against
-     the AIAG example (slope -0.132, intercept 1.408, per-part biases) and the
-     full regression against scipy's linregress.
-  c. **[next]** Stability: run time-ordered master-part readings through the
-     existing I-MR / Xbar-R control charts; the verdict is "in control". A thin
-     MSA-framed wrapper over the validated control-chart code.
+- (Doing is clear -- T-0013 M5b shipped in the core. Next: wire the MSA studies
+  out to the API + UI, mirroring what T-0012 got.)
 
 ## Backlog
+- T-0025 MSA API + UI for bias / linearity / stability, mirroring the Gage R&R
+  wiring: `/compute/{bias,linearity,stability}` endpoints with faithful
+  serialisation, then a UI (an MSA section alongside the existing `/gage-rr`
+  page). Bias and linearity need a reference-value input per part; stability
+  reuses the control-chart rendering already built.
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
@@ -63,6 +55,23 @@
 
 ## Done
 
+- T-0013 (2026-07-16) M5b measurement-system studies in `capstat-core` -- the
+  three that ask whether a gage is *right*, not just consistent.
+  * **Bias** (`bias`): one-sample t-test of repeated readings against a known
+    reference. Bias, repeatability, t/p, a confidence interval, and a CI-based
+    verdict that stays meaningful when every reading is identical (the
+    t-statistic is not). Validated against scipy's `ttest_1samp` and both AIAG
+    worked examples (hardness = no bias, colorimeter = biased).
+  * **Linearity** (`linearity`): least-squares regression of per-reading bias on
+    the reference across masters spanning the range; slope/intercept, R^2, the
+    slope's t-test, %linearity = |slope| x 100, absolute linearity when a
+    process variation is given. Validated against the AIAG example (slope
+    -0.132, intercept 1.408, per-part biases) and scipy's `linregress`.
+  * **Stability** (`stability`): a deliberately thin MSA-framed wrapper over the
+    validated I-MR / Xbar-R charts -- a control chart on a master part, with the
+    out-of-control points read as gage drift.
+  445 core tests, 100% coverage, mypy strict + ruff clean. Core-only; the API +
+  UI wiring is T-0025.
 - T-0012 web+API (2026-07-15) Gage R&R wired out of the core: `/compute/gage-rr`
   (both methods, faithful `GageRRReportOut` with the derived %/ndc read via
   from_attributes; a nan-guard so degenerate input serialises as null, not a

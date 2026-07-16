@@ -14,11 +14,12 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **412 core + 34 API tests, 100 % coverage on both packages**, mypy strict,
+- **445 core + 38 API tests, 100 % coverage on both packages**, mypy strict,
   ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-- **T-0011 (M4 Next.js app) and T-0012 (M5a Gage R&R, both methods) are
-  complete.** The web app covers upload -> capability -> control charts; the
-  core now has ANOVA and average-and-range Gage R&R.
+- **T-0011 (M4 app), T-0012 (M5a Gage R&R) and T-0013 (M5b bias / linearity /
+  stability) are complete.** The web app covers upload -> capability -> control
+  charts, plus a Gage R&R page. **M5b is core-only so far** -- the MSA studies
+  have no API or UI yet (T-0025).
 - **The core stays web-free.** fastapi/pandas/openpyxl live only in `apps/api`;
   `capstat-core` remains numpy+scipy and independently PyPI-publishable.
 - **The API is a faithful serialisation layer**, not a reinterpretation: every
@@ -62,22 +63,18 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0013c — **stability**: an MSA-framed wrapper running time-ordered
-   master-part readings through the existing I-MR / Xbar-R control charts;
-   verdict = in control. Then T-0013 core is complete (API+UI a later follow-up,
-   like Gage R&R).
-2. T-0024 web run-rule selection UI (small, low priority).
-3. T-0014 M6a print-optimized PDF report route.
+1. T-0025 — **MSA API + UI** for bias / linearity / stability, mirroring the
+   Gage R&R wiring: faithful `/compute/{bias,linearity,stability}` endpoints,
+   then a UI alongside `/gage-rr`. Completes M5 end-to-end.
+2. T-0014 M6a print-optimized PDF report route (the M6 release path).
+3. T-0024 web run-rule selection UI (small, low priority).
 
 ## Last done
 
-- 2026-07-16: T-0013b — Gage **linearity** (`linearity()`): least-squares
-  regression of per-reading bias on the reference; slope/intercept, R^2,
-  %linearity, slope t-test. Validated against the AIAG example + scipy's
-  linregress. 439 core tests, 100% coverage.
-- 2026-07-16: T-0013a — Gage **bias** (`bias()`): one-sample t-test vs a
-  reference; bias/repeatability/t/p/CI + a CI-based verdict. Validated against
-  scipy's ttest_1samp and both AIAG examples.
+- 2026-07-16: **T-0013 (M5b) complete in the core** — bias (t-test vs a
+  reference), linearity (bias-vs-reference regression), stability (control chart
+  on a master). Validated against both AIAG examples, scipy's ttest_1samp and
+  linregress. 445 core tests, 100% coverage.
 - 2026-07-15: Gage R&R **web UI** -- a `/gage-rr` route with a data-entry grid
   (parts x operators x trials, pre-filled with the AIAG example), method toggle
   (ANOVA / average-and-range), and a report (variance table, %/ndc cards,

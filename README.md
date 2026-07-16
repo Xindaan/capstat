@@ -317,6 +317,34 @@ finite-sample d2 that the AIAG K2/K3 tables encode. capstat computes it from its
 own `d2`/`d3` as `sqrt(d2² + d3²/g)` rather than copying the table, and checks it
 against the published values. On the same data the two methods agree closely.
 
+### Bias, linearity, stability — is the gage *right*?
+
+Gage R&R asks whether a measurement system is consistent. These three ask
+whether it is correct, and they need something Gage R&R does not: a part whose
+true value you already know.
+
+```python
+from capstat_core import bias, linearity, stability
+
+bias(readings, reference=36.0)          # is the average off the master?
+linearity(references, measurements)     # does the bias drift across the range?
+stability(readings_over_time)           # does the gage hold still over weeks?
+```
+
+**Bias** is a one-sample t-test of repeated readings against the reference. The
+verdict is interval-based — "does the confidence interval for the bias straddle
+zero" — which still answers the question when every reading is identical and the
+t-statistic is not defined.
+
+**Linearity** regresses the bias of every reading on the reference value across
+several masters. A significant slope means the bias *changes* with the measured
+value: the gage stretches the scale, and a single bias correction will not fix
+it. Reports AIAG's `%linearity = |slope| × 100`.
+
+**Stability** is a control chart on a master part, and capstat says so rather
+than dressing it up: an out-of-control point means the gage drifted, because the
+part's true value never moved.
+
 ## HTTP API
 
 `apps/api` is a stateless FastAPI service that exposes every core statistic

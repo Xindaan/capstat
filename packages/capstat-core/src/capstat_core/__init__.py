@@ -10,13 +10,13 @@ normality testing.
 
 from __future__ import annotations
 
-from capstat_core.capability import (
-    CapabilityReport,
-    capability,
-)
 from capstat_core.bias import (
     BiasReport,
     bias,
+)
+from capstat_core.capability import (
+    CapabilityReport,
+    capability,
 )
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, E2, c4, d2, d2_star, d3
 from capstat_core.control_charts import (
@@ -79,6 +79,10 @@ from capstat_core.rules import (
     nelson_rules,
     western_electric_rules,
 )
+from capstat_core.stability import (
+    StabilityReport,
+    stability,
+)
 from capstat_core.time_weighted import (
     CusumChart,
     EwmaChart,
@@ -114,6 +118,7 @@ __all__ = [
     "NormalityTestResult",
     "PercentileCapability",
     "RuleViolation",
+    "StabilityReport",
     "__version__",
     "analyze_capability",
     "anderson_darling",
@@ -144,6 +149,7 @@ __all__ = [
     "percentile_capability",
     "shapiro_wilk",
     "skewness",
+    "stability",
     "std_dev",
     "trimmed_mean",
     "variance",

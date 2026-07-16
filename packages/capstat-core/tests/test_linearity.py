@@ -25,7 +25,9 @@ _SCATTER = np.array([-0.2, -0.1, -0.05, 0.05, 0.0, 0.0, -0.05, 0.05, 0.1, 0.2])
 
 def _reconstruct(references: list[float], part_biases: list[float]) -> list[np.ndarray]:
     scatter = _SCATTER - _SCATTER.mean()
-    return [ref + bias + scatter for ref, bias in zip(references, part_biases)]
+    return [
+        ref + bias + scatter for ref, bias in zip(references, part_biases, strict=True)
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +60,7 @@ def test_regression_matches_scipy_linregress() -> None:
     report = linearity(references, measurements)
 
     x = np.repeat(references, 8)
-    y = np.concatenate([m - r for r, m in zip(references, measurements)])
+    y = np.concatenate([m - r for r, m in zip(references, measurements, strict=True)])
     lr = stats.linregress(x, y)
     assert report.slope == pytest.approx(lr.slope, rel=1e-12)
     assert report.intercept == pytest.approx(lr.intercept, rel=1e-12)
