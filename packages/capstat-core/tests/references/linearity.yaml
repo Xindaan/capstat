@@ -1,0 +1,47 @@
+# Gage linearity study -- reference values
+#
+# Validated two ways: the whole regression (slope, intercept, r^2, slope
+# standard error, p-value) against scipy's linregress -- an independent
+# least-squares implementation, checked in the test -- and the slope, intercept
+# and per-part biases against the AIAG worked example.
+#
+# The AIAG example publishes the per-part average biases, not the raw readings.
+# On a balanced study the slope and intercept are fixed by those averages, so
+# the test reconstructs readings with exactly those per-part biases (a zero-mean
+# scatter added to each part) and checks slope, intercept, %linearity and the
+# per-part biases against the published numbers. The slope's t-statistic depends
+# on the (unpublished) within-part scatter, so it is validated against scipy on
+# the reconstructed data rather than against AIAG's printed t.
+
+sources:
+  aiag_linearity:
+    title: >
+      AIAG. Measurement Systems Analysis (MSA), 4th ed. (Linearity). Worked
+      example reproduced by SPC for Excel ("The Calculations Behind a Gage
+      Linearity Study").
+    url: https://www.spcforexcel.com/knowledge/measurement-systems-analysis-gage-rr/calculations-behind-gagerr-linearity-study/
+    retrieved: 2026-07-16
+  scipy_linregress:
+    title: "scipy.stats.linregress -- independent least-squares regression."
+
+cases:
+  - id: linearity-aiag
+    method: linearity
+    description: >
+      5 masters (references 7..15), 10 readings each. Bias drifts from +0.49 at
+      the low end to -0.61 at the high end: slope -0.132, intercept 1.408, and
+      a significant non-zero slope -- the gage is not linear.
+    input:
+      references: [7.0, 9.0, 11.0, 13.0, 15.0]
+      part_biases: [0.49, 0.16, 0.02, -0.28, -0.61]
+      reps: 10
+      process_variation: 6.0
+    expected:
+      slope: -0.132
+      intercept: 1.408
+      percent_linearity: 13.2
+      linearity: 0.792
+      part_mean_biases: [0.49, 0.16, 0.02, -0.28, -0.61]
+      linearity_significant: true
+    tolerance:
+      abs: 5.0e-4

@@ -10,13 +10,15 @@
      confidence interval, and a CI-based verdict (robust to the zero-repeatability
      degenerate case). Validated against scipy's `ttest_1samp` and the two AIAG
      worked examples (hardness = no bias, colorimeter = biased).
-  b. **[next]** Linearity: regress the per-reading bias on the reference value
-     across several master parts; slope/intercept, R^2, the slope's significance,
-     and %linearity = |slope| x 100. Validate slope/intercept against the AIAG
-     example (slope -0.132, intercept 1.408) and the regression against scipy.
-  c. Stability: run repeated master-part readings through the existing I-MR /
-     Xbar-R control charts over time; the verdict is "in control". Likely a thin
-     wrapper + docs rather than new statistics -- decide when we get there.
+  b. **[done 2026-07-16]** Linearity (`linearity()` -> `LinearityReport`):
+     least-squares regression of per-reading bias on the reference across master
+     parts; slope/intercept, R^2, slope t-test, %linearity = |slope| x 100, and
+     an absolute linearity when a process variation is given. Validated against
+     the AIAG example (slope -0.132, intercept 1.408, per-part biases) and the
+     full regression against scipy's linregress.
+  c. **[next]** Stability: run time-ordered master-part readings through the
+     existing I-MR / Xbar-R control charts; the verdict is "in control". A thin
+     MSA-framed wrapper over the validated control-chart code.
 
 ## Backlog
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the

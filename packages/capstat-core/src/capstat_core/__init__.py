@@ -42,6 +42,10 @@ from capstat_core.gage_rr import (
     gage_rr,
     gage_rr_range,
 )
+from capstat_core.linearity import (
+    LinearityReport,
+    linearity,
+)
 from capstat_core.nonnormal import (
     BoxCoxCapability,
     CapabilityAnalysis,
@@ -105,6 +109,7 @@ __all__ = [
     "DistributionFit",
     "EwmaChart",
     "GageRRReport",
+    "LinearityReport",
     "NormalityAssessment",
     "NormalityTestResult",
     "PercentileCapability",
@@ -131,6 +136,7 @@ __all__ = [
     "iqr",
     "kurtosis",
     "lag1_autocorrelation",
+    "linearity",
     "mad",
     "mean",
     "median",
