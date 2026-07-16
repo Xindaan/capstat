@@ -5,12 +5,15 @@ Date: 2026-07-15
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
+Next.js frontend as a professional MIT open-source project, released as v0.1.0.
+
+Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
+M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Status
 
-- **`capstat-core` is feature-complete for Weeks 1 and 2**, and **the FastAPI
-  service (T-0010) now wraps it.** Core: T-0002..T-0009 (descriptive/robust,
+- **`capstat-core` covers all of M1/M2**, and **the FastAPI service (T-0010)
+  wraps it.** Core: T-0002..T-0009 (descriptive/robust,
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
@@ -40,7 +43,11 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   page with a data-entry grid and a variance/%/ndc report. Verified in-browser.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
-- Only open decision: demo hosting (T-0019, due Week 3).
+- **Hosting decided (2026-07-16): Vercel** for the Next.js app. Still open: where
+  the FastAPI service lives — Vercel Python functions would keep it on one
+  platform but numpy+scipy+pandas is a real size risk against the serverless
+  bundle limit; a container host (Render/Fly) is the safe pairing. Decide before
+  T-0015.
 
 ## Working method (keeps paying off — do not abandon it under time pressure)
 
@@ -64,13 +71,17 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. **T-0019 decide demo hosting** (due Week 3, blocks T-0015) — this one needs
-   you: Vercel Hobby (web) + Render Free (API) vs Fly.io. One account each.
-2. T-0014 M6a print-optimized PDF report route (the M6 release path).
-3. T-0016 M6c docs site; T-0017 M6d v0.1.0 release. T-0024 run-rule UI (small).
+1. T-0016 M6c docs site (mkdocs-material); the method reference can be fed from
+   the reference YAMLs we already maintain.
+2. T-0015 M6b docker-compose + deploy (web on Vercel; **API host still open,
+   T-0026** — measure the numpy/scipy bundle before choosing serverless).
+3. T-0017 M6d v0.1.0 release. T-0024 run-rule UI (small).
 
 ## Last done
 
+- 2026-07-16: T-0014 — **printable report**: every analysis page prints itself
+  (print stylesheet drops controls, keeps results), charts switched to ECharts
+  **SVG** so the PDF is vector. Verified by a Playwright print-media test.
 - 2026-07-16: T-0025 — **MSA API + UI**: `/compute/{bias,linearity,stability}`
   + a `/msa` page with all three studies, each pre-filled with a worked example
   (stability reuses the ControlChart component). **M5 is complete end-to-end.**

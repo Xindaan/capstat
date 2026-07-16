@@ -388,6 +388,11 @@ study from a data-entry grid (both the ANOVA and average-and-range methods), and
 `/msa` runs the bias, linearity and stability studies — each pre-filled with a
 worked example.
 
+Every analysis page is also its own report: **Print / save as PDF** drops the
+navigation and the controls, keeps the results, and prints the charts as vector
+(ECharts renders SVG, not canvas), so a study goes to a PDF that still looks
+right at any zoom.
+
 Run it against a local API:
 
 ```bash

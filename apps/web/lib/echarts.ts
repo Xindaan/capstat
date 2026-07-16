@@ -46,7 +46,10 @@ export function useEchart(
 
     void import("echarts").then((echarts) => {
       if (disposed) return;
-      const chart = echarts.init(el, undefined, { renderer: "canvas" });
+      // SVG, not canvas: the charts are the substance of a printed report, and
+      // vector output stays crisp at any zoom or print resolution. Our series
+      // are small (tens to hundreds of points), so SVG costs nothing here.
+      const chart = echarts.init(el, undefined, { renderer: "svg" });
       chartRef.current = chart;
       observer = new ResizeObserver(() => chart.resize());
       observer.observe(el);

@@ -12,8 +12,6 @@
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
   drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
-- T-0014 M6a PDF report: print-optimized report route with vector charts
-  (ECharts SVG renderer); server PDF as roadmap.
 - T-0015 M6b docker-compose (api + web) + public demo deployment
   (Vercel + Fly.io/Render).
 - T-0016 M6c Docs site: mkdocs-material + mkdocstrings; Getting Started,
@@ -36,10 +34,13 @@
   TestClient warning surfaces once per test session. Cosmetic today; revisit
   when starlette settles the httpx2 transition. Same class as T-0020/T-0021
   (a dependency's deprecation, not our bug).
-- T-0019 Decide demo hosting (due Week 3, before T-0015): recommendation
-  Vercel Hobby (web, free) + Render Free (API container, sleeps when idle);
-  alternative Fly.io (a few EUR/month). Needs one account each (GitHub login
-  is enough).
+- T-0026 Decide where the FastAPI service is hosted (before T-0015). The web is
+  settled (Vercel, decided 2026-07-16); the API is not. Vercel Python functions
+  keep it on one platform, but capstat-api pulls numpy + scipy + pandas +
+  openpyxl, which is a real risk against Vercel's serverless bundle size limit
+  (and cold starts on a scipy import are not cheap). A container host (Render
+  Free, sleeps when idle; or Fly.io, a few EUR/month) is the safe pairing.
+  Measure the bundle before choosing.
 - T-0023 web `npm audit`: 2 moderate advisories in `postcss` (<8.5.10, XSS in
   the CSS stringify output), pulled in transitively via Next's build tooling --
   not from `echarts`, and a build-time path with no runtime exposure for us.
@@ -50,6 +51,29 @@
 
 ## Done
 
+- T-0014 (2026-07-16) M6a printable report. **Scope changed on purpose**: the
+  task said "report *route*", but a separate route would mean plumbing each
+  page's analysis state somewhere a second route could read it -- for three
+  different surfaces (`/`, `/gage-rr`, `/msa`), that is a store refactor bought
+  for nothing. Instead the analysis pages print *themselves*: a `@media print`
+  stylesheet drops the nav, the buttons and the dropzone, flattens the inputs so
+  their values read as text (the study's parameters belong in the report), keeps
+  colour (a red limit is meaning, not decoration), and avoids page breaks inside
+  charts, tables and cards. A "Print / save as PDF" button on each page hands it
+  to the browser. One stylesheet, all three surfaces, no new state.
+  * ECharts now renders **SVG instead of canvas** (`lib/echarts.ts`), so charts
+    come out vector in the PDF rather than a screen-resolution bitmap. Our
+    series are small, so SVG costs nothing.
+  * Verified automatically, not by eyeballing a dialog: a Playwright test
+    emulates print media and asserts the controls are gone while the headings,
+    verdicts and chart SVGs remain.
+  * Server-side PDF stays out of scope (it would put a headless browser in the
+    API image for what every browser already does). Still a roadmap item.
+  * Snag worth remembering: the e2e assertions counted `canvas`; with SVG they
+    had to be scoped to the panels, because Next's dev overlay ships SVGs of its
+    own and inflated the count.
+- T-0019 (2026-07-16) Demo hosting decided: **Vercel** for the Next.js app.
+  The API's host is a separate open question -- see T-0026.
 - T-0025 (2026-07-16) MSA API + UI: `/compute/{bias,linearity,stability}` with
   faithful serialisation (derived verdicts included; an identical-reading bias
   study's infinite t serialises as null, the interval-based verdict survives;

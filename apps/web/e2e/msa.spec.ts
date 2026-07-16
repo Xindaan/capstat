@@ -91,8 +91,35 @@ test("msa: the three studies compute and report", async ({ page }) => {
   await page.getByRole("button", { name: "Check stability" }).click();
   // exact: the warning below also contains "not stable".
   await expect(page.getByText("Not stable", { exact: true })).toBeVisible();
-  // Both control charts draw.
-  await expect(page.locator("canvas")).toHaveCount(2);
+  // Both control charts draw (SVG, so the report prints as vector). Scoped to
+  // the panel: Next's dev overlay has SVGs of its own.
+  await expect(page.locator('[aria-label="Stability study"] svg')).toHaveCount(2);
+});
+
+test("printing drops the controls and keeps the report", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/msa");
+  await page.getByRole("button", { name: "Check stability" }).click();
+  await expect(page.locator('[aria-label="Stability study"] svg')).toHaveCount(2);
+
+  await page.emulateMedia({ media: "print" });
+
+  // Navigation and actions are not part of a report.
+  await expect(page.locator("nav")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Check stability" })).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Print / save as PDF" }),
+  ).toBeHidden();
+
+  // The substance survives, charts included (SVG -> vector in the PDF).
+  // exact: the page h1 ("Bias, linearity, stability") contains this word too.
+  await expect(
+    page.getByRole("heading", { name: "Stability", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Not stable", { exact: true })).toBeVisible();
+  await expect(
+    page.locator('[aria-label="Stability study"] svg').first(),
+  ).toBeVisible();
 });
 
 test("msa is reachable from the nav", async ({ page }) => {

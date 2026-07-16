@@ -100,7 +100,8 @@ export function UploadPanel({
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={[
-          "flex cursor-pointer flex-col items-center justify-center gap-2",
+          // no-print: the dropzone is an action, not part of the report.
+          "no-print flex cursor-pointer flex-col items-center justify-center gap-2",
           "rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors",
           dragging
             ? "border-blue-500 bg-blue-500/5"

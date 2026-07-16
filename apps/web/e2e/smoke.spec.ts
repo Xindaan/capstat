@@ -91,9 +91,13 @@ test("upload -> capability -> control chart", async ({ page }) => {
   await expect(page.getByText("1.310")).toBeVisible(); // Ppk
   await expect(page.getByText(/Path: Normal/)).toBeVisible();
 
-  // Both panels draw an ECharts canvas (capability histogram + control charts).
+  // Both panels draw a chart (capability histogram + the two control charts).
+  // ECharts renders SVG here, so the report prints as vector. Scoped to the
+  // panels: Next's dev overlay has SVGs of its own.
   await expect(page.getByText("Control chart (I-MR)")).toBeVisible();
   await expect(page.getByText("In control")).toBeVisible();
-  await expect(page.locator("canvas").first()).toBeVisible();
-  expect(await page.locator("canvas").count()).toBeGreaterThanOrEqual(3);
+  await expect(
+    page.locator('[aria-label="Capability analysis"] svg'),
+  ).toHaveCount(1);
+  await expect(page.locator('[aria-label="Control chart"] svg')).toHaveCount(2);
 });
