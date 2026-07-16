@@ -4,15 +4,10 @@
 
 <!-- max 3 -->
 
-- (Doing is clear -- T-0013 M5b shipped in the core. Next: wire the MSA studies
-  out to the API + UI, mirroring what T-0012 got.)
+- (Doing is clear -- M5 is complete end-to-end: Gage R&R and the three MSA
+  studies all reach the UI. Next in Backlog: the M6 release path.)
 
 ## Backlog
-- T-0025 MSA API + UI for bias / linearity / stability, mirroring the Gage R&R
-  wiring: `/compute/{bias,linearity,stability}` endpoints with faithful
-  serialisation, then a UI (an MSA section alongside the existing `/gage-rr`
-  page). Bias and linearity need a reference-value input per part; stability
-  reuses the control-chart rendering already built.
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
@@ -55,6 +50,15 @@
 
 ## Done
 
+- T-0025 (2026-07-16) MSA API + UI: `/compute/{bias,linearity,stability}` with
+  faithful serialisation (derived verdicts included; an identical-reading bias
+  study's infinite t serialises as null, the interval-based verdict survives;
+  stability nests the existing ChartPair schema), and a `/msa` page with the
+  three studies, each pre-filled with a worked example. Stability reuses the
+  `ControlChart` component built for the control-chart panel. 45 API tests, 25
+  vitest, 5 Playwright. Verified in-browser: the linearity panel renders the
+  AIAG slope -0.132 / intercept 1.408 and the published per-part biases live.
+  **M5 is now complete end-to-end.**
 - T-0013 (2026-07-16) M5b measurement-system studies in `capstat-core` -- the
   three that ask whether a gage is *right*, not just consistent.
   * **Bias** (`bias`): one-sample t-test of repeated readings against a known

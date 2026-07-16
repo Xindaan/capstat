@@ -365,8 +365,8 @@ Every response mirrors a core dataclass faithfully — the `warnings` arrays and
 the nullable capability indices survive serialisation rather than being
 flattened away. Endpoints: `/compute/descriptive`, `/compute/capability`,
 `/compute/capability/analyze`, `/compute/control-chart/{i-mr,xbar-r,xbar-s,ewma,cusum}`,
-`/compute/rules/{nelson,western-electric}`, `/compute/gage-rr`, and `/ingest`
-for files.
+`/compute/rules/{nelson,western-electric}`, `/compute/gage-rr`,
+`/compute/{bias,linearity,stability}`, and `/ingest` for files.
 
 The OpenAPI schema at `apps/api/openapi.json` is the single source of truth for
 the generated TypeScript client (added with the web app) and is checked for
@@ -384,7 +384,9 @@ typed client generated from the same OpenAPI schema. Upload a CSV/XLSX, pick a
 numeric column, and get a capability report (with the normal / Box-Cox /
 percentile decision path and a spec-limit histogram) plus I-MR control charts
 with Nelson run-rule flags. A separate `/gage-rr` page runs a full Gage R&R
-study from a data-entry grid (both the ANOVA and average-and-range methods).
+study from a data-entry grid (both the ANOVA and average-and-range methods), and
+`/msa` runs the bias, linearity and stability studies — each pre-filled with a
+worked example.
 
 Run it against a local API:
 

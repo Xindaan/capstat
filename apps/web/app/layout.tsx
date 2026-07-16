@@ -26,6 +26,9 @@ export default function RootLayout({
           <Link href="/gage-rr" className="text-foreground/60 hover:text-foreground">
             Gage R&amp;R
           </Link>
+          <Link href="/msa" className="text-foreground/60 hover:text-foreground">
+            Bias &amp; linearity
+          </Link>
         </nav>
         {children}
       </body>

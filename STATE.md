@@ -16,10 +16,11 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
   CSV/XLSX ingestion, and a committed OpenAPI contract.
 - **445 core + 38 API tests, 100 % coverage on both packages**, mypy strict,
   ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-- **T-0011 (M4 app), T-0012 (M5a Gage R&R) and T-0013 (M5b bias / linearity /
-  stability) are complete.** The web app covers upload -> capability -> control
-  charts, plus a Gage R&R page. **M5b is core-only so far** -- the MSA studies
-  have no API or UI yet (T-0025).
+- **M4 (app) and M5 (MSA) are complete end-to-end.** The web app covers
+  upload -> capability -> control charts (`/`), a Gage R&R study (`/gage-rr`),
+  and bias / linearity / stability (`/msa`) -- every one of them typed against
+  the API and reaching the validated core. What remains is the M6 release path
+  (PDF report, deployment, docs, release).
 - **The core stays web-free.** fastapi/pandas/openpyxl live only in `apps/api`;
   `capstat-core` remains numpy+scipy and independently PyPI-publishable.
 - **The API is a faithful serialisation layer**, not a reinterpretation: every
@@ -63,14 +64,16 @@ Next.js frontend as a professional MIT open-source project; v0.1.0 in 3 weeks.
 
 ## Next actions
 
-1. T-0025 — **MSA API + UI** for bias / linearity / stability, mirroring the
-   Gage R&R wiring: faithful `/compute/{bias,linearity,stability}` endpoints,
-   then a UI alongside `/gage-rr`. Completes M5 end-to-end.
+1. **T-0019 decide demo hosting** (due Week 3, blocks T-0015) — this one needs
+   you: Vercel Hobby (web) + Render Free (API) vs Fly.io. One account each.
 2. T-0014 M6a print-optimized PDF report route (the M6 release path).
-3. T-0024 web run-rule selection UI (small, low priority).
+3. T-0016 M6c docs site; T-0017 M6d v0.1.0 release. T-0024 run-rule UI (small).
 
 ## Last done
 
+- 2026-07-16: T-0025 — **MSA API + UI**: `/compute/{bias,linearity,stability}`
+  + a `/msa` page with all three studies, each pre-filled with a worked example
+  (stability reuses the ControlChart component). **M5 is complete end-to-end.**
 - 2026-07-16: **T-0013 (M5b) complete in the core** — bias (t-test vs a
   reference), linearity (bias-vs-reference regression), stability (control chart
   on a master). Validated against both AIAG examples, scipy's ttest_1samp and

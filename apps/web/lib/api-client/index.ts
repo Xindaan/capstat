@@ -62,6 +62,38 @@ export function nelsonRules(
   });
 }
 
+export type BiasReport = components["schemas"]["BiasReportOut"];
+export type LinearityReport = components["schemas"]["LinearityReportOut"];
+export type StabilityReport = components["schemas"]["StabilityReportOut"];
+
+/** Bias: repeated readings of one part against its known reference. */
+export function biasStudy(measurements: number[], reference: number) {
+  return api.POST("/compute/bias", {
+    body: { measurements, reference, alpha: 0.05 },
+  });
+}
+
+/** Linearity: readings of several masters spanning the range. */
+export function linearityStudy(
+  references: number[],
+  measurements: number[][],
+  processVariation: number | null,
+) {
+  return api.POST("/compute/linearity", {
+    body: {
+      references,
+      measurements,
+      process_variation: processVariation,
+      alpha: 0.05,
+    },
+  });
+}
+
+/** Stability: time-ordered readings of one master (individuals or subgroups). */
+export function stabilityStudy(measurements: number[]) {
+  return api.POST("/compute/stability", { body: { measurements } });
+}
+
 export type GageRRReport = components["schemas"]["GageRRReportOut"];
 export type GageRRMethod = GageRRReport["method"];
 
