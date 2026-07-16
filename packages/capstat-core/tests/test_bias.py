@@ -10,6 +10,7 @@ worked examples -- one biased, one not.
 from __future__ import annotations
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 import yaml
 from capstat_core import BiasReport, bias
@@ -20,11 +21,13 @@ DOCUMENT = yaml.safe_load((REFERENCES / "bias.yaml").read_text())
 CASES = {case["id"]: case for case in DOCUMENT["cases"]}
 
 
-def _sample_with(mean: float, sd: float, n: int) -> np.ndarray:
+def _sample_with(mean: float, sd: float, n: int) -> npt.NDArray[np.float64]:
     """A sample of size n with exactly the given mean and sample sd (ddof=1)."""
-    base = np.arange(n, dtype=float)
+    base = np.arange(n, dtype=np.float64)
     z = (base - base.mean()) / base.std(ddof=1)
-    return mean + sd * z
+    # asarray with an explicit dtype: numpy's stubs infer the arithmetic as Any
+    # on some versions, which mypy strict rejects as a bare return.
+    return np.asarray(mean + sd * z, dtype=np.float64)
 
 
 # ---------------------------------------------------------------------------
