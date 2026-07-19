@@ -35,7 +35,8 @@ ENV NODE_ENV=production \
 # `output: standalone` emits server.js plus only the node_modules it reached.
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
-COPY --from=build --chown=node:node /app/public ./public
+# No `public/` copy: this app has no static assets, and COPYing a directory that
+# does not exist fails the build. Add the line back alongside the directory.
 
 USER node
 EXPOSE 3000
