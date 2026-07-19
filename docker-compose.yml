@@ -1,0 +1,39 @@
+# Self-hosting capstat: the API and the web app, side by side.
+#
+#     docker compose up --build       ->  web on :3000, API on :8000
+#
+# This is also the honest way to try capstat without installing a Python
+# toolchain. Vercel deployments do not use this file -- see docs/deployment.md.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # The browser calls the API directly from the user's machine, so the
+      # allowed origin is where the *browser* thinks the web app is.
+      CAPSTAT_CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Baked into the client bundle at build time. This is the URL the
+        # *browser* uses, not a container hostname -- `http://api:8000` would
+        # resolve inside the compose network but not in the user's browser.
+        NEXT_PUBLIC_API_URL: "http://127.0.0.1:8000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy

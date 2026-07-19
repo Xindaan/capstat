@@ -71,12 +71,18 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-1. T-0015 M6b docker-compose + deploy (web on Vercel; **API host still open,
-   T-0026** — measure the numpy/scipy bundle before choosing serverless).
+1. **T-0026 needs your call**: where the API is hosted. Measured — 152 MB of
+   deps, ~1 s cold import — so serverless fits but is tight and slow to wake.
+   Recommendation: a container host (Render free / Fly.io). Needs an account.
 2. T-0017 M6d v0.1.0 release via release-please; README badges + demo link.
 3. T-0028 Cp/Cpk cards read as "missing" on the percentile path (small, real).
 
 ## Last done
+
+- 2026-07-16: T-0015a — **deployment artifacts**: Dockerfiles (API + web, both
+  non-root), docker-compose, Vercel config, docs/deployment.md. Could not build
+  locally (no Docker daemon), so CI gained an `images` job that builds both on
+  every commit rather than trusting an unverified artifact.
 
 - 2026-07-16: T-0016 — **docs site** (mkdocs-material + mkdocstrings): home,
   getting started, method reference, validation, API reference. The sources page

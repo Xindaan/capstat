@@ -62,6 +62,7 @@ nav:
   - Validation:
       - How it works: validation.md
       - Sources: validation-sources.md
+  - Deployment: deployment.md
   - API reference: api-reference.md
 
 watch:

@@ -424,6 +424,17 @@ npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
 npm run build       # production build + type-check
 ```
 
+## Running it with Docker
+
+```bash
+docker compose up --build     # web on :3000, API on :8000
+```
+
+Both images run as a non-root user, and the API is stateless — no database, no
+secrets, no volume. Uploads are parsed in memory and never written to disk.
+Deployment options (including why the API belongs on a container host rather
+than serverless) are in [docs/deployment.md](docs/deployment.md).
+
 ## Configuration
 
 capstat-core is configuration-free. The API is stateless and needs no

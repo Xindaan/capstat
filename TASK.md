@@ -25,8 +25,10 @@
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
   drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
-- T-0015 M6b docker-compose (api + web) + public demo deployment
-  (Vercel + Fly.io/Render).
+- T-0015b Public demo deployment: push the images to the chosen API host and
+  point a Vercel project at `apps/web`. Blocked on T-0026 (which host) -- the
+  artifacts and the documentation are done, only the accounts and the actual
+  deploy remain.
 - T-0017 M6d v0.1.0 release via release-please, README polish (badges,
   screenshots, quickstart, demo link).
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
@@ -45,13 +47,15 @@
   TestClient warning surfaces once per test session. Cosmetic today; revisit
   when starlette settles the httpx2 transition. Same class as T-0020/T-0021
   (a dependency's deprecation, not our bug).
-- T-0026 Decide where the FastAPI service is hosted (before T-0015). The web is
-  settled (Vercel, decided 2026-07-16); the API is not. Vercel Python functions
-  keep it on one platform, but capstat-api pulls numpy + scipy + pandas +
-  openpyxl, which is a real risk against Vercel's serverless bundle size limit
-  (and cold starts on a scipy import are not cheap). A container host (Render
-  Free, sleeps when idle; or Fly.io, a few EUR/month) is the safe pairing.
-  Measure the bundle before choosing.
+- T-0026 Decide where the FastAPI service is hosted. **Measured 2026-07-16**:
+  the runtime dependencies come to ~152 MB uncompressed (scipy 71, pandas 40,
+  numpy 22), and a cold import of scipy.stats + pandas + fastapi costs ~1 s
+  locally -- realistically 2-4 s on a cold serverless invocation. So Vercel
+  Python functions are *possible* (250 MB limit) but the headroom is thin and
+  only shrinks as scipy/pandas grow, and a multi-second first request makes a
+  poor demo. **Recommendation: a container host** (Render free tier, sleeps when
+  idle; or Fly.io, a few EUR/month) -- the image built in T-0015 runs on either
+  unchanged. Needs an account, so it is your call. See docs/deployment.md.
 - T-0023 web `npm audit`: 2 moderate advisories in `postcss` (<8.5.10, XSS in
   the CSS stringify output), pulled in transitively via Next's build tooling --
   not from `echarts`, and a build-time path with no runtime exposure for us.
@@ -62,6 +66,28 @@
 
 ## Done
 
+- T-0015a (2026-07-16) M6b deployment artifacts: Dockerfiles for both apps,
+  docker-compose, Vercel config, and a deployment page in the docs.
+  * **API image**: multi-stage, uv-based, dependencies in their own layer so
+    editing a statistic does not re-resolve scipy. Runs as a non-root user --
+    it parses untrusted uploads through pandas/openpyxl. Honours `$PORT`, which
+    is what container hosts inject. Built from the repo root, because
+    capstat-api depends on capstat-core as a workspace member.
+  * **Web image**: Next `output: "standalone"`, so the image ships only the
+    node_modules the build actually reached. Vercel ignores this and builds its
+    own way, so setting it costs nothing there.
+  * The health check lives in `apps/api/healthcheck.py` rather than an inline
+    `python -c`: the nested quoting that needs is exactly the sort of thing that
+    breaks silently and then reports "unhealthy" for the wrong reason.
+  * **Could not verify locally -- the Docker daemon was not running.** Rather
+    than claim the images build, CI gained an `images` job that builds both on
+    every commit (build only, nothing pushed), so a deployment artifact cannot
+    rot unnoticed until deploy day. What *was* verifiable locally: the uv flags
+    exist, and `next build` really emits `.next/standalone/server.js`, which the
+    web Dockerfile depends on.
+  * Measurement for T-0026 recorded in docs/deployment.md: ~152 MB of runtime
+    dependencies and ~1 s of cold import, hence the recommendation to put the
+    API on a container host rather than serverless.
 - T-0016 (2026-07-16) M6c docs site: mkdocs-material + mkdocstrings, in a
   separate `docs` dependency group so test CI does not drag mkdocs in.
   * Pages: Home (what makes it different), Getting started (install, first
