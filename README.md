@@ -454,6 +454,18 @@ uv run mypy                   # type-check (strict)
 uv run pytest --cov=capstat_core --cov=capstat_api   # tests with coverage
 ```
 
+Documentation (mkdocs-material + mkdocstrings):
+
+```bash
+uv run --group docs mkdocs serve    # live preview on :8001
+uv run --group docs mkdocs build --strict
+uv run --group docs python scripts/gen_sources_page.py   # regenerate the sources page
+```
+
+`docs/validation-sources.md` is generated from the reference YAMLs, so the
+documented sources cannot drift from what the test suite asserts. CI fails if it
+is stale.
+
 Quality gates (enforced in CI): ruff (lint + format), mypy `--strict`, an
 OpenAPI drift check, and pytest with ≥ 95 % coverage (currently 100 % on both
 capstat-core and capstat-api). See [AGENTS.md](AGENTS.md) for

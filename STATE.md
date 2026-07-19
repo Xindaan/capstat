@@ -71,13 +71,17 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-1. T-0016 M6c docs site (mkdocs-material); the method reference can be fed from
-   the reference YAMLs we already maintain.
-2. T-0015 M6b docker-compose + deploy (web on Vercel; **API host still open,
+1. T-0015 M6b docker-compose + deploy (web on Vercel; **API host still open,
    T-0026** — measure the numpy/scipy bundle before choosing serverless).
-3. T-0017 M6d v0.1.0 release. T-0024 run-rule UI (small).
+2. T-0017 M6d v0.1.0 release via release-please; README badges + demo link.
+3. T-0028 Cp/Cpk cards read as "missing" on the percentile path (small, real).
 
 ## Last done
+
+- 2026-07-16: T-0016 — **docs site** (mkdocs-material + mkdocstrings): home,
+  getting started, method reference, validation, API reference. The sources page
+  is *generated* from the reference YAMLs with a CI drift check, so documented
+  sources cannot drift from what the suite asserts. New `docs` CI job.
 
 - 2026-07-16: T-0027 — **fixed a real crash in the capability decision path**: a
   fitted Box-Cox lambda of -46 collapses both spec limits onto the same float,

@@ -39,6 +39,17 @@ dev = [
     "httpx>=0.27",
 ]
 
+# Docs are a separate group: building the site should not drag mkdocs into
+# every CI job that only wants to run tests.
+docs = [
+    "capstat-core",
+    "capstat-api",
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.27",
+    "pyyaml>=6",
+]
+
 # ---------------------------------------------------------------------------
 # Shared tool configuration (applies repo-wide).
 # ---------------------------------------------------------------------------
@@ -70,6 +81,9 @@ files = [
     "packages/capstat-core/tests",
     "apps/api/src",
     "apps/api/tests",
+    # Build tooling runs in CI, so it is held to the same standard as the code
+    # it generates from.
+    "scripts",
 ]
 
 [[tool.mypy.overrides]]

@@ -1,0 +1,69 @@
+site_name: capstat
+site_description: >-
+  Reference-validated statistical process control, process capability and
+  measurement-system analysis.
+repo_url: https://github.com/Xindaan/capstat
+repo_name: Xindaan/capstat
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [packages/capstat-core/src, apps/api/src]
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            heading_level: 3
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Methods:
+      - Overview: methods/index.md
+      - Capability: methods/capability.md
+      - Control charts: methods/control-charts.md
+      - Measurement systems: methods/measurement-systems.md
+  - Validation:
+      - How it works: validation.md
+      - Sources: validation-sources.md
+  - API reference: api-reference.md
+
+watch:
+  - packages/capstat-core/src
+  - apps/api/src

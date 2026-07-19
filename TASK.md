@@ -8,6 +8,12 @@
   studies all reach the UI. Next in Backlog: the M6 release path.)
 
 ## Backlog
+- T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
+  plugin system entirely, with "no migration path" and the theming rewritten --
+  which would break mkdocstrings and the Material theme together. We pin
+  mkdocs 1.x, so nothing is broken today. Revisit before it becomes urgent:
+  either stay pinned deliberately, or evaluate an alternative generator. Do not
+  bump mkdocs to 2.x casually.
 - T-0028 Capability dashboard: the Cp/Cpk cards render "—" on the percentile
   path, where those indices genuinely do not exist (no within/between split).
   The amber warning says so, but it sits three blocks below the cards, so two
@@ -21,8 +27,6 @@
   drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
 - T-0015 M6b docker-compose (api + web) + public demo deployment
   (Vercel + Fly.io/Render).
-- T-0016 M6c Docs site: mkdocs-material + mkdocstrings; Getting Started,
-  method reference (formula + citation per method), API reference.
 - T-0017 M6d v0.1.0 release via release-please, README polish (badges,
   screenshots, quickstart, demo link).
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
@@ -58,6 +62,26 @@
 
 ## Done
 
+- T-0016 (2026-07-16) M6c docs site: mkdocs-material + mkdocstrings, in a
+  separate `docs` dependency group so test CI does not drag mkdocs in.
+  * Pages: Home (what makes it different), Getting started (install, first
+    study, run the API/app), Methods (capability, control charts, measurement
+    systems -- the *reasoning* per method, with formulas and citations),
+    Validation (the five rules and the errors they caught), API reference
+    (mkdocstrings from the docstrings).
+  * **`docs/validation-sources.md` is generated** from the reference YAMLs by
+    `scripts/gen_sources_page.py`, with a `--check` drift mode in CI -- the same
+    rule the library applies to constants: do not transcribe what you can
+    derive. A hand-written source list would drift the first time a reference
+    was added and the page forgotten. Drift detection verified by tampering with
+    the file and confirming a non-zero exit.
+  * CI gained a `docs` job: sources-page drift + `mkdocs build --strict` (strict
+    turns broken links and missing nav targets into failures).
+  * Verified mkdocstrings actually rendered rather than silently no-op'ing: the
+    built page carries real docstring prose and parameter tables, not just nav.
+  * Noted for later: mkdocs-material prints a warning that MkDocs 2.0 will
+    remove the plugin system with no migration path. Not actionable now (we pin
+    1.x), but it makes the docs stack a future liability -- see T-0029.
 - T-0027 (2026-07-16) **Bug: a degenerate Box-Cox crashed the capability path.**
   Found by generating a realistic demo CSV (a capable-but-drifting process,
   spec 9.70/10.30) and running it through the app before shipping it: the
