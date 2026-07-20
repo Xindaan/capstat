@@ -41,10 +41,23 @@ One environment variable matters: `NEXT_PUBLIC_API_URL`, pointing at wherever
 the API is hosted. Because it is inlined into the client bundle, changing it
 requires a rebuild, not just a restart.
 
-## Where the API goes
+## Hosting
 
-This is the open decision, and it is worth making with numbers rather than
-instinct. Measured footprint of the API's runtime dependencies:
+capstat is **not hosted publicly**, by choice. A capability tool takes real
+production measurements as input, and the least surprising thing to do with
+those is to keep them on the machine that runs the analysis. `docker compose up`
+does exactly that: no account, no cloud, no data leaving your network. That is
+the recommended way to run it.
+
+If you *do* want to put it on the internet, here is what to know rather than a
+recommendation to follow.
+
+The web app is entirely static — all three routes prerender to HTML — so it can
+go on any static host (GitHub Pages, Cloudflare Pages, Netlify; all free). The
+`output: "standalone"` setup in the web Dockerfile is for self-hosting the whole
+thing behind one server; a static host does not need it.
+
+The API is the part that needs real compute. Its runtime dependencies measure:
 
 | Package | Size |
 |---|---|
@@ -54,16 +67,14 @@ instinct. Measured footprint of the API's runtime dependencies:
 | everything else | ~19 MB |
 | **total** | **~152 MB** uncompressed |
 
-Cold import of `scipy.stats` + `pandas` + `fastapi` costs roughly **1 second**
-on a warm local disk; on a cold serverless invocation, realistically two to four
-times that.
-
-**A container host is the safer pairing.** 152 MB fits under Vercel's 250 MB
-serverless limit, so Python functions are not impossible — but the headroom is
-thin and it only shrinks, since scipy and pandas grow with every release. A
-compute API that pauses for several seconds on first request also makes a poor
-demo. Render's free tier (sleeps when idle) or Fly.io (a few EUR/month, no
-sleep) both take the image above unchanged.
+Cold import of `scipy.stats` + `pandas` + `fastapi` is roughly **1 second** on a
+warm local disk; a cold serverless invocation, realistically two to four times
+that. So a serverless function is *possible* (152 MB fits Vercel's 250 MB limit)
+but tight — the headroom shrinks as scipy and pandas grow — and a compute
+endpoint that stalls for several seconds on first request is a poor experience.
+A container host is the more comfortable fit for the same image; pricing on the
+free/cheap tiers changes often enough that it is not worth quoting here — check
+the provider directly.
 
 Whichever host: it must serve the port given in `$PORT` — the image already
 honours that — and `CAPSTAT_CORS_ORIGINS` must name the web app's origin.

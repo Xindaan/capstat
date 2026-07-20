@@ -25,20 +25,27 @@
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
   drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
-- T-0015b Public demo deployment: push the images to the chosen API host and
-  point a Vercel project at `apps/web`. Blocked on T-0026 (which host) -- the
-  artifacts and the documentation are done, only the accounts and the actual
-  deploy remain.
+- ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
+  hosting (local only). The Docker artifacts stay for self-hosting; there is
+  just nothing to deploy.
+- T-0032 **Enable "Allow GitHub Actions to create and approve pull requests"**
+  (Settings -> Actions -> General -> Workflow permissions), or give the
+  release-please step a PAT with `repo` scope. The first run failed on exactly
+  this: it built the release branch fine, then could not open the PR. It is a
+  permission decision, not a config bug, so it is yours to make -- the switch
+  lets *any* workflow in the repo open PRs.
 - T-0017b Cut v0.1.0: merge the release PR release-please opens. Your call --
-  it publishes a public GitHub release. Blocked on nothing technical.
+  it publishes a public GitHub release. Blocked on T-0032.
 - T-0030 Decide whether capstat-core goes to PyPI. Needs a PyPI account and a
   trusted-publisher (OIDC) config, neither creatable from inside the repo. Until
   then releases are GitHub-only and the docs say so rather than implying a
   `pip install` that would fail. Once decided, add a publish job keyed on the
   release tag.
 - T-0031 README screenshots. Deferred from T-0017: the app is worth showing, but
-  it means committing binaries and re-shooting them whenever the UI moves. Worth
-  doing once the UI settles and there is a hosted demo to link instead.
+  it means committing binaries and re-shooting them whenever the UI moves. Since
+  there is no hosted demo to link (T-0026: local only), a screenshot or two is
+  the *only* way a reader sees the UI without running it -- so this matters more
+  than it would with a live link. Worth doing once the UI settles.
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
   multi-user auth, persistence/database, server PDF.
 - T-0021 scipy deprecation: `scipy.stats.anderson` drops its `critical_values`
@@ -55,15 +62,18 @@
   TestClient warning surfaces once per test session. Cosmetic today; revisit
   when starlette settles the httpx2 transition. Same class as T-0020/T-0021
   (a dependency's deprecation, not our bug).
-- T-0026 Decide where the FastAPI service is hosted. **Measured 2026-07-16**:
-  the runtime dependencies come to ~152 MB uncompressed (scipy 71, pandas 40,
-  numpy 22), and a cold import of scipy.stats + pandas + fastapi costs ~1 s
-  locally -- realistically 2-4 s on a cold serverless invocation. So Vercel
-  Python functions are *possible* (250 MB limit) but the headroom is thin and
-  only shrinks as scipy/pandas grow, and a multi-second first request makes a
-  poor demo. **Recommendation: a container host** (Render free tier, sleeps when
-  idle; or Fly.io, a few EUR/month) -- the image built in T-0015 runs on either
-  unchanged. Needs an account, so it is your call. See docs/deployment.md.
+- T-0026 [DECIDED 2026-07-20: no public hosting; local only.] The maintainer
+  would sooner run capstat locally than send measurement data to a third party,
+  which is the right instinct for a tool people feed real production data into.
+  So there is no public demo and no hosted API. `docker compose up` is the
+  supported way to run it, and it needs no account, no cloud, and no data ever
+  leaving the machine. Left in the docs for anyone who *does* want to host it:
+  the measurement (~152 MB deps, ~1 s cold import) and why that points at a
+  container host over serverless. But we are not doing it.
+  A quieter consequence, worth stating: the web app is fully static (all three
+  routes prerender), so if a public demo is ever wanted it needs only a static
+  host (GitHub Pages, free) for the app plus a compute host for the API -- the
+  `output: "standalone"` Docker setup is for self-hosting, not that.
 - T-0023 web `npm audit`: 2 moderate advisories in `postcss` (<8.5.10, XSS in
   the CSS stringify output), pulled in transitively via Next's build tooling --
   not from `echarts`, and a build-time path with no runtime exposure for us.
@@ -96,6 +106,22 @@
     ("the API and web app follow" -- they were finished days ago).
   * Deliberately *not* done: merging the release PR (T-0017b -- a public
     release is your call) and README screenshots (T-0031).
+  * **The first run: I misdiagnosed it, then checked and corrected myself
+    (2026-07-20).** I claimed the config left both versions at 0.0.0 and rewrote
+    the extra-files updaters to "fix" it. Then I inspected the release branch
+    release-please had actually pushed -- and every version *was* bumped
+    correctly (both pyprojects, package.json, openapi.json, to 1.0.0, via the
+    `x-release-please-version` annotations). The config was never broken. I
+    reverted the false-premise change and kept the proven config. Lesson logged:
+    the release branch is the ground truth; a "No entries modified" line in the
+    log was noise from a redundant updater pass, not a failure. The *real* first-
+    run finding is one thing, not two: (b) Actions may not open pull requests by
+    default, so the run built the branch and then failed at the PR step. Filed
+    as T-0032 -- that switch lets every workflow in the repo open PRs, which is
+    the maintainer's call, not mine.
+  * Separately real: the default first release is **1.0.0**, but the stated goal
+    is **0.1.0**. Pinned with a `Release-As: 0.1.0` footer, verified against the
+    rebuilt release branch.
 - T-0015a (2026-07-16) M6b deployment artifacts: Dockerfiles for both apps,
   docker-compose, Vercel config, and a deployment page in the docs.
   * **API image**: multi-stage, uv-based, dependencies in their own layer so

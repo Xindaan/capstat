@@ -43,11 +43,11 @@ M5 MSA, M6 release (report, deployment, docs, release).
   page with a data-entry grid and a variance/%/ndc report. Verified in-browser.
 - Repo live at github.com/Xindaan/capstat (**private**; flip with
   `gh repo edit --visibility public` when ready).
-- **Hosting decided (2026-07-16): Vercel** for the Next.js app. Still open: where
-  the FastAPI service lives — Vercel Python functions would keep it on one
-  platform but numpy+scipy+pandas is a real size risk against the serverless
-  bundle limit; a container host (Render/Fly) is the safe pairing. Decide before
-  T-0015.
+- **Hosting decided (2026-07-20): local only, no public demo.** The maintainer
+  trusts running it locally over sending measurement data to a third party --
+  the right call for a tool fed real production data. `docker compose up` is the
+  supported way to run it; nothing is hosted. The Docker artifacts and the
+  measurement notes stay in the docs for anyone who wants to self-host.
 
 ## Working method (keeps paying off — do not abandon it under time pressure)
 
@@ -71,22 +71,27 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-**Three decisions are waiting on you; the engineering behind each is done.**
+Decisions waiting on you (engineering done): **T-0032** — flip "Allow GitHub
+Actions to create and approve pull requests" (Settings -> Actions), the *only*
+thing blocking the release PR from opening. **T-0017b** — then merge that PR to
+cut v0.1.0. **T-0030** — whether capstat-core goes to PyPI (needs an account).
 
-1. **T-0026** — where the API is hosted. Measured: 152 MB of deps, ~1 s cold
-   import. Serverless fits but is tight and slow to wake; recommendation is a
-   container host (Render free / Fly.io). Needs an account.
-2. **T-0017b** — merge the release PR release-please opens, which cuts a public
-   v0.1.0. **T-0030** — whether capstat-core goes to PyPI (needs an account).
-3. T-0028 Cp/Cpk cards read as "missing" on the percentile path (small, real).
+What I can do without you:
+
+1. T-0028 Cp/Cpk cards read as "missing" on the percentile path (small, real UI
+   fix; the demo CSV surfaced it).
+2. T-0031 README screenshots -- now the *only* way a reader sees the UI, since
+   there is no hosted demo (T-0026: local only).
+3. T-0023 postcss audit; T-0021/T-0022 dep-deprecation cleanups.
 
 ## Last done
 
-- 2026-07-20: T-0017a — **release automation**: release-please with one version
-  for the whole repo, written into both pyprojects, both `__version__`
-  constants, `package.json` and `openapi.json` (whose version is part of the
-  drift-checked schema). Corrected a `pip install capstat-core` instruction in
-  the docs that would simply have failed — the package is on no index.
+- 2026-07-20: T-0017a — **release automation** via release-please (one version
+  for the whole repo). **Caught myself misdiagnosing the first run**: I claimed
+  the config left versions at 0.0.0 and "fixed" it; then inspected the release
+  branch release-please had actually pushed and found every version bumped
+  correctly. Reverted the false-premise change. The real blocker is a repo
+  switch (T-0032); the default 1.0.0 was pinned to 0.1.0 to match the goal.
 
 - 2026-07-16: T-0015a — **deployment artifacts**: Dockerfiles (API + web, both
   non-root), docker-compose, Vercel config, docs/deployment.md. Could not build

@@ -19,10 +19,19 @@ jobs:
       # including apps/api/openapi.json, whose `info.version` is drift-checked
       # against the code and would otherwise fail CI on the first bump.
       #
+      # REQUIRES A REPOSITORY SETTING. The first run failed with "GitHub Actions
+      # is not permitted to create or approve pull requests" -- that switch is
+      # off by default. Turn it on under
+      #     Settings -> Actions -> General -> Workflow permissions
+      #     -> "Allow GitHub Actions to create and approve pull requests"
+      # or give the step a PAT with `repo` scope as `token:` instead. Until one
+      # of those is done, this workflow will keep failing at the final step,
+      # having already pushed its release branch.
+      #
       # Note: PRs opened with the default GITHUB_TOKEN do not trigger other
       # workflows, so CI does not run on the release PR itself. The commits it
-      # summarises were each tested on main before landing. To get CI on the PR
-      # too, swap in a PAT with `repo` scope as `token:`.
+      # summarises were each tested on main before landing. A PAT fixes that
+      # too, if you want CI on the PR.
       - uses: googleapis/release-please-action@v4
         with:
           config-file: release-please-config.json
