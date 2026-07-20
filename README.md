@@ -12,9 +12,11 @@ quality-engineering software. Its differentiator is verifiable correctness:
 every statistical result is validated against published reference values
 (NIST StRD, Montgomery, AIAG manuals, ISO 22514).
 
-> **Status:** early development (v0.1 in progress). The core statistics
-> library is being built method by method; the API and web app follow. See
-> [PLAN.md](PLAN.md) for the roadmap and [TASK.md](TASK.md) for the backlog.
+> **Status:** approaching v0.1.0. All three pieces are built and tested — the
+> statistics library, the HTTP API, and the web app (capability, control charts,
+> Gage R&R, bias/linearity/stability). What is *not* done: capstat is not
+> published to PyPI, and there is no hosted demo yet. Install from the checkout.
+> See [TASK.md](TASK.md) for what remains.
 
 ## Quickstart
 

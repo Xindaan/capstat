@@ -29,8 +29,16 @@
   point a Vercel project at `apps/web`. Blocked on T-0026 (which host) -- the
   artifacts and the documentation are done, only the accounts and the actual
   deploy remain.
-- T-0017 M6d v0.1.0 release via release-please, README polish (badges,
-  screenshots, quickstart, demo link).
+- T-0017b Cut v0.1.0: merge the release PR release-please opens. Your call --
+  it publishes a public GitHub release. Blocked on nothing technical.
+- T-0030 Decide whether capstat-core goes to PyPI. Needs a PyPI account and a
+  trusted-publisher (OIDC) config, neither creatable from inside the repo. Until
+  then releases are GitHub-only and the docs say so rather than implying a
+  `pip install` that would fail. Once decided, add a publish job keyed on the
+  release tag.
+- T-0031 README screenshots. Deferred from T-0017: the app is worth showing, but
+  it means committing binaries and re-shooting them whenever the UI moves. Worth
+  doing once the UI settles and there is a hosted demo to link instead.
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
   multi-user auth, persistence/database, server PDF.
 - T-0021 scipy deprecation: `scipy.stats.anderson` drops its `critical_values`
@@ -66,6 +74,28 @@
 
 ## Done
 
+- T-0017a (2026-07-20) M6d release automation. release-please configured for the
+  repo, plus the README/docs honesty pass that came with it.
+  * **One version for the whole repo.** Core, API and web are built and released
+    together; independent version numbers would imply a freedom that does not
+    exist. The manifest holds it; `extra-files` writes it into both pyprojects,
+    both `__version__` constants, `apps/web/package.json`, and
+    `apps/api/openapi.json`.
+  * That last one is the non-obvious part: the API's version is *part of its
+    published schema*, and the schema is drift-checked against the code. A
+    release that bumped the version without rewriting `openapi.json` would fail
+    the next CI run. Verified the jsonpath (`$.info.version`) resolves by
+    reading the file rather than assuming the usual OpenAPI key order -- the
+    exporter sorts keys, so `info` sits near the end.
+  * CONTRIBUTING now spells out that the commit type decides the version bump,
+    not just the changelog section: a commit typed wrongly releases wrongly.
+  * **Found while writing the release docs**: `docs/getting-started.md` told
+    readers to `pip install capstat-core`. That package is on no index -- the
+    instruction would simply fail. Corrected to install from the checkout, with
+    the PyPI question filed as T-0030. The README's status block was also stale
+    ("the API and web app follow" -- they were finished days ago).
+  * Deliberately *not* done: merging the release PR (T-0017b -- a public
+    release is your call) and README screenshots (T-0031).
 - T-0015a (2026-07-16) M6b deployment artifacts: Dockerfiles for both apps,
   docker-compose, Vercel config, and a deployment page in the docs.
   * **API image**: multi-stage, uv-based, dependencies in their own layer so

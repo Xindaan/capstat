@@ -68,6 +68,42 @@ sleep) both take the image above unchanged.
 Whichever host: it must serve the port given in `$PORT` — the image already
 honours that — and `CAPSTAT_CORS_ORIGINS` must name the web app's origin.
 
+## Cutting a release
+
+Releases are automated by
+[release-please](https://github.com/googleapis/release-please). Every push to
+`main` updates an open **release pull request** summarising the conventional
+commits since the last tag. Merging that PR is the release: it tags the commit,
+publishes a GitHub release, writes `CHANGELOG.md`, and bumps the version
+everywhere it appears —
+
+- `packages/capstat-core/pyproject.toml` and its `__version__`
+- `apps/api/pyproject.toml` and its `__version__`
+- `apps/web/package.json`
+- `apps/api/openapi.json` (`info.version`)
+
+That last one matters: the API's version is part of its published schema, and
+the schema is drift-checked against the code. If a release bumped the version
+without updating `openapi.json`, the next CI run would fail. It is in the
+config for that reason.
+
+The repository carries **one version for everything**. The core, the API and the
+web app are built and released together, so independent version numbers would
+imply a freedom that does not exist.
+
+!!! note "The release PR does not run CI"
+    Pull requests opened with the default `GITHUB_TOKEN` do not trigger other
+    workflows. The commits the PR summarises were each tested on `main` before
+    landing, so nothing is unverified — but if you want CI on the PR itself,
+    give the action a PAT with `repo` scope.
+
+!!! warning "Publishing to PyPI is not set up"
+    `capstat-core` is not published to any index yet. Doing so needs a PyPI
+    account and a trusted-publisher (OIDC) configuration, which cannot be
+    created from inside the repository. Until that decision is made, releases
+    are GitHub releases only, and the install instructions that mention
+    `pip install capstat-core` describe an intent rather than a fact.
+
 ## Configuration
 
 | Variable | Where | Meaning |

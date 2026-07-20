@@ -1,0 +1,29 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Keeps a release pull request open and up to date, built from the
+      # conventional-commit messages since the last tag. Merging that PR is what
+      # cuts the release: it tags, publishes the GitHub release, and writes the
+      # version into every file listed in release-please-config.json --
+      # including apps/api/openapi.json, whose `info.version` is drift-checked
+      # against the code and would otherwise fail CI on the first bump.
+      #
+      # Note: PRs opened with the default GITHUB_TOKEN do not trigger other
+      # workflows, so CI does not run on the release PR itself. The commits it
+      # summarises were each tested on main before landing. To get CI on the PR
+      # too, swap in a PAT with `repo` scope as `token:`.
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

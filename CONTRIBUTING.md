@@ -45,8 +45,11 @@ All must pass; coverage on capstat-core must stay ≥ 95 %.
 ## Commits and pull requests
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/)
-  (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, …). Releases are automated
-  from the commit history.
+  (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, …). Releases are automated from
+  the commit history by [release-please](https://github.com/googleapis/release-please),
+  so the type prefix decides both the changelog section and the version bump:
+  `fix:` gives a patch, `feat:` a minor, and a `!` or a `BREAKING CHANGE:`
+  footer a major. A commit typed wrongly releases wrongly.
 - Keep changes small and focused. Each increment should state the files it
   changed and the command used to verify it.
 - A commit that changes code but not `TASK.md` / `STATE.md` is usually wrong.

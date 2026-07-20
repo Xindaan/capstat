@@ -71,13 +71,22 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-1. **T-0026 needs your call**: where the API is hosted. Measured — 152 MB of
-   deps, ~1 s cold import — so serverless fits but is tight and slow to wake.
-   Recommendation: a container host (Render free / Fly.io). Needs an account.
-2. T-0017 M6d v0.1.0 release via release-please; README badges + demo link.
+**Three decisions are waiting on you; the engineering behind each is done.**
+
+1. **T-0026** — where the API is hosted. Measured: 152 MB of deps, ~1 s cold
+   import. Serverless fits but is tight and slow to wake; recommendation is a
+   container host (Render free / Fly.io). Needs an account.
+2. **T-0017b** — merge the release PR release-please opens, which cuts a public
+   v0.1.0. **T-0030** — whether capstat-core goes to PyPI (needs an account).
 3. T-0028 Cp/Cpk cards read as "missing" on the percentile path (small, real).
 
 ## Last done
+
+- 2026-07-20: T-0017a — **release automation**: release-please with one version
+  for the whole repo, written into both pyprojects, both `__version__`
+  constants, `package.json` and `openapi.json` (whose version is part of the
+  drift-checked schema). Corrected a `pip install capstat-core` instruction in
+  the docs that would simply have failed — the package is on no index.
 
 - 2026-07-16: T-0015a — **deployment artifacts**: Dockerfiles (API + web, both
   non-root), docker-compose, Vercel config, docs/deployment.md. Could not build

@@ -159,4 +159,4 @@ __all__ = [
     "xbar_s_chart",
 ]
 
-__version__ = "0.0.0"
+__version__ = "0.0.0"  # x-release-please-version
