@@ -47,7 +47,13 @@ dev = [
 docs = [
     "capstat-core",
     "capstat-api",
-    "mkdocs>=1.6",
+    # Ceiling on purpose (T-0029): MkDocs 2.0 removes the plugin system with
+    # "no migration path" and rewrites theming, which would take mkdocstrings
+    # and the Material theme out together. The committed uv.lock already holds
+    # 1.6.x, but a lock refresh would happily cross a major version -- and the
+    # break would surface while working on something unrelated. Raise this
+    # deliberately, after checking that both plugins support 2.x.
+    "mkdocs>=1.6,<2",
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.27",
     "pyyaml>=6",

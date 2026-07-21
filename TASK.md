@@ -10,10 +10,20 @@
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
-  which would break mkdocstrings and the Material theme together. We pin
-  mkdocs 1.x, so nothing is broken today. Revisit before it becomes urgent:
-  either stay pinned deliberately, or evaluate an alternative generator. Do not
-  bump mkdocs to 2.x casually.
+  which would break mkdocstrings and the Material theme together.
+  **Corrected 2026-07-21:** this entry claimed "we pin mkdocs 1.x". We did not.
+  `pyproject.toml` said `mkdocs>=1.6`, a floor with no ceiling; what actually
+  held the version was the committed `uv.lock` plus `uv sync --frozen` in CI.
+  Reproducible, but a lock refresh would have crossed the major silently, and
+  the break would have landed while working on something unrelated. Now
+  `mkdocs>=1.6,<2` -- the intent is in the dependency, not implicit in a lock.
+  mkdocs 2.0 is not released yet (PyPI latest: 1.6.1), so nothing is urgent.
+  The remaining decision, when 2.0 lands: stay on 1.x deliberately, or move to
+  another generator -- to be made after checking whether mkdocstrings and
+  Material support 2.x, not before.
+  Deliberately *not* done: ceilings on every other dependency. Blanket upper
+  bounds block security fixes and pile up upgrade debt; this one is justified by
+  a specific, announced removal, not by a general fear of major versions.
 - ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
   hosting (local only). The Docker artifacts stay for self-hosting; there is
   just nothing to deploy.

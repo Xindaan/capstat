@@ -204,7 +204,7 @@ dev = [
 docs = [
     { name = "capstat-api", editable = "apps/api" },
     { name = "capstat-core", editable = "packages/capstat-core" },
-    { name = "mkdocs", specifier = ">=1.6" },
+    { name = "mkdocs", specifier = ">=1.6,<2" },
     { name = "mkdocs-material", specifier = ">=9.5" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27" },
     { name = "pyyaml", specifier = ">=6" },

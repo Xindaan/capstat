@@ -80,7 +80,8 @@ account; releases are GitHub-only until then, and the docs say so).
 Flipping it is a separate, deliberate step: `gh repo edit --visibility public`.
 
 The backlog is down to decisions and deliberately-deferred items: **T-0030**
-(PyPI), **T-0029** (mkdocs 2.0 risk, pinned at 1.x on purpose), **T-0018**
+(PyPI), **T-0029** (mkdocs now capped below 2.x; decision deferred until it
+ships), **T-0018**
 (post-v0.1 roadmap), and the postcss half of T-0023, which cannot be fixed until
 Next raises its pinned floor. Nothing is blocked on me.
 
