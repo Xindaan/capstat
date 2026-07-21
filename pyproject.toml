@@ -29,7 +29,7 @@ dev = [
     "pytest>=8",
     "pytest-cov>=5",
     "mypy>=1.13",
-    "ruff>=0.8",
+    "ruff>=0.15.22",
     "pre-commit>=4",
     # Test-only: parses the reference-value YAML. Deliberately NOT a core
     # dependency -- capstat-core ships with numpy + scipy and nothing else.
