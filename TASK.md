@@ -21,14 +21,14 @@
 - ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
   hosting (local only). The Docker artifacts stay for self-hosting; there is
   just nothing to deploy.
-- T-0032 **Enable "Allow GitHub Actions to create and approve pull requests"**
-  (Settings -> Actions -> General -> Workflow permissions), or give the
-  release-please step a PAT with `repo` scope. The first run failed on exactly
-  this: it built the release branch fine, then could not open the PR. It is a
-  permission decision, not a config bug, so it is yours to make -- the switch
-  lets *any* workflow in the repo open PRs.
-- T-0017b Cut v0.1.0: merge the release PR release-please opens. Your call --
-  it publishes a public GitHub release. Blocked on T-0032.
+- T-0017b Cut v0.1.0: merge PR #3 ("chore(main): release 0.1.0"), which
+  release-please opened once T-0032 was enabled. Your call -- it publishes a
+  public GitHub release. Verified before recommending: all six versions read
+  0.1.0 (manifest, both pyproject.toml, both __init__.py, package.json) and the
+  CHANGELOG is generated. Note the PR carries **no CI checks** -- release-please
+  creates it with the GITHUB_TOKEN, and GitHub deliberately does not trigger
+  workflows on such PRs, so `main` is what gets tested. That is why T-0034 was
+  found by checking the branch out locally instead of trusting a green tick.
 - T-0030 Decide whether capstat-core goes to PyPI. Needs a PyPI account and a
   trusted-publisher (OIDC) config, neither creatable from inside the repo. Until
   then releases are GitHub-only and the docs say so rather than implying a
@@ -76,6 +76,26 @@
   only github-actions is) or a routine `next` bump will resolve it.
 
 ## Done
+
+- T-0034 (2026-07-21) The OpenAPI drift check no longer fails on formatting it
+  does not own. release-please stamps `$.info.version` into `openapi.json` and
+  rewrites the file with JavaScript's JSON writer, which cannot tell `5.0` from
+  `5` -- so the 0.1.0 release commit differed from a fresh render in exactly
+  three whitespace-equivalent numbers and would have turned `main` red on an
+  artefact nobody had touched. `--check` now compares the *parsed* documents,
+  which is what it was always meant to assert: that the committed contract
+  describes the same API as the code. Byte differences are reported, not failed.
+  Proven by checking out the release branch into a worktree, running the check
+  (exit 1), patching the exporter in, and running it again (exit 0) -- the first
+  measurement was confounded by the version field and had to be redone properly.
+  Guard kept sharp by a test that mutates a value rather than its formatting.
+  Isomorphie-Check: `apps/web/package.json` goes through the same JSON updater
+  but is under no byte-comparison, so `openapi.json` was the only instance.
+
+- T-0032 (2026-07-21) "Allow GitHub Actions to create and approve pull requests"
+  enabled by the maintainer; re-running the workflow opened PR #3 immediately.
+  It was a permission decision, not a config bug -- the switch lets *any*
+  workflow in the repo open PRs, which is why it was not mine to make.
 
 - T-0033 (2026-07-21) The upload panel no longer auto-selects a row index. It
   landed on `part` = 1..60 in the demo CSV and computed Pp 0.006 -- capability of

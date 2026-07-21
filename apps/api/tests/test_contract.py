@@ -7,6 +7,7 @@ leaking as a 500 instead of a 422.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -16,8 +17,11 @@ from fastapi.testclient import TestClient
 
 
 def test_committed_openapi_is_current() -> None:
-    # The same check CI runs: the tracked schema must equal a fresh render.
-    assert SCHEMA_PATH.read_text(encoding="utf-8") == render(), (
+    # The same check CI runs: the tracked schema must describe the same API as
+    # a fresh render. Compared as parsed documents, not bytes -- see the module
+    # docstring of export_openapi for why byte equality is the wrong assertion.
+    committed = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    assert committed == json.loads(render()), (
         "openapi.json is stale; run `uv run python -m capstat_api.export_openapi`."
     )
 
@@ -65,6 +69,44 @@ def test_exporter_check_detects_drift(
 ) -> None:
     target = tmp_path / "openapi.json"
     target.write_text("{}\n", encoding="utf-8")
+    monkeypatch.setattr(export_openapi, "SCHEMA_PATH", target)
+    assert main(["--check"]) == 1
+
+
+def test_exporter_check_accepts_a_foreign_json_writer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # release-please stamps info.version and rewrites the file with JavaScript's
+    # JSON writer, which renders 5.0 as 5. Same contract, different bytes -- and
+    # a byte-for-byte check failed the 0.1.0 release commit over exactly this.
+    target = tmp_path / "openapi.json"
+    target.write_text(
+        json.dumps(json.loads(render()), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(export_openapi, "SCHEMA_PATH", target)
+    assert "5.0" in render()  # the float this is about is really in the schema
+    assert main(["--check"]) == 0
+
+
+def test_exporter_check_still_catches_a_changed_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The looser comparison must not blunt the guard: a value that differs by
+    # more than its formatting is still drift.
+    schema = json.loads(render())
+    schema["info"]["version"] = "9.9.9-not-the-code"
+    target = tmp_path / "openapi.json"
+    target.write_text(json.dumps(schema, indent=2), encoding="utf-8")
+    monkeypatch.setattr(export_openapi, "SCHEMA_PATH", target)
+    assert main(["--check"]) == 1
+
+
+def test_exporter_check_flags_unparseable_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "openapi.json"
+    target.write_text("{not json", encoding="utf-8")
     monkeypatch.setattr(export_openapi, "SCHEMA_PATH", target)
     assert main(["--check"]) == 1
 

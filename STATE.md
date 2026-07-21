@@ -71,10 +71,12 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-Decisions waiting on you (engineering done): **T-0032** — flip "Allow GitHub
-Actions to create and approve pull requests" (Settings -> Actions), the *only*
-thing blocking the release PR from opening. **T-0017b** — then merge that PR to
-cut v0.1.0. **T-0030** — whether capstat-core goes to PyPI (needs an account).
+**T-0017b — merge PR #3 to cut v0.1.0.** T-0032 is done (the switch is on), so
+release-please opened the PR; versions verified at 0.1.0 across all six files.
+Merge *after* this commit lands: it fixes T-0034, without which the release
+commit turns `main` red on an OpenAPI formatting difference. release-please
+rebuilds the PR automatically once this is on `main`.
+Also waiting on you: **T-0030** — whether capstat-core goes to PyPI (account).
 
 What I can do without you:
 
@@ -84,6 +86,19 @@ What I can do without you:
 3. T-0024 run-rule selection UI (small feature, low priority).
 
 ## Last done
+
+- 2026-07-21: T-0034 — **the OpenAPI drift check stopped failing on formatting
+  it does not own.** release-please rewrites `openapi.json` to stamp the version
+  and, being JavaScript, renders `5.0` as `5`; the byte-for-byte check called
+  that drift and would have reddened `main` on the release commit. `--check` now
+  compares parsed documents — which is the guarantee it always meant to give.
+  Caught by checking the release branch out locally, precisely because the PR
+  carries no CI: release-please creates it with the GITHUB_TOKEN, and GitHub
+  does not run workflows on those. **A release PR's green tick is not evidence;
+  there isn't one.**
+
+- 2026-07-21: T-0032 — the maintainer enabled Actions-may-open-PRs; re-running
+  release-please opened PR #3 ("chore(main): release 0.1.0") on the spot.
 
 - 2026-07-21: T-0033 — **the upload panel no longer analyses the row index.**
   It auto-selected the first numeric column, which on the demo CSV is `part`
