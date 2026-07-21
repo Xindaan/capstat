@@ -25,10 +25,13 @@
   release-please opened once T-0032 was enabled. Your call -- it publishes a
   public GitHub release. Verified before recommending: all six versions read
   0.1.0 (manifest, both pyproject.toml, both __init__.py, package.json) and the
-  CHANGELOG is generated. Note the PR carries **no CI checks** -- release-please
-  creates it with the GITHUB_TOKEN, and GitHub deliberately does not trigger
-  workflows on such PRs, so `main` is what gets tested. That is why T-0034 was
-  found by checking the branch out locally instead of trusting a green tick.
+  CHANGELOG is generated, and **CI passes on the PR itself** (all six jobs).
+  Getting that green tick took a step: workflows on a GITHUB_TOKEN-created PR
+  are queued as `action_required` and wait for a manual approval, so `gh pr
+  checks` reports nothing until someone approves the run --
+  `gh api -X POST repos/Xindaan/capstat/actions/runs/<id>/approve`. Do that on
+  every future release PR; an unapproved release PR is untested, and it looks
+  identical to one with no checks configured.
 - T-0030 Decide whether capstat-core goes to PyPI. Needs a PyPI account and a
   trusted-publisher (OIDC) config, neither creatable from inside the repo. Until
   then releases are GitHub-only and the docs say so rather than implying a
@@ -88,6 +91,8 @@
   Proven by checking out the release branch into a worktree, running the check
   (exit 1), patching the exporter in, and running it again (exit 0) -- the first
   measurement was confounded by the version field and had to be redone properly.
+  Then confirmed on the real thing: the release PR's own CI, once approved, went
+  green on all six jobs.
   Guard kept sharp by a test that mutates a value rather than its formatting.
   Isomorphie-Check: `apps/web/package.json` goes through the same JSON updater
   but is under no byte-comparison, so `openapi.json` was the only instance.

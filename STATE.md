@@ -71,11 +71,10 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-**T-0017b — merge PR #3 to cut v0.1.0.** T-0032 is done (the switch is on), so
-release-please opened the PR; versions verified at 0.1.0 across all six files.
-Merge *after* this commit lands: it fixes T-0034, without which the release
-commit turns `main` red on an OpenAPI formatting difference. release-please
-rebuilds the PR automatically once this is on `main`.
+**T-0017b — merge PR #3 to cut v0.1.0.** Ready: T-0032 done, versions verified
+at 0.1.0 across all six files, T-0034 fixed the drift check that would otherwise
+have reddened `main`, and the PR's own CI is green on all six jobs (after
+approving the held run). Merging publishes a public GitHub release — your call.
 Also waiting on you: **T-0030** — whether capstat-core goes to PyPI (account).
 
 What I can do without you:
@@ -92,10 +91,14 @@ What I can do without you:
   and, being JavaScript, renders `5.0` as `5`; the byte-for-byte check called
   that drift and would have reddened `main` on the release commit. `--check` now
   compares parsed documents — which is the guarantee it always meant to give.
-  Caught by checking the release branch out locally, precisely because the PR
-  carries no CI: release-please creates it with the GITHUB_TOKEN, and GitHub
-  does not run workflows on those. **A release PR's green tick is not evidence;
-  there isn't one.**
+  Caught by checking the release branch out locally, because the PR showed no
+  checks at all. The reason turned out to be worth knowing: workflows on a
+  GITHUB_TOKEN-created PR are queued as `action_required` and sit there awaiting
+  manual approval, which `gh pr checks` renders as *nothing reported* -- looking
+  exactly like a repo with no CI. Approving the run (`gh api -X POST
+  .../actions/runs/<id>/approve`) turned all six jobs green on the release
+  commit. **An unapproved release PR is untested and looks the same as a passing
+  one; approve it before merging.**
 
 - 2026-07-21: T-0032 — the maintainer enabled Actions-may-open-PRs; re-running
   release-please opened PR #3 ("chore(main): release 0.1.0") on the spot.
