@@ -21,17 +21,6 @@
 - ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
   hosting (local only). The Docker artifacts stay for self-hosting; there is
   just nothing to deploy.
-- T-0017b Cut v0.1.0: merge PR #3 ("chore(main): release 0.1.0"), which
-  release-please opened once T-0032 was enabled. Your call -- it publishes a
-  public GitHub release. Verified before recommending: all six versions read
-  0.1.0 (manifest, both pyproject.toml, both __init__.py, package.json) and the
-  CHANGELOG is generated, and **CI passes on the PR itself** (all six jobs).
-  Getting that green tick took a step: workflows on a GITHUB_TOKEN-created PR
-  are queued as `action_required` and wait for a manual approval, so `gh pr
-  checks` reports nothing until someone approves the run --
-  `gh api -X POST repos/Xindaan/capstat/actions/runs/<id>/approve`. Do that on
-  every future release PR; an unapproved release PR is untested, and it looks
-  identical to one with no checks configured.
 - T-0030 Decide whether capstat-core goes to PyPI. Needs a PyPI account and a
   trusted-publisher (OIDC) config, neither creatable from inside the repo. Until
   then releases are GitHub-only and the docs say so rather than implying a
@@ -79,6 +68,20 @@
   only github-actions is) or a routine `next` bump will resolve it.
 
 ## Done
+
+- T-0017b (2026-07-21) **v0.1.0 released.** PR #3 squash-merged; release-please
+  cut tag `v0.1.0` and the GitHub release. Versions verified at 0.1.0 across all
+  six files beforehand; post-merge CI green on all six jobs, including the drift
+  check T-0034 had just fixed — the precise failure it was written for.
+  Two things learned about release PRs, both worth repeating next time:
+  1. Workflows on a GITHUB_TOKEN-created PR are queued as `action_required`,
+     awaiting manual approval. `gh pr checks` reports *nothing* while a run is
+     held, which is indistinguishable from a repo with no CI. Approve with
+     `gh api -X POST repos/Xindaan/capstat/actions/runs/<id>/approve`.
+  2. release-please rebuilds the PR whenever `main` moves, so a green run can
+     belong to a superseded head. Compare the run's sha against
+     `gh pr view <n> --json headRefOid` before trusting it. This happened here:
+     the first green tick was for `3fbaa54d`, the head was already `22c2f444`.
 
 - T-0034 (2026-07-21) The OpenAPI drift check no longer fails on formatting it
   does not own. release-please stamps `$.info.version` into `openapi.json` and

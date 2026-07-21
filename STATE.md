@@ -71,20 +71,28 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-**T-0017b — merge PR #3 to cut v0.1.0.** Ready: T-0032 done, versions verified
-at 0.1.0 across all six files, T-0034 fixed the drift check that would otherwise
-have reddened `main`, and the PR's own CI is green on all six jobs (after
-approving the held run). Merging publishes a public GitHub release — your call.
-Also waiting on you: **T-0030** — whether capstat-core goes to PyPI (account).
+**v0.1.0 is released** (tag `v0.1.0`, 2026-07-21). M1–M6 are complete: core,
+API, web app, MSA, report, docs, deployment artifacts, release automation.
 
-What I can do without you:
+Waiting on you: **T-0030** — whether capstat-core goes to PyPI (needs an
+account; releases are GitHub-only until then, and the docs say so).
+**Repo visibility** — still private, so the release is visible only to you.
+Flipping it is a separate, deliberate step: `gh repo edit --visibility public`.
 
-1. T-0031 README screenshots -- now the *only* way a reader sees the UI, since
-   there is no hosted demo (T-0026: local only).
-2. T-0023 postcss audit; T-0021/T-0022 dep-deprecation cleanups.
-3. T-0024 run-rule selection UI (small feature, low priority).
+What I can do without you: **T-0031** README screenshots (the only way a reader
+sees the UI, since there is no hosted demo); T-0023 postcss audit; T-0021/T-0022
+dependency-deprecation cleanups; T-0024 run-rule selection UI.
 
 ## Last done
+
+- 2026-07-21: **T-0017b — v0.1.0 released.** PR #3 squash-merged, release-please
+  cut the tag and the GitHub release. Post-merge CI green on all six jobs, and
+  the drift check that T-0034 fixed passed on the release commit — the exact
+  failure it was written for. Caught one more instance of the held-run trap on
+  the way in: the PR's green CI belonged to an *older* head (I had pushed twice
+  since), so the tick was real but stale. Re-approved on the current sha before
+  merging. **Match the run's sha to the PR head; a green check is not
+  necessarily a green check of what you are merging.**
 
 - 2026-07-21: T-0034 — **the OpenAPI drift check stopped failing on formatting
   it does not own.** release-please rewrites `openapi.json` to stamp the version

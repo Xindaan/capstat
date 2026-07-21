@@ -919,7 +919,7 @@
             "type": "array"
           },
           "h": {
-            "default": 5,
+            "default": 5.0,
             "title": "H",
             "type": "number"
           },
@@ -1166,7 +1166,7 @@
         "additionalProperties": false,
         "properties": {
           "L": {
-            "default": 3,
+            "default": 3.0,
             "title": "L",
             "type": "number"
           },
@@ -1479,7 +1479,7 @@
             "type": "string"
           },
           "study_var_multiplier": {
-            "default": 6,
+            "default": 6.0,
             "title": "Study Var Multiplier",
             "type": "number"
           },
