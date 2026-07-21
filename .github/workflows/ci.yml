@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Build only -- nothing is pushed. The point is that the deployment
       # artifacts cannot rot: a Dockerfile that stopped building would otherwise
