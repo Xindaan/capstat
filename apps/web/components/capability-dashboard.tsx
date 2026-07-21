@@ -87,6 +87,15 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
       : result?.path === "box-cox"
         ? (result.box_cox?.capability ?? null)
         : null;
+  // The percentile method reads percentiles off the overall fitted distribution
+  // and has no within/between subgroup split, so Cp and Cpk do not exist there
+  // at all -- as opposed to merely being undefined for a one-sided spec. Saying
+  // which is which is the whole point: an empty card otherwise reads as "your
+  // input was wrong".
+  const withinUnavailable =
+    result?.path === "percentile"
+      ? "not defined on the percentile path"
+      : undefined;
   // Only the normal path gets a fitted curve; a Box-Cox normal lives in the
   // transformed space and would be wrong drawn over the original-scale bars.
   const fit: NormalFit | null =
@@ -140,10 +149,23 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
       {result && (
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <IndexCard label="Pp" value={result.pp} />
+            <IndexCard
+              label="Pp"
+              value={result.pp}
+              unavailable="needs both spec limits"
+            />
             <IndexCard label="Ppk" value={result.ppk} emphasize />
-            <IndexCard label="Cp" value={report?.cp} />
-            <IndexCard label="Cpk" value={report?.cpk} emphasize />
+            <IndexCard
+              label="Cp"
+              value={report?.cp}
+              unavailable={withinUnavailable ?? "needs both spec limits"}
+            />
+            <IndexCard
+              label="Cpk"
+              value={report?.cpk}
+              emphasize
+              unavailable={withinUnavailable}
+            />
           </div>
 
           <div className="rounded-lg border border-foreground/15 p-4">
@@ -217,25 +239,40 @@ function IndexCard({
   label,
   value,
   emphasize = false,
+  unavailable,
 }: {
   label: string;
   value: number | null | undefined;
   emphasize?: boolean;
+  /**
+   * Why this index has no value, for the cases where it genuinely has none.
+   * An index that does not exist and one whose data is missing look identical
+   * as a bare dash — and a reader who typed the spec limits correctly should
+   * not have to wonder which they are looking at.
+   */
+  unavailable?: string;
 }) {
+  const missing = value == null || Number.isNaN(value);
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
       <div className="text-xs uppercase tracking-wide text-foreground/40">
         {label}
       </div>
-      <div
-        className={[
-          "font-mono tabular-nums",
-          emphasize ? "text-2xl" : "text-xl",
-          indexTone(value),
-        ].join(" ")}
-      >
-        {fmt(value)}
-      </div>
+      {missing && unavailable ? (
+        <div className="text-xs leading-snug text-foreground/45">
+          {unavailable}
+        </div>
+      ) : (
+        <div
+          className={[
+            "font-mono tabular-nums",
+            emphasize ? "text-2xl" : "text-xl",
+            indexTone(value),
+          ].join(" ")}
+        >
+          {fmt(value)}
+        </div>
+      )}
     </div>
   );
 }

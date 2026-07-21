@@ -50,7 +50,26 @@ const CHART = {
   },
 };
 
-async function mockApi(page: Page) {
+// The percentile path: no within/between split, so Cp and Cpk do not exist —
+// and a one-sided spec on top, so Pp has no value either, for a different
+// reason. The UI has to tell those two apart.
+const CAPABILITY_PERCENTILE = {
+  path: "percentile",
+  pp: null,
+  ppk: 0.942,
+  box_cox: null,
+  normal: null,
+  percentile: { distribution: "weibull_min", pp: null, ppk: 0.942 },
+  normality: {
+    normal: false,
+    recommendation: "Normal model rejected; use the non-normal path.",
+  },
+  rationale:
+    "the normal model was rejected and Box-Cox failed to fix it, so the ISO 22514 percentile method was used instead.",
+  warnings: ["the percentile method yields long-term (Pp/Ppk) indices only."],
+};
+
+async function mockApi(page: Page, capability: unknown = CAPABILITY) {
   const json = (body: unknown) => ({
     status: 200,
     contentType: "application/json",
@@ -58,7 +77,7 @@ async function mockApi(page: Page) {
   });
   await page.route("**/ingest", (r) => r.fulfill(json(INGEST)));
   await page.route("**/compute/capability/analyze", (r) =>
-    r.fulfill(json(CAPABILITY)),
+    r.fulfill(json(capability)),
   );
   await page.route("**/control-chart/i-mr", (r) => r.fulfill(json(CHART)));
   await page.route("**/rules/nelson", (r) => r.fulfill(json([])));
@@ -100,4 +119,35 @@ test("upload -> capability -> control chart", async ({ page }) => {
     page.locator('[aria-label="Capability analysis"] svg'),
   ).toHaveCount(1);
   await expect(page.locator('[aria-label="Control chart"] svg')).toHaveCount(2);
+});
+
+test("an index with no value says why, instead of showing a bare dash", async ({
+  page,
+}) => {
+  // A real user asked "did I enter the limits wrong?" on seeing two empty
+  // Cp/Cpk cards. They had not: on the percentile path those indices do not
+  // exist. An absent value and a rejected input must not look the same.
+  await mockApi(page, CAPABILITY_PERCENTILE);
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "sample.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+    });
+
+  // USL only, so Pp is absent too — for a different reason.
+  await page.getByLabel("USL").fill("10.3");
+  await page.getByRole("button", { name: "Compute capability" }).click();
+
+  const cards = page.locator('[aria-label="Capability analysis"] .grid > div');
+  await expect(cards.filter({ hasText: "Cp" }).first()).toContainText(
+    "not defined on the percentile path",
+  );
+  await expect(cards.filter({ hasText: "Pp" }).first()).toContainText(
+    "needs both spec limits",
+  );
+  // Ppk is defined by one limit, so it still shows a number.
+  await expect(cards.filter({ hasText: "Ppk" }).first()).toContainText("0.942");
 });

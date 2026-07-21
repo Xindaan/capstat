@@ -78,13 +78,20 @@ cut v0.1.0. **T-0030** — whether capstat-core goes to PyPI (needs an account).
 
 What I can do without you:
 
-1. T-0028 Cp/Cpk cards read as "missing" on the percentile path (small, real UI
-   fix; the demo CSV surfaced it).
+1. T-0033 the upload panel auto-selects the first numeric column, which on a
+   realistic file is the row index -- the demo CSV lands on `part` (1..60) and
+   computes confident nonsense. Found while verifying T-0028.
 2. T-0031 README screenshots -- now the *only* way a reader sees the UI, since
    there is no hosted demo (T-0026: local only).
 3. T-0023 postcss audit; T-0021/T-0022 dep-deprecation cleanups.
 
 ## Last done
+
+- 2026-07-20: T-0028 — an index with no value now **says why** rather than
+  showing a dash: "not defined on the percentile path" (Cp/Cpk have no
+  within/between split there) vs "needs both spec limits" (one-sided spec).
+  Two absences that looked identical are now distinguishable. Pinned by an
+  e2e test.
 
 - 2026-07-20: T-0017a — **release automation** via release-please (one version
   for the whole repo). **Caught myself misdiagnosing the first run**: I claimed

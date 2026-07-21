@@ -8,19 +8,21 @@
   studies all reach the UI. Next in Backlog: the M6 release path.)
 
 ## Backlog
+- T-0033 Upload panel auto-selects the *first* numeric column, which on a
+  realistic file is the row index. `examples/shaft-diameter.csv` starts with a
+  `part` column of 1..60, so the app lands on it and computes capability of the
+  part *numbers* against the spec limits -- Pp 0.006, confidently nonsense.
+  Nothing warns, because 1..60 is perfectly valid numeric data. Options: skip
+  columns that look like an index (monotonic integers starting at 0/1, or a name
+  like id/part/no/index) when auto-selecting; or select nothing and make the user
+  choose. The second is safer but costs a click on files with one real column.
+  Seen while verifying T-0028.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together. We pin
   mkdocs 1.x, so nothing is broken today. Revisit before it becomes urgent:
   either stay pinned deliberately, or evaluate an alternative generator. Do not
   bump mkdocs to 2.x casually.
-- T-0028 Capability dashboard: the Cp/Cpk cards render "—" on the percentile
-  path, where those indices genuinely do not exist (no within/between split).
-  The amber warning says so, but it sits three blocks below the cards, so two
-  empty boxes read as "data missing" rather than "not defined here" -- a real
-  user asked exactly that within a minute of loading the demo CSV. Either drop
-  the cards on that path or label them in place ("not defined for the percentile
-  path"). Small; the statistics are right, the presentation misleads.
 - T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
   control-chart panel applies (it currently hard-codes rules 1-4). Small
   feature; low priority. Optional companion: add prettier if formatting ever
@@ -84,6 +86,21 @@
 
 ## Done
 
+- T-0028 (2026-07-20) An index with no value now says *why*, instead of showing
+  a bare dash. Prompted by the maintainer asking "did I enter LSL/USL wrong?"
+  within a minute of loading the demo CSV -- he had not; on the percentile path
+  Cp and Cpk simply do not exist. Two absences that looked identical are now
+  distinguished in the card itself:
+  * **"not defined on the percentile path"** -- the percentile method reads
+    percentiles off the overall fitted distribution and has no within/between
+    split, so Cp/Cpk are not merely unknown, they are undefined.
+  * **"needs both spec limits"** -- Cp and Pp need two limits; Cpk and Ppk are
+    defined by one. A one-sided spec empties different cards for a different
+    reason, and now says so.
+  The amber warning below already explained the first case, but three blocks
+  below the cards is too far away to answer the question the cards raise.
+  Verified in-browser on the real demo CSV (both cases), and pinned by an e2e
+  test so the explanations cannot decay back into dashes.
 - T-0017a (2026-07-20) M6d release automation. release-please configured for the
   repo, plus the README/docs honesty pass that came with it.
   * **One version for the whole repo.** Core, API and web are built and released
