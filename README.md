@@ -439,7 +439,9 @@ npm run build       # production build + type-check
 The control chart on the same data. The process drifts and excursions at part
 31, so this is deliberately not a picture of a well-behaved process — the
 dispersion chart is out of control first, and the panel says to fix that before
-reading anything into the individuals limits.
+reading anything into the individuals limits. Which of the eight Nelson rules
+are applied is yours to choose; the default is 1–4, and the report always names
+the set it used, because "no violations" says nothing without it.
 
 ![I-MR control chart with Nelson run-rule violations](docs/images/control-chart.png)
 

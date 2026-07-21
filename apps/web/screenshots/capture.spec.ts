@@ -27,6 +27,15 @@ const USL = "10.30";
 /** Screenshot a panel, after waiting for the chart inside it to have painted. */
 async function shoot(panel: Locator, name: string) {
   await expect(panel).toBeVisible();
+  // Drop focus and park the cursor before shooting. A button the script just
+  // clicked keeps its focus ring and hover state, and whether those have
+  // finished painting varies between runs -- which showed up as unrelated
+  // images churning by a few bytes on every capture.
+  await panel.page().evaluate(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+  });
+  await panel.page().mouse.move(0, 0);
   // ECharts renders SVG. Count the paths rather than asserting the first one is
   // visible: the first child is typically an invisible clip path, so visibility
   // is the wrong signal. A drawn chart has many paths; an undrawn one has none.
@@ -60,6 +69,9 @@ async function shoot(panel: Locator, name: string) {
     // fullPage, or the clip would be capped at the viewport -- these panels are
     // taller than the window.
     fullPage: true,
+    // The buttons carry an opacity transition; catching one mid-flight made
+    // otherwise-unchanged images differ between runs.
+    animations: "disabled",
     clip: {
       x: Math.max(0, box.x - pad),
       y: Math.max(0, box.y - pad),

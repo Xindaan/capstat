@@ -30,12 +30,6 @@ from scipy import stats
 DOCUMENT = yaml.safe_load((REFERENCES / "normality.yaml").read_text())
 CASES = {case["id"]: case for case in DOCUMENT["cases"]}
 
-# scipy >= 1.17 warns that `anderson`'s critical_values/significance_level
-# attributes go away in 1.19. Only these cross-check tests touch them --
-# capstat implements the Anderson-Darling statistic itself and does not depend
-# on that API. Tracked as T-0021.
-pytestmark = pytest.mark.filterwarnings("ignore:As of SciPy 1.17:FutureWarning")
-
 STRD_DATASETS = [
     "PiDigits",
     "Lottery",
@@ -93,18 +87,46 @@ def test_ad_pvalue_returns_nominal_alpha_at_published_critical_values() -> None:
         assert anderson_darling_pvalue(critical) == pytest.approx(alpha, rel=rel)
 
 
+def test_ad_critical_value_matches_the_nist_handbook() -> None:
+    """The alpha = 0.05 critical value, against a source that is not scipy.
+
+    Our table is Stephens (1974); the NIST/SEMATECH handbook states the same
+    5 % value independently. This is deliberately a separate test from the
+    scipy cross-check below, which scipy 1.19 will take away -- when it goes,
+    this one still holds the table to an outside source.
+    """
+    published = CASES["ad-pvalue-calibration"]["input"]["adjusted_statistic"]
+    alphas = CASES["ad-pvalue-calibration"]["expected"]["alpha"]
+
+    # NIST/SEMATECH e-Handbook 1.3.5.14; see references/normality.yaml.
+    assert published[alphas.index(0.05)] == 0.752
+
+
+@pytest.mark.filterwarnings("ignore:As of SciPy 1.17:FutureWarning")
 def test_ad_critical_values_agree_with_scipy() -> None:
     """Our critical-value source must be the same one scipy uses.
 
     scipy stores Stephens' table and divides it by the adjustment factor;
     capstat multiplies the statistic by that factor instead. The two are the
     same test, so scipy's tabulated values must be recoverable.
+
+    scipy 1.17 deprecated the attributes this reads and 1.19 removes them.
+    capstat's own code never touches them -- it implements the statistic
+    itself -- so the right behaviour when they vanish is to stop performing a
+    corroboration we can no longer perform, not to fail and not to quietly
+    turn into a comparison of our table against itself. The handbook check
+    above is what survives. Tracked as T-0021.
     """
     case = CASES["ad-pvalue-calibration"]
     published = case["input"]["adjusted_statistic"]
 
     n = 100
     scipy_result = stats.anderson(_normal_sample(n), dist="norm")
+    if not hasattr(scipy_result, "critical_values"):  # pragma: no cover
+        pytest.skip(
+            "scipy no longer exposes anderson().critical_values (removed in "
+            "1.19); the NIST handbook check still covers the table."
+        )
     adjustment = 1.0 + 0.75 / n + 2.25 / n**2
 
     recovered = [c * adjustment for c in scipy_result.critical_values]
@@ -155,7 +177,11 @@ def test_ad_statistic_matches_scipy(name: str) -> None:
     """
     data = load_strd_dataset(f"data/nist_strd/{name}.dat")
     ours = anderson_darling(data).statistic
-    theirs = float(stats.anderson(data, dist="norm").statistic)
+    # method="interpolate": scipy 1.17 warns unless a method is chosen, and the
+    # warning is raised by the *call*, not by reading a deprecated attribute.
+    # This test only wants the statistic, which every method returns, so naming
+    # one costs nothing and makes it scipy-1.19-proof.
+    theirs = float(stats.anderson(data, dist="norm", method="interpolate").statistic)
     assert ours == pytest.approx(theirs, rel=1e-10)
 
 

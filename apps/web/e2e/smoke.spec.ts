@@ -102,7 +102,23 @@ async function mockApi(
   );
   await page.route("**/control-chart/i-mr", (r) => r.fulfill(json(CHART)));
   await page.route("**/rules/nelson", (r) => r.fulfill(json([])));
+  await page.route("**/rules/catalogue", (r) =>
+    r.fulfill(json({ nelson: NELSON_CATALOGUE, western_electric: {} })),
+  );
 }
+
+// Trimmed copy of the API's catalogue; the panel fetches the wording rather
+// than hard-coding it, so the test has to serve something.
+const NELSON_CATALOGUE: Record<string, string> = {
+  "1": "one point more than 3 sigma from the centre line",
+  "2": "nine points in a row on the same side of the centre line",
+  "3": "six points in a row all increasing, or all decreasing",
+  "4": "fourteen points in a row alternating up and down",
+  "5": "two out of three points in a row more than 2 sigma from the centre line, on the same side",
+  "6": "four out of five points in a row more than 1 sigma from the centre line, on the same side",
+  "7": "fifteen points in a row all within 1 sigma of the centre line",
+  "8": "eight points in a row none within 1 sigma of the centre line, on both sides",
+};
 
 test("upload -> capability -> control chart", async ({ page }) => {
   await mockApi(page);
@@ -197,4 +213,69 @@ test("a row-index column is neither auto-selected nor silently analysed", async 
   await page.getByRole("radio").first().check();
   await expect(page.getByText("part — selected")).toBeVisible();
   await expect(page.getByText(/looks like a row number/)).toBeVisible();
+});
+
+test("the applied run rules are selectable, and the report names them", async ({
+  page,
+}) => {
+  // What matters is not the checkbox but what reaches the API: a panel that
+  // rendered a selection it did not apply would report violations of rules the
+  // reader never asked for -- or stay silent about ones they did.
+  const requested: number[][] = [];
+  await mockApi(page);
+  await page.route("**/rules/nelson", async (r) => {
+    requested.push(r.request().postDataJSON().rules);
+    await r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "sample.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+    });
+
+  // Default: the strongest four, and the label says so.
+  await expect(
+    page.getByText("No Nelson run-rule violations (rules 1–4)"),
+  ).toBeVisible();
+  expect(requested.at(-1)).toEqual([1, 2, 3, 4]);
+
+  // Adding rule 5 must reach the API and change the stated set.
+  await page.getByRole("checkbox", { name: /Rule 5/ }).check();
+  await expect(
+    page.getByText("No Nelson run-rule violations (rules 1–5)"),
+  ).toBeVisible();
+  expect(requested.at(-1)).toEqual([1, 2, 3, 4, 5]);
+
+  // Going beyond the default set says what it costs.
+  await expect(page.getByText(/More rules means more false alarms/)).toBeVisible();
+
+  // A gapped selection must not be described as a range: "1-3" would claim
+  // rule 2 was applied when it was not.
+  await page.getByRole("checkbox", { name: /Rule 5/ }).uncheck();
+  await page.getByRole("checkbox", { name: /Rule 2/ }).uncheck();
+  await page.getByRole("checkbox", { name: /Rule 4/ }).uncheck();
+  await expect(
+    page.getByText("No Nelson run-rule violations (rules 1, 3)"),
+  ).toBeVisible();
+  expect(requested.at(-1)).toEqual([1, 3]);
+
+  // Nothing selected: say that plainly rather than implying a clean chart.
+  await page.getByRole("checkbox", { name: /Rule 1/ }).uncheck();
+  await page.getByRole("checkbox", { name: /Rule 3/ }).uncheck();
+  await expect(page.getByText("No run rules are applied.")).toBeVisible();
+
+  // And the reset returns to the documented default.
+  await page.getByRole("button", { name: "Reset to 1–4" }).click();
+  await expect(
+    page.getByText("No Nelson run-rule violations (rules 1–4)"),
+  ).toBeVisible();
+  expect(requested.at(-1)).toEqual([1, 2, 3, 4]);
 });

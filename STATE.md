@@ -79,11 +79,26 @@ account; releases are GitHub-only until then, and the docs say so).
 **Repo visibility** — still private, so the release is visible only to you.
 Flipping it is a separate, deliberate step: `gh repo edit --visibility public`.
 
-What I can do without you: T-0023 postcss audit; T-0021/T-0022
-dependency-deprecation cleanups; T-0024 run-rule selection UI. All small; none
-of them blocks anything.
+The backlog is down to decisions and deliberately-deferred items: **T-0030**
+(PyPI), **T-0029** (mkdocs 2.0 risk, pinned at 1.x on purpose), **T-0018**
+(post-v0.1 roadmap), and the postcss half of T-0023, which cannot be fixed until
+Next raises its pinned floor. Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-21: **backlog cleared (T-0021, T-0022, T-0023, T-0024).** Run-rule
+  selection in the UI (all eight Nelson rules, default 1-4, wording fetched from
+  the API, and the report always names the set it applied); scipy-1.19 readiness
+  *without* the circular fix the task itself proposed — a NIST-handbook check
+  now guards the critical values from outside, and the scipy cross-check skips
+  honestly when the API goes; `httpx2` adopted, leaving the suite **warning-free
+  at 496 tests**; and the two high npm advisories fixed by a semver-compatible
+  js-yaml override, with the postcss pair left alone on purpose because Next
+  pins it exactly.
+  Also made the screenshot capture **deterministic** — focus rings and an
+  in-flight opacity transition were making unrelated figures churn on every run.
+  Three consecutive captures are now byte-identical, so a diff in `docs/images/`
+  means the UI actually changed.
 
 - 2026-07-21: T-0031 — **README screenshots**, captured by a script rather than
   by hand (`cd apps/web && npm run screenshots`). It drives the *real* API with

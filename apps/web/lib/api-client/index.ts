@@ -62,6 +62,15 @@ export function nelsonRules(
   });
 }
 
+/**
+ * The rule descriptions, keyed by number. Fetched rather than duplicated in the
+ * front end: the wording belongs to the library that implements the rules, and
+ * a second copy here would be free to drift from what is actually applied.
+ */
+export function rulesCatalogue() {
+  return api.GET("/rules/catalogue");
+}
+
 export type BiasReport = components["schemas"]["BiasReportOut"];
 export type LinearityReport = components["schemas"]["LinearityReportOut"];
 export type StabilityReport = components["schemas"]["StabilityReportOut"];

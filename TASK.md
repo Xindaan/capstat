@@ -14,10 +14,6 @@
   mkdocs 1.x, so nothing is broken today. Revisit before it becomes urgent:
   either stay pinned deliberately, or evaluate an alternative generator. Do not
   bump mkdocs to 2.x casually.
-- T-0024 Web run-rule selection UI: let the user pick which Nelson rules the
-  control-chart panel applies (it currently hard-codes rules 1-4). Small
-  feature; low priority. Optional companion: add prettier if formatting ever
-  drifts (skipped in sub-increment 6 -- eslint + consistent style cover it now).
 - ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
   hosting (local only). The Docker artifacts stay for self-hosting; there is
   just nothing to deploy.
@@ -28,20 +24,6 @@
   release tag.
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
   multi-user auth, persistence/database, server PDF.
-- T-0021 scipy deprecation: `scipy.stats.anderson` drops its `critical_values`
-  / `significance_level` / `fit_result` attributes in scipy 1.19 (FutureWarning
-  since 1.17). capstat's *library* code is unaffected -- it implements the
-  Anderson-Darling statistic itself -- but two cross-check tests in
-  `test_normality.py` use those attributes and currently suppress the warning
-  via `pytestmark`. Before scipy 1.19, pin Stephens' critical values in the
-  reference YAML instead of reading them from scipy.
-- T-0022 starlette TestClient deprecation: FastAPI's `TestClient` rides on
-  `httpx`, and starlette 1.3 warns "install `httpx2` instead"; it also renamed
-  the `HTTP_4xx_*` status constants (ENTITY -> CONTENT). capstat's API code
-  sidesteps the constant churn by using int literals (422/413/415), but the
-  TestClient warning surfaces once per test session. Cosmetic today; revisit
-  when starlette settles the httpx2 transition. Same class as T-0020/T-0021
-  (a dependency's deprecation, not our bug).
 - T-0026 [DECIDED 2026-07-20: no public hosting; local only.] The maintainer
   would sooner run capstat locally than send measurement data to a third party,
   which is the right instinct for a tool people feed real production data into.
@@ -54,15 +36,65 @@
   routes prerender), so if a public demo is ever wanted it needs only a static
   host (GitHub Pages, free) for the app plus a compute host for the API -- the
   `output: "standalone"` Docker setup is for self-hosting, not that.
-- T-0023 web `npm audit`: 2 moderate advisories in `postcss` (<8.5.10, XSS in
-  the CSS stringify output), pulled in transitively via Next's build tooling --
-  not from `echarts`, and a build-time path with no runtime exposure for us.
-  `npm audit fix --force` would downgrade `next` to 9.3.3 (a destructive
-  breaking change), so leave it. Clears itself when Next ships a patch that
-  bumps its postcss floor; dependabot (npm ecosystem is not yet configured --
-  only github-actions is) or a routine `next` bump will resolve it.
 
 ## Done
+
+- T-0024 (2026-07-21) **Run-rule selection.** The control-chart panel applied
+  Nelson rules 1-4 with no way to change them. Now all eight are checkboxes,
+  defaulting to 1-4, with the descriptions *fetched* from `/rules/catalogue`
+  rather than copied into the front end -- a second copy of the wording would
+  be free to drift from the rules actually applied.
+  Three things the feature had to get right, none of them the checkbox:
+  * **The report names the set it used.** "No violations" is not a statement
+    about a process unless you know what was looked for. A gapped selection is
+    listed (`1, 3`), never collapsed into a range that would claim rules were
+    applied that were not. Pinned by `lib/rules.test.ts`.
+  * **Selecting beyond the default says what it costs**: T-0009 measured the
+    full set signalling ~8x as often as rule 1 alone on in-control data.
+  * **Violations are stored with the chart they were computed from.** Without
+    that tie, switching column would briefly paint the previous column's flags
+    onto the new chart -- points marked out of control that are not.
+  The chart fetch and the rules fetch are separate effects, so changing the
+  selection does not recompute the control limits.
+  Verified against the real API in-browser (label, catalogue wording, the
+  gapped case) as well as by an e2e test that asserts the selection actually
+  reaches the API -- a panel that rendered a selection it did not apply would
+  be the whole failure mode.
+
+- T-0022 (2026-07-21) **starlette TestClient deprecation resolved**, not
+  deferred: `httpx2>=2.7` is published, TestClient prefers it when importable,
+  and adding it to the dev group silenced the warning. The suite is now
+  **warning-free** (496 tests, 0 warnings); previously every run carried one.
+  Both httpx and httpx2 are listed while the transition is in flight.
+
+- T-0021 (2026-07-21) **scipy 1.19 readiness -- and a correction to this task's
+  own plan.** The entry said to pin Stephens' critical values into the reference
+  YAML "instead of reading them from scipy". That would have been wrong: the
+  test's value is that it compares *our* table against scipy's independently
+  stored one, so pinning scipy's numbers into our YAML turns a cross-check into
+  a self-comparison. Done instead:
+  * A new test holds the alpha = 0.05 value to the **NIST handbook** (0.752),
+    an outside source that survives scipy dropping the attributes.
+  * The scipy cross-check keeps running while it can and `pytest.skip`s with a
+    reason when the attributes vanish -- it stops corroborating rather than
+    failing or silently degrading.
+  * The module-wide warning filter is gone, narrowed to the one test that needs
+    it. Removing it revealed the warning comes from the `stats.anderson()`
+    *call*, not from touching a deprecated attribute -- so the statistic-only
+    cross-check now passes `method="interpolate"`, which is warning-free and
+    1.19-proof. Isomorphie-Check: one remaining site, correctly scoped.
+
+- T-0023 (2026-07-21) **npm audit: 2 high fixed, 2 moderate deliberately not.**
+  The entry described 2 moderate advisories; there were 4 by now, two of them
+  high (js-yaml quadratic-CPU via `@redocly/openapi-core`, a dev-only path).
+  js-yaml 4.3.0 fixes it and satisfies redocly's `^4.1.0`, so an `overrides`
+  entry clears both -- verified by regenerating the TS client, which came out
+  byte-identical.
+  The postcss pair stays: `next` pins postcss to the *exact* version 8.4.31, so
+  an override would deviate from what Next bundles and tests, and next 16.2.10
+  is already the newest release. The advisory is an XSS in CSS stringify output
+  on a build-time path over our own CSS. Revisit when Next bumps its floor;
+  `npm audit fix --force` would downgrade next to 9.3.3 and must not be run.
 
 - T-0031 (2026-07-21) **README screenshots** -- four figures (capability,
   I-MR control chart, Gage R&R, the row-index warning), plus the status block
@@ -87,7 +119,9 @@
   3. Real app bug: the capability histogram's y-axis name ("density") was
      clipped by the top of the canvas -- `grid.top` 24 left no room for a name
      ECharts draws *above* the grid. Now 36. Only visible once something
-     photographed it. **v0.1.0 released.** PR #3 squash-merged; release-please
+     photographed it.
+
+- T-0017b (2026-07-21) **v0.1.0 released.** PR #3 squash-merged; release-please
   cut tag `v0.1.0` and the GitHub release. Versions verified at 0.1.0 across all
   six files beforehand; post-merge CI green on all six jobs, including the drift
   check T-0034 had just fixed — the precise failure it was written for.
