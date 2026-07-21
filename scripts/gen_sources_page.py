@@ -58,6 +58,7 @@ ORDER = [
     ("gage_rr.yaml", "Gage R&R"),
     ("bias.yaml", "Bias"),
     ("linearity.yaml", "Linearity"),
+    ("acceptance_sampling.yaml", "Acceptance sampling"),
 ]
 
 

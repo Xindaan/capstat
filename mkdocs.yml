@@ -59,6 +59,7 @@ nav:
       - Capability: methods/capability.md
       - Control charts: methods/control-charts.md
       - Measurement systems: methods/measurement-systems.md
+      - Acceptance sampling: methods/acceptance-sampling.md
   - Validation:
       - How it works: validation.md
       - Sources: validation-sources.md

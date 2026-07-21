@@ -17,8 +17,14 @@ M5 MSA, M6 release (report, deployment, docs, release).
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **445 core + 38 API tests, 100 % coverage on both packages**, mypy strict,
+- **491 core + 48 API tests, 100 % coverage on both packages**, mypy strict,
   ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
+- **Acceptance sampling (T-0035) landed after v0.1.0, core only.** Single
+  sampling plans by attributes: OC curve (binomial / hypergeometric / Poisson),
+  AOQ, AOQL, ATI, producer's and consumer's risk, the inverse OC, the lot
+  decision, and two-point plan design -- all from the definition. It is
+  deliberately *not* wired to the API or the web app yet (T-0037), and the
+  README says so rather than implying a feature that is not reachable.
 - **M4 (app) and M5 (MSA) are complete end-to-end.** The web app covers
   upload -> capability -> control charts (`/`), a Gage R&R study (`/gage-rr`),
   and bias / linearity / stability (`/msa`) -- every one of them typed against
@@ -71,21 +77,74 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
+**T-0018 was split** on 2026-07-21 into T-0035..T-0040, because one ID was
+carrying four unrelated things. **T-0035 (acceptance sampling in the core) is
+done.** What follows from it:
+
+- **T-0037** -- wire acceptance sampling to the API and a web page. Nothing
+  blocks it; it is the same shape as the existing compute routes.
+- **T-0036** -- the AQL master tables. The licensing question is *answered*
+  (MIL-STD-105E is a US-government work under 17 U.S.C. 105(a), Notice 3 carries
+  DISTRIBUTION STATEMENT A; ISO 2859-1 is copyrighted and must not be copied),
+  so the path is open. The open question is now whether it is worth doing at
+  all: T-0035 already designs a plan from the user's own risks, which is the
+  better product; a table adds standards compatibility, not capability.
+- **T-0039 / T-0040** -- multi-user auth and persistence. Both recommended for
+  **decline**: they would reverse T-0026 (local only, no data held). Awaiting
+  your word to close them.
+- **T-0038** -- server-side PDF. Deferred; the print route already yields a
+  vector PDF.
+
+## Open decisions (unchanged)
+
 **v0.1.0 is released** (tag `v0.1.0`, 2026-07-21). M1–M6 are complete: core,
 API, web app, MSA, report, docs, deployment artifacts, release automation.
 
-Waiting on you: **T-0030** — whether capstat-core goes to PyPI (needs an
-account; releases are GitHub-only until then, and the docs say so).
 **Repo visibility** — still private, so the release is visible only to you.
 Flipping it is a separate, deliberate step: `gh repo edit --visibility public`.
+Decide this *before* T-0030: publishing an sdist puts the source on PyPI, which
+is a larger step than making the repo public, not a smaller one.
 
-The backlog is down to decisions and deliberately-deferred items: **T-0030**
-(PyPI), **T-0029** (mkdocs now capped below 2.x; decision deferred until it
-ships), **T-0018**
-(post-v0.1 roadmap), and the postcss half of T-0023, which cannot be fixed until
-Next raises its pinned floor. Nothing is blocked on me.
+**T-0030** is half set up: a PyPI account and a pending trusted publisher exist
+(`capstat-core` / `Xindaan` / `capstat` / `publish.yml` / env `pypi`), so no API
+token will ever be needed. It reserves **nothing** — PyPI has no reserve-without-
+upload mechanism, and a name is only yours once a release exists. `publish.yml`
+is deliberately absent: with it in the repo, the next release would upload
+unasked. Adding it *is* the decision to publish.
+
+Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
+(mkdocs now capped below 2.x; revisit when 2.0 ships), the rest of the
+T-0035..T-0040 split of the old T-0018 roadmap (see Next actions), and the
+postcss half of T-0023, which cannot move until Next raises its pinned floor.
+Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-21: **T-0035 — acceptance sampling in the core** (first piece of the
+  T-0018 split). OC curve in three models, AOQ/AOQL/ATI, risks, the inverse OC,
+  the lot decision, and two-point plan design — all computed from the
+  definition; no standard's table is consulted anywhere. **491 core + 48 API
+  tests, core back at 100 % coverage**, ruff and mypy strict clean.
+  Two things worth carrying forward. **First: the published tables were wrong
+  four different ways**, and saying so precisely was more work than the
+  implementation. NIST's AOQ column uses an approximation its own page
+  contradicts, except one row that uses a third formula; one entry has its
+  digits transposed (0.0010 for 0.0100); the ATI column truncates where the
+  prose rounds. Naming each cause let both columns be asserted with *no*
+  tolerance on the published digits at all — `round(Pa*p, 4)` hits ten of
+  twelve rows exactly, and every ATI entry must be `floor` or `round` of ours.
+  Explaining a discrepancy really does buy a tighter test than tolerating it.
+  **Second: three independent implementations print eight significant digits
+  where handbooks print three** (R *AcceptanceSampling*, R *AccSamplingDesign*,
+  Minitab). Those turned out to be far better references than any table —
+  capstat reproduces every digit, including two designed plans asserted
+  exactly. Worth reaching for in future methods: a documented software example
+  beats a rounded printed table.
+  My own two bugs both came from tests failing for the right reason: the design
+  search probed plans larger than the lot and died in the constructor, and the
+  Type A path accepted quality levels a finite lot cannot represent (a lot of 50
+  cannot be 1 % defective) — which quietly made the producer's risk condition
+  vacuous. Both fixed and pinned.
 
 - 2026-07-21: **backlog cleared (T-0021, T-0022, T-0023, T-0024).** Run-rule
   selection in the UI (all eight Nelson rules, default 1-4, wording fetched from

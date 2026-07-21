@@ -1,0 +1,383 @@
+# Acceptance sampling (single sampling plans by attributes) -- reference values
+#
+# The NIST/SEMATECH e-Handbook works one plan all the way through: (n=52, c=3),
+# lot size N=10000. It prints the OC table, the AOQ table, the AOQL, and the ATI
+# table for that plan, which is exactly the set of quantities this module
+# computes. Everything below is transcribed from that page and independently
+# recomputed from the definitions with scipy in the tests.
+#
+# The published tables do not all come from the formula printed above them.
+# Rather than widen a tolerance until the difference disappears -- which would
+# also hide a real bug -- each column is reproduced on the terms it was actually
+# computed on, and the tests assert that diagnosis:
+#
+#   1. The AOQ column is computed with the approximation AOQ ~ Pa*p, not with
+#      the exact AOQ = Pa*p*(N-n)/N printed directly above it. The factor
+#      (N-n)/N = 0.9948 shows in the fourth decimal. Rounded to the four decimals
+#      printed, Pa*p reproduces ten of the twelve rows exactly. The handbook
+#      itself notes "if N >> n, then AOQ ~ Pa*p" one paragraph later.
+#   2. One of the two exceptions is p=0.03, the row the handbook also works
+#      through in prose -- there it uses the exact formula with its own rounded
+#      Pa=0.930 and gets 0.02775, which prints as 0.0278. The approximation
+#      would print 0.0279. So that single row has a different provenance from
+#      its neighbours.
+#   3. The other exception is the first row: the table prints 0.0010 at p=0.01
+#      where the approximation gives 0.0100 -- the same digits, transposed. A
+#      factor-of-ten publication error. The exact AOQ there is 0.0099.
+#   4. The ATI column is truncated, not rounded (5007.62 prints as 5007), except
+#      again at p=0.03, where the prose worked example rounds 752.96 to 753. So
+#      the tests assert each entry equals floor(ATI) or round(ATI) -- an exact
+#      assertion, with no tolerance at all.
+#
+# A fifth, cosmetic: the rendered page states "AOQL = 0.372 at p = 0.06". The
+# AOQL is 0.0372 -- as the table on the same page, and the legacy comment in the
+# page source, both say. A missing zero.
+#
+# Provenance note: the OC/AOQ/ATI values were read from the handbook page and
+# the arithmetic was checked against scipy.stats.binom, which did not produce
+# them. Cameron's unity values are a published table that is *also* derivable
+# from the Poisson definition, so they validate the design search twice over --
+# against the printed table and against the definition the table came from.
+
+sources:
+  nist_handbook_6_2_3_2:
+    title: >
+      NIST/SEMATECH e-Handbook of Statistical Methods, section 6.2.3.2
+      "Choosing a Sampling Plan with a given OC Curve" -- the worked (n=52, c=3)
+      plan with N=10000: OC table, AOQ table, AOQL, ATI table.
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section2/pmc232.htm
+    retrieved: 2026-07-21
+    quote: >
+      Using this formula with n=52, c=3, and p = 0.01, 0.02, ..., 0.12 we find:
+      Pa = 0.998, 0.980, 0.930, 0.845, 0.739, 0.620, ...
+    note: >
+      Validating against this page turned up four inconsistencies in the
+      published tables, all pinned by the tests rather than tolerated. The AOQ
+      column is computed with the AOQ ~ Pa*p approximation instead of the exact
+      AOQ = Pa*p*(N-n)/N given above it; its p=0.03 row is the exception,
+      matching instead the page's own prose calculation with a rounded Pa; and
+      its first entry (0.0010 at p=0.01) is the digits of 0.0100 transposed, a
+      factor-of-ten error -- the exact AOQ there is 0.0099. The ATI column is
+      truncated rather than rounded, again except at p=0.03.
+  nist_handbook_6_2_2:
+    title: >
+      NIST/SEMATECH e-Handbook of Statistical Methods, section 6.2.2
+      "What kinds of Lot Acceptance Sampling Plans (LASPs) are there?" --
+      definitions of AQL, LTPD, producer's and consumer's risk, OC curve, AOQ,
+      AOQL and ATI.
+    url: https://www.itl.nist.gov/div898/handbook/pmc/section2/pmc22.htm
+    retrieved: 2026-07-21
+    quote: "AOQ = pa*p*(N - n)/N ... ATI = n + (1-pa)(N-n)"
+  r_acceptancesampling:
+    title: >
+      Kiermeier, A. "Visualizing and Assessing Acceptance Sampling Plans: The R
+      Package AcceptanceSampling", CRAN vignette (acceptance_sampling_manual),
+      sections 2.5-2.6 -- the assess() output for the (n=20, c=0) plan and the
+      find.plan() two-point design.
+    url: https://cran.r-project.org/web/packages/AcceptanceSampling/vignettes/acceptance_sampling_manual.pdf
+    retrieved: 2026-07-21
+    quote: >
+      find.plan(PRP=c(0.05, 0.95), CRP=c(0.15, 0.075), type="binom") -- $n [1]
+      80, $c [1] 7, $r [1] 8
+    note: >
+      An independent implementation, not a table: it prints eight significant
+      digits, where the NIST handbook prints three. capstat reproduces every
+      digit of both P(accept) values and returns the same (n, c) plan.
+  r_accsamplingdesign:
+    title: >
+      AccSamplingDesign R package, CRAN vignette "Introduction to
+      AccSamplingDesign" -- optPlan() attribute design on the binomial model.
+    url: https://cran.r-project.org/web/packages/AccSamplingDesign/vignettes/introduction.html
+    retrieved: 2026-07-21
+    quote: >
+      PRQ = 0.01, CRQ = 0.05, alpha = 0.02, beta = 0.15 -> Sample Size (n) =
+      144, Acceptance Number (c) = 4, Producer's Risk 0.01534843, Consumer's
+      Risk 0.1487162
+  minitab_attributes_acceptance_sampling:
+    title: >
+      Minitab Support, "All statistics and graphs for Attributes Acceptance
+      Sampling" -- worked example with lot size 5000, n=52, c=2, AQL 1.5 %,
+      RQL 10 %: P(accept), AOQ, ATI and the AOQL with its location.
+    url: https://support.minitab.com/en-us/minitab/help-and-how-to/quality-and-process-improvement/acceptance-sampling/how-to/attributes-acceptance-sampling/interpret-the-results/all-statistics-and-graphs/
+    retrieved: 2026-07-21
+    quote: >
+      The worst average outgoing defect level (AOQL) of 2.603% defective occurs
+      when the incoming quality level is 4.3% defective.
+    note: >
+      The only independent source found that publishes an AOQL together with the
+      incoming quality that produces it, which is what makes it a real check on
+      the maximisation rather than on the AOQ formula alone. Minitab also uses
+      the exact AOQ = Pa*p*(N-n)/N -- its 1.420 % at p=1.5 % matches capstat's
+      1.42013 % -- confirming which of the two AOQ formulas is the correct one
+      where the NIST column disagrees with itself.
+  scipy_distributions:
+    title: >
+      scipy.stats.binom / poisson / hypergeom -- independent implementations of
+      the three OC models, evaluated inside the tests themselves.
+    note: >
+      The Type A (hypergeometric) path has no published worked example with an
+      acceptance number above zero behind it: every Type A example found in the
+      search was c=0, which collapses the sum to a single term and so exercises
+      nothing. It is validated instead against scipy's hypergeom and against a
+      hand-written combinatorial enumeration of the definition, and this gap is
+      stated rather than papered over.
+
+defaults:
+  tolerance:
+    abs: 1.0e-9
+
+cases:
+  # -------------------------------------------------------------------------
+  # The OC curve of the (52, 3) plan, binomial (Type B)
+  # -------------------------------------------------------------------------
+  - id: oc-nist-52-3-binomial
+    method: probability_of_acceptance
+    description: >
+      Probability of acceptance for the (n=52, c=3) plan at p = 0.01..0.12,
+      binomial model. The handbook prints three decimals; ten of the twelve
+      rows agree to better than 5e-4. The two that do not are named below --
+      they are rounding noise in the published table, not a different model:
+      the Poisson approximation is off by 0.016 at p=0.12 and the
+      hypergeometric (N=10000) by 0.0015 at p=0.04, so neither explains them.
+    input:
+      sample_size: 52
+      acceptance_number: 3
+      model: binomial
+      fraction_defective:
+        [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12]
+    expected:
+      probability_accept:
+        [0.998, 0.980, 0.930, 0.845, 0.739, 0.620, 0.502, 0.394, 0.300, 0.223, 0.162, 0.115]
+    # Rows that need the full 1e-3; every other row is asserted at 5e-4 so the
+    # discrepancy stays confined to exactly these two.
+    loose_rows: [0.04, 0.05]
+    tolerance:
+      abs: 1.0e-3
+      per_statistic:
+        tight_rows:
+          abs: 5.0e-4
+
+  # -------------------------------------------------------------------------
+  # AOQ under rectifying inspection
+  # -------------------------------------------------------------------------
+  - id: aoq-nist-52-3
+    method: average_outgoing_quality
+    description: >
+      Average outgoing quality for the (52, 3) plan with N=10000. Ten of the
+      twelve published rows are reproduced *exactly*, to the four decimals
+      printed, by Pa*p -- the large-lot approximation, not the exact
+      Pa*p*(N-n)/N the same page defines. The two exceptions have their own
+      explanations (see below), so the whole column is asserted without a
+      tolerance on the published digits at all.
+    input:
+      sample_size: 52
+      acceptance_number: 3
+      lot_size: 10000
+      model: binomial
+      fraction_defective:
+        [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12]
+    expected:
+      published_aoq:
+        [0.0010, 0.0196, 0.0278, 0.0338, 0.0369, 0.0372, 0.0351, 0.0315, 0.0270, 0.0223, 0.0178, 0.0138]
+      # Rows reproduced exactly by round(Pa*p, 4). Everything not listed here as
+      # an exception must match to the printed digit.
+      approximation_exceptions: [0.01, 0.03]
+      # The p=0.03 row instead matches the page's prose calculation:
+      # round(Pa, 3) * p * (N-n)/N = 0.02775, printed as 0.0278.
+      prose_row_p: 0.03
+      prose_row_aoq: 0.02775
+      # The p=0.01 row prints 0.0010 where the approximation gives 0.0100 (the
+      # digits transposed) and the exact formula gives 0.009930.
+      transposed_row_p: 0.01
+      transposed_row_published: 0.0010
+      transposed_row_approximation: 0.0100
+      transposed_row_exact: 0.009930
+    tolerance:
+      abs: 1.0e-12
+      per_statistic:
+        prose_row_aoq:
+          abs: 1.0e-5
+        transposed_row_exact:
+          abs: 1.0e-6
+
+  - id: aoql-nist-52-3
+    method: aoq_limit
+    description: >
+      The AOQL of the (52, 3) plan with N=10000. The handbook reads 0.0372 at
+      p=0.06 off its own 0.01 grid, computed with the Pa*p approximation. The
+      exact AOQ curve peaks at 0.037190 at p=0.05591 -- a maximum found by
+      search, not read off a grid, which is why it does not land on 0.06. Both
+      readings are asserted, each against the formula that produced it.
+    input:
+      sample_size: 52
+      acceptance_number: 3
+      lot_size: 10000
+      model: binomial
+    expected:
+      published_aoql: 0.0372
+      published_at_fraction_defective: 0.06
+      # Our exact continuous maximum, and where it sits.
+      exact_aoql: 0.037190
+      exact_at_fraction_defective: 0.055911
+    tolerance:
+      abs: 5.0e-5
+      per_statistic:
+        exact_at_fraction_defective:
+          abs: 1.0e-3
+
+  # -------------------------------------------------------------------------
+  # ATI under rectifying inspection
+  # -------------------------------------------------------------------------
+  - id: ati-nist-52-3
+    method: average_total_inspection
+    description: >
+      Average total inspection for the (52, 3) plan with N=10000, p=0.01..0.14.
+      The column is truncated rather than rounded (5007.62 prints as 5007),
+      except at p=0.03 where the page's prose rounds 752.96 to 753 -- so every
+      entry is asserted to equal floor(ATI) or round(ATI) exactly, with the
+      residual bounded below 1.0 as a second, weaker net. The handbook notes for
+      p=0.03 that "while 0.930 was rounded to three decimal places, 753 was
+      obtained using more decimal places": ATI from the rounded Pa is 748.4,
+      which neither assertion admits. This table therefore checks the precision
+      of Pa as well as the ATI formula.
+    input:
+      sample_size: 52
+      acceptance_number: 3
+      lot_size: 10000
+      model: binomial
+      fraction_defective:
+        [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14]
+    expected:
+      average_total_inspection:
+        [70, 253, 753, 1584, 2655, 3836, 5007, 6083, 7012, 7779, 8388, 8854, 9201, 9453]
+      # Every entry equals floor or round of the exact value; the largest
+      # residual in the column is 0.815, at p=0.09.
+      max_residual: 1.0
+      ati_from_rounded_pa_at_003: 748.36
+    tolerance:
+      abs: 1.0
+      per_statistic:
+        ati_from_rounded_pa_at_003:
+          abs: 1.0e-2
+
+  # -------------------------------------------------------------------------
+  # The decision itself -- exact, never within a tolerance
+  # -------------------------------------------------------------------------
+  # -------------------------------------------------------------------------
+  # Independent implementations: eight significant digits, not three
+  # -------------------------------------------------------------------------
+  - id: oc-r-acceptancesampling-20-0
+    method: probability_of_acceptance
+    description: >
+      The R package AcceptanceSampling assessing the (n=20, c=0) plan against
+      a producer's risk point (0.05, 0.95) and a consumer's risk point
+      (0.15, 0.075). It prints eight significant digits, so this pins the OC
+      computation far tighter than the NIST table can. The plan is also the one
+      case where the OC curve has a closed form -- Pa = (1-p)^20 -- so the same
+      two numbers are checked against published output *and* against algebra.
+      The vignette's verdict ("Plan CANNOT meet desired risk point(s)") is a
+      decision, and is asserted exactly.
+    input:
+      sample_size: 20
+      acceptance_number: 0
+      model: binomial
+      producer_risk_point: [0.05, 0.95]
+      consumer_risk_point: [0.15, 0.075]
+    expected:
+      probability_accept_at_prp: 0.35848592
+      probability_accept_at_crp: 0.03875953
+      meets_producer_risk_point: false
+      meets_consumer_risk_point: true
+    tolerance:
+      abs: 5.0e-9
+
+  - id: design-r-acceptancesampling-binom
+    method: design_single_sampling_plan
+    description: >
+      find.plan(PRP=c(0.05, 0.95), CRP=c(0.15, 0.075), type="binom") returns
+      n=80, c=7, r=8. A plan is a decision, so this is asserted exactly -- no
+      tolerance -- against an implementation that shares no code with ours.
+    input:
+      aql: 0.05
+      ltpd: 0.15
+      producer_risk: 0.05
+      consumer_risk: 0.075
+      model: binomial
+    expected:
+      sample_size: 80
+      acceptance_number: 7
+      rejection_number: 8
+
+  - id: design-accsamplingdesign-binom
+    method: design_single_sampling_plan
+    description: >
+      AccSamplingDesign's optPlan() for PRQ=0.01 at alpha=0.02 and CRQ=0.05 at
+      beta=0.15 returns n=144, c=4, and prints the risks the plan actually
+      achieves to eight digits. Both the plan (a decision) and the achieved
+      risks (values) are asserted.
+    input:
+      aql: 0.01
+      ltpd: 0.05
+      producer_risk: 0.02
+      consumer_risk: 0.15
+      model: binomial
+    expected:
+      sample_size: 144
+      acceptance_number: 4
+      achieved_producer_risk: 0.01534843
+      achieved_consumer_risk: 0.1487162
+      probability_accept_at_003: 0.5656415
+    tolerance:
+      abs: 5.0e-8
+
+  - id: rectifying-minitab-5000-52-2
+    method: evaluate_plan
+    description: >
+      Minitab's worked attributes example: lot size 5000, n=52, c=2, AQL 1.5 %,
+      RQL 10 %. This is the one independent source found that publishes an AOQL
+      *and* the incoming quality at which it occurs, so it validates the
+      maximisation and not merely the AOQ formula. It also settles the NIST AOQ
+      ambiguity: Minitab's AOQ is the exact Pa*p*(N-n)/N.
+    input:
+      sample_size: 52
+      acceptance_number: 2
+      lot_size: 5000
+      model: binomial
+      aql: 0.015
+      rql: 0.10
+    expected:
+      probability_accept_at_aql: 0.957
+      probability_accept_at_rql: 0.097
+      aoq_percent_at_aql: 1.420
+      aoq_percent_at_rql: 0.956
+      ati_at_aql: 266.2
+      ati_at_rql: 4521.9
+      aoql_percent: 2.603
+      aoql_at_percent_defective: 4.300
+    tolerance:
+      abs: 5.0e-4
+      per_statistic:
+        probability_accept_at_aql:
+          abs: 5.0e-4
+        probability_accept_at_rql:
+          abs: 5.0e-4
+        ati_at_aql:
+          abs: 0.05
+        ati_at_rql:
+          abs: 0.05
+        aoql_at_percent_defective:
+          abs: 5.0e-3
+
+  - id: decision-nist-52-3
+    method: inspect_lot
+    description: >
+      The (52, 3) plan accepts on 0..3 defectives and rejects on 4 or more.
+      This is the boundary the whole module exists to draw, so it is asserted
+      exactly at and either side of it.
+    input:
+      sample_size: 52
+      acceptance_number: 3
+    expected:
+      accept_on: [0, 1, 2, 3]
+      reject_on: [4, 5, 52]
+      rejection_number: 4

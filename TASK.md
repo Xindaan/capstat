@@ -4,8 +4,10 @@
 
 <!-- max 3 -->
 
-- (Doing is clear -- M5 is complete end-to-end: Gage R&R and the three MSA
-  studies all reach the UI. Next in Backlog: the M6 release path.)
+- (Doing is clear. v0.1.0 is released and T-0035 -- acceptance sampling in the
+  core -- is done. The obvious next piece of work is T-0037, wiring it to the
+  API and a page; T-0036 needs a decision first, and T-0039/T-0040 need only a
+  word to close.)
 
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -27,13 +29,98 @@
 - ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
   hosting (local only). The Docker artifacts stay for self-hosting; there is
   just nothing to deploy.
-- T-0030 Decide whether capstat-core goes to PyPI. Needs a PyPI account and a
-  trusted-publisher (OIDC) config, neither creatable from inside the repo. Until
-  then releases are GitHub-only and the docs say so rather than implying a
-  `pip install` that would fail. Once decided, add a publish job keyed on the
-  release tag.
-- T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
-  multi-user auth, persistence/database, server PDF.
+- T-0030 Decide whether capstat-core goes to PyPI. Releases stay GitHub-only
+  until then, and the docs say so rather than implying a `pip install` that
+  would fail.
+  **2026-07-21, partially set up.** The maintainer created the PyPI account
+  (`xindaan`) and added a **pending trusted publisher** by hand: project
+  `capstat-core`, owner `Xindaan`, repo `capstat`, workflow `publish.yml`,
+  environment `pypi`. Reported done by the maintainer; not independently
+  verified from here -- Claude for Chrome could not inject into pypi.org, so
+  check the list on https://pypi.org/manage/account/publishing/ before relying
+  on it. The first real publish attempt would confirm it either way.
+  **A correction worth keeping, because it was my error:** I had advised that
+  this "reserves the name without committing". It does not. PyPI's own docs:
+  *"A 'pending' publisher does not create a project or reserve a project's name
+  until it is actually used to publish"* -- and if someone else registers the
+  name first, the pending publisher is invalidated. There is no reserve-without-
+  upload mechanism on PyPI at all; a name is yours only once a release exists.
+  Both `capstat` and `capstat-core` were still free (HTTP 404) on 2026-07-21.
+  What the pending publisher *does* buy: when publishing is decided, the OIDC
+  trust path already exists, so no API token is ever created, stored or rotated.
+  **Deliberately not done: `publish.yml` itself.** With that workflow in the
+  repo and keyed to the release tag, the next release would upload to PyPI
+  unasked. The pending publisher alone is inert -- that is the point. Adding
+  the workflow is the same decision as publishing, and it is still open.
+  Sequencing note: publishing an sdist puts the source on PyPI, which is a
+  *larger* step than making the repo public. Settle the visibility question
+  first. Also needs a GitHub environment named `pypi` (Settings -> Environments)
+  before any publish run works; worth a manual-approval rule when it is created.
+- ~~T-0018 Roadmap (explicitly NOT v0.1)~~ -- split 2026-07-21 into T-0035..
+  T-0040. It bundled four unrelated themes behind one ID, which made it
+  un-schedulable: one of them is a statistical method this library exists to
+  provide, two of them would reverse T-0026, and one is a packaging chore.
+  Superseded; the individual entries carry the work and the decisions.
+
+- T-0036 Acceptance sampling, part 2: the standard plans (AQL lookup).
+  Depends on T-0035. This is deliberately a *separate* task, because it breaks
+  the project's core rule and needs the break stated rather than hidden: the
+  sample-size code letters and the master table (n, Ac, Re) of ISO 2859-1 are
+  committee conventions, not values derivable from a closed definition. They
+  must be transcribed. The honest handling is therefore inverted from every
+  other reference in this repo -- transcribe with full provenance, then
+  *verify each entry against computed OC properties from T-0035* (each
+  normal-inspection entry should give Pa at the AQL in the neighbourhood the
+  standard designs for), and report entries that do not fit rather than
+  quietly accepting them.
+  **Licensing: answered 2026-07-21** (research pass during T-0035, sources
+  read first-hand where reachable). ISO standards carry the standard ISO
+  copyright notice -- no part may be reproduced without written permission --
+  so ISO 2859-1's tables cannot go into an MIT repository. MIL-STD-105E is a
+  work of the US Government, which 17 U.S.C. section 105(a) excludes from
+  copyright, and its Notice 3 (06 Feb 2008) carries DISTRIBUTION STATEMENT A,
+  "approved for public release, distribution unlimited". NIST states the
+  lineage plainly: Mil. Std. 105D was adopted as ANSI Z1.4 in 1971 and, with
+  minor changes, as ISO 2859 in 1974.
+  So the path is open: **ship MIL-STD-105E tables, cite ISO 2859-1 in prose
+  without copying it, and do not claim the two are identical** -- "with minor
+  changes" is the published wording, and ANSI/ASQ Z1.4 (itself copyrighted by
+  ASQ) is the one described as identical to 105E. Remaining caveat before
+  typing anything: this is a reading of primary sources, not legal advice, and
+  the maintainer should be comfortable with it.
+  Still open, and the more interesting question: whether it is worth doing at
+  all. T-0035 already designs a plan from the user's own risks, which is the
+  more defensible product; a lookup table adds compatibility with a standard,
+  not capability.
+
+- T-0037 Acceptance sampling, part 3: API + web page. Depends on T-0035
+  (T-0036 optional). A `/compute/acceptance-sampling` endpoint mirroring the
+  core report faithfully, and a page that draws the OC curve and states the
+  accept/reject decision with its warnings. Same shape as the existing compute
+  routes; no new architecture.
+
+- T-0038 Server-side PDF endpoint. Neutral on principle -- it conflicts with
+  no decision -- but it is the weakest of the four: the print route already
+  produces a vector PDF from the browser (T-0014), so this buys automation,
+  not capability, in exchange for a heavy dependency (WeasyPrint or a headless
+  browser) in an API that is currently small and pure. Keep deferred. If it is
+  ever wanted, the better shape is probably a local CLI export rather than a
+  service endpoint, given T-0026.
+
+- T-0039 [RECOMMEND DECLINE] Multi-user auth. capstat runs on the user's
+  machine and holds no data between requests; there are no accounts to
+  separate and nothing to protect that the filesystem does not already
+  protect. Adding auth would mean adding the thing auth protects -- a server
+  holding other people's measurement data -- which is exactly what T-0026
+  decided against on 2026-07-20. Awaiting the maintainer's word to close.
+
+- T-0040 [RECOMMEND DECLINE] Persistence / database. Same reasoning as
+  T-0039: the API is stateless by design, and that statelessness is a stated
+  property of the product, not an unfinished edge. One narrow carve-out is
+  worth keeping distinct from this entry if it is ever wanted: saving and
+  reloading a *study* as a JSON file the user owns, on their own disk, with no
+  server and no schema migration. That is a file format, not persistence, and
+  it would not reverse anything. Awaiting the maintainer's word to close.
 - T-0026 [DECIDED 2026-07-20: no public hosting; local only.] The maintainer
   would sooner run capstat locally than send measurement data to a third party,
   which is the right instinct for a tool people feed real production data into.
@@ -48,6 +135,46 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0035 (2026-07-21) **Acceptance sampling in the core.**
+  `capstat_core.acceptance_sampling`: single sampling plans by attributes as a
+  computed object -- the OC curve under three models (binomial / hypergeometric
+  / Poisson, the last offered explicitly and never applied silently), AOQ, the
+  AOQL *found by searching the curve* rather than read off a grid, ATI, the
+  producer's and consumer's risks, the inverse OC (limiting and indifference
+  quality), the lot decision, and two-point plan design. 44 tests, core at
+  **100 % coverage, 491 core + 48 API green**, ruff and mypy --strict clean.
+  **Validation turned up four inconsistencies in the NIST handbook's own
+  tables**, all reproduced and explained instead of tolerated: its AOQ column
+  is computed with the `Pa*p` approximation the same page contradicts one
+  paragraph above; its p=0.03 row comes instead from the page's prose example
+  (a different formula again); its first AOQ entry prints 0.0010 where the
+  formula gives 0.0100, the digits transposed, a factor-of-ten error; and its
+  ATI column is truncated, not rounded. The AOQ and ATI columns are now
+  asserted **without any tolerance on the published digits** -- `round(Pa*p, 4)`
+  reproduces ten of twelve rows exactly, and each ATI entry must equal `floor`
+  or `round` of ours. That is a stronger claim than any tolerance would be.
+  Three independent implementations were found that print eight significant
+  digits where the handbook prints three -- the R packages *AcceptanceSampling*
+  and *AccSamplingDesign*, and Minitab's worked example -- and capstat
+  reproduces every digit of all of them, including both designed plans
+  (n=80/c=7 and n=144/c=4, asserted exactly, because a plan is a decision) and
+  Minitab's AOQL of 2.603 % *at* 4.3 % defective, which is the only independent
+  check found on the maximisation rather than on the AOQ formula.
+  **Two bugs of my own, both found by tests that failed for the right reason:**
+  the design search built candidate plans with `n` larger than the lot and died
+  inside the constructor with a message about an internal probe ("lot_size
+  (200) must be at least sample_size (256)") -- the sample size is now capped at
+  the lot up front, since you cannot inspect more items than exist; and the
+  Type A path silently accepted quality levels a finite lot cannot express (a
+  lot of 50 cannot be 1 % defective), which made the producer's condition
+  vacuous and the resulting plan meaningless. It now refuses to design against
+  such a level and reports the realised one when merely evaluating.
+  **One gap, named rather than hidden:** no published Type A worked example
+  with an acceptance number above zero exists in the sources found -- every one
+  was c=0, which collapses the sum to a single term. That path is validated
+  against scipy plus a hand-written combinatorial enumeration, and the
+  reference file says so.
 
 - T-0024 (2026-07-21) **Run-rule selection.** The control-chart panel applied
   Nelson rules 1-4 with no way to change them. Now all eight are checkboxes,

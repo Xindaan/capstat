@@ -12,6 +12,7 @@ see the [API reference](../api-reference.md).
 | [Capability](capability.md) | Cp, Cpk, Cpm, Pp, Ppk; the two sigmas; the non-normal decision path |
 | [Control charts](control-charts.md) | X-bar/R, X-bar/s, I-MR, EWMA, CUSUM, run rules |
 | [Measurement systems](measurement-systems.md) | Gage R&R, bias, linearity, stability |
+| [Acceptance sampling](acceptance-sampling.md) | Single sampling plans: OC curve, AOQ/AOQL, ATI, plan design |
 
 ## A note on assumptions
 

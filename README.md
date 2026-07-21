@@ -14,8 +14,9 @@ every statistical result is validated against published reference values
 
 > **Status:** v0.1.0. All three pieces are built and tested — the statistics
 > library, the HTTP API, and the web app (capability, control charts, Gage R&R,
-> bias/linearity/stability). capstat is not on PyPI, so install from the
-> checkout. There is **no hosted demo, by design**: you run it on your own
+> bias/linearity/stability). Acceptance sampling landed after v0.1.0 and is
+> **library-only for now**: it is not yet exposed over the API or the web app.
+> capstat is not on PyPI, so install from the checkout. There is **no hosted demo, by design**: you run it on your own
 > machine, and your measurements never leave it. See [TASK.md](TASK.md) for
 > what is next.
 
@@ -354,6 +355,46 @@ it. Reports AIAG's `%linearity = |slope| × 100`.
 **Stability** is a control chart on a master part, and capstat says so rather
 than dressing it up: an out-of-control point means the gage drifted, because the
 part's true value never moved.
+
+### Acceptance sampling — deciding a lot, and what that decision is worth
+
+A single sampling plan by attributes is two numbers: draw `n` items, accept the
+lot if at most `Ac` are defective. capstat computes the consequences of those two
+numbers from the definition rather than reading plans out of a standard's table.
+
+```python
+from capstat_core import design_single_sampling_plan, evaluate_plan, inspect_lot
+
+plan = design_single_sampling_plan(aql=0.01, ltpd=0.05,       # smallest (n, Ac)
+                                   producer_risk=0.02,        # meeting both
+                                   consumer_risk=0.15)        # risk points
+plan.sample_size, plan.acceptance_number      # (144, 4)
+
+report = evaluate_plan(plan, aql=0.01, ltpd=0.05)
+report.producer_risk, report.consumer_risk    # what the plan actually achieves
+report.indifference_quality                   # where it is a coin flip
+
+inspect_lot(plan, defectives=3).accepted      # True — the decision itself
+```
+
+The operating characteristic curve comes in all three models — binomial (Type B,
+a process or a large lot), hypergeometric (Type A, one finite lot), and the
+Poisson approximation, which is offered explicitly and never applied silently.
+Under rectifying inspection you also get AOQ, the AOQL (found by searching the
+curve, not read off a grid) and ATI.
+
+What the reports insist on saying: a sampling plan bounds risk over a **stream**
+of lots and asserts almost nothing about the one in front of you; an `Ac = 0`
+plan rejects good lots far more often than its sample size suggests; and the
+AOQL is an average, not a bound on any single outgoing lot.
+
+The AQL master tables of ISO 2859-1 and its relatives are deliberately *not*
+implemented — those are committee conventions rather than derived values, and
+reproducing them is a licensing question first. capstat designs a plan from your
+risks instead.
+
+This is the one method that is library-only: there is no `/compute` endpoint and
+no web page for it yet (TASK.md T-0037).
 
 ## HTTP API
 
