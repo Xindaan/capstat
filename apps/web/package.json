@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "screenshots": "playwright test -c playwright.screenshots.config.ts",
     "generate:api": "openapi-typescript ../api/openapi.json -o lib/api-client/schema.d.ts",
     "check:api": "npm run generate:api && git diff --exit-code lib/api-client/schema.d.ts"
   },

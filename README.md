@@ -12,11 +12,19 @@ quality-engineering software. Its differentiator is verifiable correctness:
 every statistical result is validated against published reference values
 (NIST StRD, Montgomery, AIAG manuals, ISO 22514).
 
-> **Status:** approaching v0.1.0. All three pieces are built and tested — the
-> statistics library, the HTTP API, and the web app (capability, control charts,
-> Gage R&R, bias/linearity/stability). What is *not* done: capstat is not
-> published to PyPI, and there is no hosted demo yet. Install from the checkout.
-> See [TASK.md](TASK.md) for what remains.
+> **Status:** v0.1.0. All three pieces are built and tested — the statistics
+> library, the HTTP API, and the web app (capability, control charts, Gage R&R,
+> bias/linearity/stability). capstat is not on PyPI, so install from the
+> checkout. There is **no hosted demo, by design**: you run it on your own
+> machine, and your measurements never leave it. See [TASK.md](TASK.md) for
+> what is next.
+
+![Process capability on the demo dataset: Pp 1.379, Ppk 0.942, with Cp and Cpk
+stating that they do not exist on the percentile path](docs/images/capability.png)
+
+<sup>Every figure in this README is produced by the real library from
+[`examples/shaft-diameter.csv`](examples/shaft-diameter.csv) — see
+[Screenshots](#screenshots).</sup>
 
 ## Quickstart
 
@@ -425,6 +433,41 @@ npm run test        # vitest unit tests (pure binning / stats)
 npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
 npm run build       # production build + type-check
 ```
+
+### Screenshots
+
+The control chart on the same data. The process drifts and excursions at part
+31, so this is deliberately not a picture of a well-behaved process — the
+dispersion chart is out of control first, and the panel says to fix that before
+reading anything into the individuals limits.
+
+![I-MR control chart with Nelson run-rule violations](docs/images/control-chart.png)
+
+A Gage R&R study, pre-filled with the AIAG worked example. The verdict is not
+flattering and is not meant to be: 33.1 % study variation and 4 distinct
+categories both fail their thresholds, and the panel says so in words.
+
+![Gage R&R report: 33.1 % study variation, ndc 4](docs/images/gage-rr.png)
+
+And the guard that matters most in practice. A spreadsheet's first column is
+usually a row number; it is valid numeric data, so nothing downstream would
+object to computing capability from it. capstat skips it when choosing a column
+and says why if you pick it anyway.
+
+![The upload panel warning that the selected column looks like a row
+number](docs/images/row-index-warning.png)
+
+These are captured by a script, not by hand, so they cannot quietly go stale
+against a changed UI:
+
+```bash
+cd apps/web && npm run screenshots
+```
+
+It starts the real API and the app — not the mocked stack the e2e suite uses —
+drives the demo CSV through them, and rewrites `docs/images/`. Re-run it after
+any UI change. A README that shows invented numbers would undercut the one
+thing this project claims, so nothing here is a mockup.
 
 ## Running it with Docker
 

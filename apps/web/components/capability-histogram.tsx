@@ -105,7 +105,9 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
 
     return {
         animation: false,
-        grid: { left: 8, right: 16, top: 24, bottom: 24, containLabel: true },
+        // top leaves room for the y-axis name, which ECharts draws *above* the
+        // grid: at 24 it was clipped by the top of the canvas.
+        grid: { left: 8, right: 16, top: 36, bottom: 24, containLabel: true },
         tooltip: {
           trigger: "axis",
           backgroundColor: t.tooltipBg,

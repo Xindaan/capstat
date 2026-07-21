@@ -79,11 +79,19 @@ account; releases are GitHub-only until then, and the docs say so).
 **Repo visibility** — still private, so the release is visible only to you.
 Flipping it is a separate, deliberate step: `gh repo edit --visibility public`.
 
-What I can do without you: **T-0031** README screenshots (the only way a reader
-sees the UI, since there is no hosted demo); T-0023 postcss audit; T-0021/T-0022
-dependency-deprecation cleanups; T-0024 run-rule selection UI.
+What I can do without you: T-0023 postcss audit; T-0021/T-0022
+dependency-deprecation cleanups; T-0024 run-rule selection UI. All small; none
+of them blocks anything.
 
 ## Last done
+
+- 2026-07-21: T-0031 — **README screenshots**, captured by a script rather than
+  by hand (`cd apps/web && npm run screenshots`). It drives the *real* API with
+  `examples/shaft-diameter.csv`, so the figures show numbers the validated core
+  actually computed — illustrating a reference-validated project with mocked
+  values would undercut the only thing it claims. Re-run after any UI change.
+  The camera found a real bug on its first pass: the histogram's y-axis name
+  was clipped by the top of the canvas. Nothing else had ever looked at it.
 
 - 2026-07-21: **T-0017b — v0.1.0 released.** PR #3 squash-merged, release-please
   cut the tag and the GitHub release. Post-merge CI green on all six jobs, and

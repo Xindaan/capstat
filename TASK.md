@@ -26,11 +26,6 @@
   then releases are GitHub-only and the docs say so rather than implying a
   `pip install` that would fail. Once decided, add a publish job keyed on the
   release tag.
-- T-0031 README screenshots. Deferred from T-0017: the app is worth showing, but
-  it means committing binaries and re-shooting them whenever the UI moves. Since
-  there is no hosted demo to link (T-0026: local only), a screenshot or two is
-  the *only* way a reader sees the UI without running it -- so this matters more
-  than it would with a live link. Worth doing once the UI settles.
 - T-0018 Roadmap (explicitly NOT v0.1): acceptance sampling (AQL/ISO 2859),
   multi-user auth, persistence/database, server PDF.
 - T-0021 scipy deprecation: `scipy.stats.anderson` drops its `critical_values`
@@ -69,7 +64,30 @@
 
 ## Done
 
-- T-0017b (2026-07-21) **v0.1.0 released.** PR #3 squash-merged; release-please
+- T-0031 (2026-07-21) **README screenshots** -- four figures (capability,
+  I-MR control chart, Gage R&R, the row-index warning), plus the status block
+  corrected to v0.1.0 and "no hosted demo" reframed as the deliberate choice it
+  is rather than a gap.
+  The objection this task carried -- binaries that go stale whenever the UI
+  moves -- was answered by making the capture a script instead of handwork:
+  `npm run screenshots` (`apps/web/screenshots/capture.spec.ts` +
+  `playwright.screenshots.config.ts`). It runs the **real** API, not the mocked
+  stack the e2e suite uses, so every number in the README was computed by the
+  validated core from `examples/shaft-diameter.csv`. A project claiming
+  reference-validated results must not illustrate itself with invented ones.
+  Kept out of CI: it needs Python + the app, and the figures change only when
+  the UI does. The main playwright config's `testDir: ./e2e` already excludes
+  it -- verified, `npm run test:e2e` still collects exactly 8 tests.
+  Three bugs found while writing it, two mine and one the app's:
+  1. `boundingBox()` is viewport-relative, a `fullPage` clip is
+     document-relative -- so the crop slid down the page once anything had
+     scrolled. Now read via `getBoundingClientRect() + scrollX/Y`.
+  2. Waiting for the first `svg path` to be *visible* never succeeds: ECharts'
+     first child is an invisible clip path. Poll the path *count* instead.
+  3. Real app bug: the capability histogram's y-axis name ("density") was
+     clipped by the top of the canvas -- `grid.top` 24 left no room for a name
+     ECharts draws *above* the grid. Now 36. Only visible once something
+     photographed it. **v0.1.0 released.** PR #3 squash-merged; release-please
   cut tag `v0.1.0` and the GitHub release. Versions verified at 0.1.0 across all
   six files beforehand; post-merge CI green on all six jobs, including the drift
   check T-0034 had just fixed — the precise failure it was written for.
