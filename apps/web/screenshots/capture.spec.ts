@@ -24,9 +24,27 @@ const OUT = path.join(REPO, "docs/images");
 const LSL = "9.70";
 const USL = "10.30";
 
-/** Screenshot a panel, after waiting for the chart inside it to have painted. */
-async function shoot(panel: Locator, name: string) {
+/**
+ * Screenshot a panel, after waiting for the chart inside it to have painted.
+ *
+ * Pass `chart: true` for any panel that must show one. The wait below cannot
+ * discover that on its own: `svg` is created by the *lazy* ECharts import, so
+ * at the moment the result text appears there is no `<svg>` yet, the count is
+ * zero, and the poll that follows is skipped entirely — photographing an empty
+ * chart box. That is exactly what happened to the acceptance-sampling figure on
+ * its first capture, and nothing but looking at the image would have caught it.
+ */
+async function shoot(
+  panel: Locator,
+  name: string,
+  opts: { chart?: boolean } = {},
+) {
   await expect(panel).toBeVisible();
+  if (opts.chart) {
+    await expect(panel.locator("svg").first()).toBeAttached({
+      timeout: 10_000,
+    });
+  }
   // Drop focus and park the cursor before shooting. A button the script just
   // clicked keeps its focus ring and hover state, and whether those have
   // finished painting varies between runs -- which showed up as unrelated
@@ -83,7 +101,9 @@ async function shoot(panel: Locator, name: string) {
 
 test.use({ viewport: { width: 1280, height: 900 } });
 
-test("capability, control chart and the row-index warning", async ({ page }) => {
+test("capability, control chart and the row-index warning", async ({
+  page,
+}) => {
   await page.goto("/");
   await page.setInputFiles('input[type="file"]', CSV);
 
@@ -112,11 +132,13 @@ test("capability, control chart and the row-index warning", async ({ page }) => 
   await expect(
     capability.getByText("not defined on the percentile path").first(),
   ).toBeVisible();
-  await shoot(capability, "capability.png");
+  await shoot(capability, "capability.png", { chart: true });
 
   // Shot 3: I-MR with the run-rule flags. The process drifts and excursions at
   // part 31, so this is not a chart of a well-behaved process on purpose.
-  await shoot(page.getByLabel("Control chart"), "control-chart.png");
+  await shoot(page.getByLabel("Control chart"), "control-chart.png", {
+    chart: true,
+  });
 });
 
 test("gage r&r", async ({ page }) => {
@@ -125,4 +147,16 @@ test("gage r&r", async ({ page }) => {
   await panel.getByRole("button", { name: /compute/i }).click();
   await expect(panel.getByText(/ndc/i).first()).toBeVisible();
   await shoot(panel, "gage-rr.png");
+});
+
+test("acceptance sampling", async ({ page }) => {
+  await page.goto("/acceptance-sampling");
+  const panel = page.getByLabel("Acceptance sampling");
+  await panel.getByRole("button", { name: "Design the plan" }).click();
+  // The pre-filled example designs to n = 144, Ac = 4 -- a published result the
+  // core's reference tests assert exactly. If the figure ever shows anything
+  // else, the screenshot is not the thing that is wrong.
+  await expect(panel.getByText("144", { exact: true })).toBeVisible();
+  await expect(panel.getByText("4 or fewer")).toBeVisible();
+  await shoot(panel, "acceptance-sampling.png", { chart: true });
 });

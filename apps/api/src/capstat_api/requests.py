@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from capstat_api.schemas import GageRRMethod, WithinMethod
+from capstat_api.schemas import GageRRMethod, SamplingModel, WithinMethod
 
 
 class _Request(BaseModel):
@@ -129,3 +129,58 @@ class RulesRequest(_Request):
     points: list[float] = Series
     limits: ControlLimitsIn
     rules: list[int] | None = None
+
+
+class SamplingPlanIn(_Request):
+    """A single sampling plan by attributes: sample ``n``, accept on ``Ac``.
+
+    ``lot_size`` is optional here for the same reason it is optional in the
+    core: the binomial (Type B) curve does not depend on the lot. The core
+    rejects the impossible combinations (Ac above n, a lot smaller than the
+    sample) with a ValueError, which becomes a 422.
+    """
+
+    sample_size: int = Field(ge=1)
+    acceptance_number: int = Field(ge=0)
+    lot_size: int | None = Field(default=None, ge=1)
+
+
+# A fraction defective, not a percentage. Bounded here so an obvious unit
+# mix-up (15 for "15 %") is a 422 about the field rather than a core message.
+Fraction = Field(ge=0.0, le=1.0)
+
+
+class AcceptanceSamplingRequest(_Request):
+    """Judge a plan at the two quality levels it exists to discriminate."""
+
+    plan: SamplingPlanIn
+    aql: float = Fraction
+    ltpd: float = Fraction
+    model: SamplingModel = "binomial"
+
+
+class OCCurveRequest(_Request):
+    """The plan's OC curve. Omit the grid and the core derives one."""
+
+    plan: SamplingPlanIn
+    model: SamplingModel = "binomial"
+    fraction_defective: list[float] | None = None
+
+
+class SamplingPlanDesignRequest(_Request):
+    """Two risk points in, the smallest plan meeting both out."""
+
+    aql: float = Fraction
+    ltpd: float = Fraction
+    producer_risk: float = 0.05
+    consumer_risk: float = 0.10
+    model: SamplingModel = "binomial"
+    lot_size: int | None = Field(default=None, ge=1)
+
+
+class LotInspectionRequest(_Request):
+    """Apply a plan to one observed sample. The result is a decision."""
+
+    plan: SamplingPlanIn
+    defectives: int = Field(ge=0)
+    model: SamplingModel = "binomial"

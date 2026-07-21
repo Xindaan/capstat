@@ -17,14 +17,15 @@ M5 MSA, M6 release (report, deployment, docs, release).
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **491 core + 48 API tests, 100 % coverage on both packages**, mypy strict,
+- **491 core + 56 API tests, 100 % coverage on both packages**, mypy strict,
   ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-- **Acceptance sampling (T-0035) landed after v0.1.0, core only.** Single
-  sampling plans by attributes: OC curve (binomial / hypergeometric / Poisson),
-  AOQ, AOQL, ATI, producer's and consumer's risk, the inverse OC, the lot
-  decision, and two-point plan design -- all from the definition. It is
-  deliberately *not* wired to the API or the web app yet (T-0037), and the
-  README says so rather than implying a feature that is not reachable.
+- **Acceptance sampling (T-0035 + T-0037) landed after v0.1.0 and is
+  end-to-end.** Single sampling plans by attributes: OC curve (binomial /
+  hypergeometric / Poisson), AOQ, AOQL, ATI, producer's and consumer's risk, the
+  inverse OC, the lot decision, and two-point plan design -- all from the
+  definition, no standard's table anywhere -- reachable through
+  `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}` and the
+  `/acceptance-sampling` page.
 - **M4 (app) and M5 (MSA) are complete end-to-end.** The web app covers
   upload -> capability -> control charts (`/`), a Gage R&R study (`/gage-rr`),
   and bias / linearity / stability (`/msa`) -- every one of them typed against
@@ -77,23 +78,23 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-**T-0018 was split** on 2026-07-21 into T-0035..T-0040, because one ID was
-carrying four unrelated things. **T-0035 (acceptance sampling in the core) is
-done.** What follows from it:
+**T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
+carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are
+both done -- acceptance sampling is end-to-end.** What is left:
 
-- **T-0037** -- wire acceptance sampling to the API and a web page. Nothing
-  blocks it; it is the same shape as the existing compute routes.
 - **T-0036** -- the AQL master tables. The licensing question is *answered*
   (MIL-STD-105E is a US-government work under 17 U.S.C. 105(a), Notice 3 carries
   DISTRIBUTION STATEMENT A; ISO 2859-1 is copyrighted and must not be copied),
   so the path is open. The open question is now whether it is worth doing at
   all: T-0035 already designs a plan from the user's own risks, which is the
   better product; a table adds standards compatibility, not capability.
-- **T-0039 / T-0040** -- multi-user auth and persistence. Both recommended for
-  **decline**: they would reverse T-0026 (local only, no data held). Awaiting
-  your word to close them.
-- **T-0038** -- server-side PDF. Deferred; the print route already yields a
-  vector PDF.
+- **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
+  persistence would both reverse T-0026. What survived is **T-0041** -- saving a
+  study as a JSON file the user owns, which is a file format, not persistence,
+  and reverses nothing.
+- **T-0038** -- server-side PDF: deferred by decision, not closed. The print
+  route already yields a vector PDF; if it is ever wanted, build it as a local
+  CLI export rather than a service endpoint.
 
 ## Open decisions (unchanged)
 
@@ -114,11 +115,34 @@ unasked. Adding it *is* the decision to publish.
 
 Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 (mkdocs now capped below 2.x; revisit when 2.0 ships), the rest of the
-T-0035..T-0040 split of the old T-0018 roadmap (see Next actions), and the
+T-0035..T-0041 split of the old T-0018 roadmap (see Next actions), and the
 postcss half of T-0023, which cannot move until Next raises its pinned floor.
 Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-21: **T-0037 — acceptance sampling reaches the API and the app.** Four
+  routes, one per core entry point, and an `/acceptance-sampling` page that
+  designs a plan from two risk points, draws the OC curve with both levels
+  marked, and decides a lot from an observed defect count. **547 Python tests
+  (491 core + 56 API) at 100 % coverage on both packages**, 37 vitest, 14
+  Playwright specs, both drift gates green.
+  Three findings, and only one of them came from a test.
+  **The core had an inconsistency I had introduced in T-0035**: `OCCurve` held
+  numpy arrays where every other public dataclass holds `tuple[float, ...]`.
+  Found by comparing against the neighbours before writing the schema, and fixed
+  in the core rather than papered over in the API — a frozen dataclass wrapping
+  a mutable array is frozen in name only.
+  **The OC chart drew its AQL/LTPD labels rotated 90° and clipped**, because a
+  markLine label inherits its line's direction and these lines are vertical,
+  unlike every markline in the control chart. Only looking at the page against
+  the real API showed it. *Keep verifying in a browser; the mocked e2e suite is
+  structurally blind to this class.*
+  **The screenshot script skipped its own chart wait.** `shoot()` guarded it
+  with `if (await panel.locator("svg").count())` — evaluated once, immediately,
+  while ECharts is still being imported lazily, so the count was zero and the
+  poll never ran. It photographed an empty chart box. The wait is now explicit
+  (`chart: true`); the previous figures were right only by luck of timing.
 
 - 2026-07-21: **T-0035 — acceptance sampling in the core** (first piece of the
   T-0018 split). OC curve in three models, AOQ/AOQL/ATI, risks, the inverse OC,

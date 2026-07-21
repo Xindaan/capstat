@@ -4,10 +4,10 @@
 
 <!-- max 3 -->
 
-- (Doing is clear. v0.1.0 is released and T-0035 -- acceptance sampling in the
-  core -- is done. The obvious next piece of work is T-0037, wiring it to the
-  API and a page; T-0036 needs a decision first, and T-0039/T-0040 need only a
-  word to close.)
+- (Doing is clear. Acceptance sampling is end-to-end: T-0035 in the core,
+  T-0037 over the API and in the app. What is left of the old T-0018 split is
+  one decision (T-0036, whether the AQL tables are worth shipping at all) and
+  two deliberately-parked items (T-0038, T-0041).)
 
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -57,7 +57,7 @@
   first. Also needs a GitHub environment named `pypi` (Settings -> Environments)
   before any publish run works; worth a manual-approval rule when it is created.
 - ~~T-0018 Roadmap (explicitly NOT v0.1)~~ -- split 2026-07-21 into T-0035..
-  T-0040. It bundled four unrelated themes behind one ID, which made it
+  T-0041. It bundled four unrelated themes behind one ID, which made it
   un-schedulable: one of them is a statistical method this library exists to
   provide, two of them would reverse T-0026, and one is a packaging chore.
   Superseded; the individual entries carry the work and the decisions.
@@ -93,34 +93,29 @@
   more defensible product; a lookup table adds compatibility with a standard,
   not capability.
 
-- T-0037 Acceptance sampling, part 3: API + web page. Depends on T-0035
-  (T-0036 optional). A `/compute/acceptance-sampling` endpoint mirroring the
-  core report faithfully, and a page that draws the OC curve and states the
-  accept/reject decision with its warnings. Same shape as the existing compute
-  routes; no new architecture.
+- T-0038 [DEFERRED 2026-07-21, by decision] Server-side PDF endpoint. Neutral
+  on principle -- it conflicts with no decision -- but it is the weakest of the
+  four T-0018 themes: the print route already produces a vector PDF from the
+  browser (T-0014), so this buys automation, not capability, in exchange for a
+  heavy dependency (WeasyPrint or a headless browser) in an API that is
+  currently small and pure. If it is ever wanted, the shape to build is a local
+  CLI export rather than a service endpoint, given T-0026. Left open rather
+  than closed, because the reason to defer is cost, not principle.
 
-- T-0038 Server-side PDF endpoint. Neutral on principle -- it conflicts with
-  no decision -- but it is the weakest of the four: the print route already
-  produces a vector PDF from the browser (T-0014), so this buys automation,
-  not capability, in exchange for a heavy dependency (WeasyPrint or a headless
-  browser) in an API that is currently small and pure. Keep deferred. If it is
-  ever wanted, the better shape is probably a local CLI export rather than a
-  service endpoint, given T-0026.
-
-- T-0039 [RECOMMEND DECLINE] Multi-user auth. capstat runs on the user's
-  machine and holds no data between requests; there are no accounts to
-  separate and nothing to protect that the filesystem does not already
-  protect. Adding auth would mean adding the thing auth protects -- a server
-  holding other people's measurement data -- which is exactly what T-0026
-  decided against on 2026-07-20. Awaiting the maintainer's word to close.
-
-- T-0040 [RECOMMEND DECLINE] Persistence / database. Same reasoning as
-  T-0039: the API is stateless by design, and that statelessness is a stated
-  property of the product, not an unfinished edge. One narrow carve-out is
-  worth keeping distinct from this entry if it is ever wanted: saving and
-  reloading a *study* as a JSON file the user owns, on their own disk, with no
-  server and no schema migration. That is a file format, not persistence, and
-  it would not reverse anything. Awaiting the maintainer's word to close.
+- T-0041 Save and reload a study as a JSON file. The carve-out kept when
+  T-0040 was declined, and deliberately *not* persistence: a file the user
+  owns, on their own disk, written and read by the browser -- no server, no
+  database, no schema migration, nothing held between requests. Reverses
+  nothing in T-0026.
+  Scope when it is picked up: one versioned document per analysis page holding
+  the inputs (the data, the spec limits, the chosen options), never the
+  computed results -- results are recomputed from the validated core on load,
+  so a stale file can never present numbers this version did not produce.
+  A `schema_version` field from the first commit, and a load path that refuses
+  an unknown version with a readable message rather than guessing.
+  Open question for whoever takes it: whether the Gage R&R grid and the three
+  MSA studies share one document shape or get their own. Answer it by looking
+  at what the pages actually hold, not by designing upfront.
 - T-0026 [DECIDED 2026-07-20: no public hosting; local only.] The maintainer
   would sooner run capstat locally than send measurement data to a third party,
   which is the right instinct for a tool people feed real production data into.
@@ -135,6 +130,48 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0037 (2026-07-21) **Acceptance sampling reaches the app.** Four routes --
+  `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}`, one per
+  core entry point -- plus an `/acceptance-sampling` page that designs a plan
+  from two risk points, draws the OC curve with both quality levels on it, and
+  decides a lot from an observed defect count. 547 Python tests (491 core + 56
+  API), **100 % coverage on both packages**, 37 vitest, 14 Playwright specs, and
+  both drift gates green.
+  Three things worth keeping:
+  **(1) An inconsistency in my own T-0035 code, found by comparing against the
+  neighbours rather than by a test.** `OCCurve` exposed numpy arrays where every
+  other public core dataclass exposes `tuple[float, ...]` -- a frozen dataclass
+  holding a mutable array is frozen in name only, and the API would have had to
+  know about numpy to serialise it. Changed in the core, not patched in the
+  schema.
+  **(2) The OC chart's markline labels rendered rotated 90 degrees and clipped.**
+  A markLine label inherits its line's direction; these lines are vertical,
+  unlike every markline in the control chart, so `position: "insideEndTop"`
+  turned "AQL" on its side. Found by looking at the page in a browser against
+  the real API -- no test would have said a word.
+  **(3) The screenshot script silently skipped its own chart wait.** `shoot()`
+  guarded the wait with `if (await panel.locator("svg").count())`, evaluated once
+  and immediately -- but ECharts is imported lazily, so at that moment the count
+  is zero and the poll never runs. It photographed an empty chart box. `shoot()`
+  now takes `chart: true` and waits for the element to attach; the three
+  chart-bearing captures pass it. The existing figures were correct only by
+  luck of timing.
+  One e2e flake seen once (`smoke.spec.ts` run-rules, during the first run after
+  adding the route, when Next was compiling it under parallel load); not
+  reproducible in two subsequent full runs, and CI retries once.
+
+- T-0039 + T-0040 (2026-07-21) **Declined, by decision, with the reason
+  recorded.** Multi-user auth and persistence/database were two of the four
+  themes bundled in the old T-0018. Both are closed *unbuilt*, because both
+  would reverse T-0026: capstat runs on the maintainer's own machine and holds
+  no data between requests, so there are no accounts to separate and nothing
+  to protect that the filesystem does not already protect. Adding auth would
+  first require adding the thing auth protects -- a server holding other
+  people's measurement data. Statelessness here is a stated property of the
+  product, not an unfinished edge, and the README says so.
+  What survived: the narrow carve-out, now **T-0041** -- saving a study as a
+  JSON file the user owns. That is a file format, not persistence.
 
 - T-0035 (2026-07-21) **Acceptance sampling in the core.**
   `capstat_core.acceptance_sampling`: single sampling plans by attributes as a

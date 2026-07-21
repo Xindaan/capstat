@@ -700,8 +700,10 @@ def test_oc_curve_validates_its_grid() -> None:
     with pytest.raises(ValueError, match="must be a fraction"):
         oc_curve(plan, [0.1, 2.0])
     curve = oc_curve(plan, [0.0, 0.1])
-    assert curve.fraction_defective.tolist() == [0.0, 0.1]
+    assert curve.fraction_defective == (0.0, 0.1)
     assert curve.model == "binomial"
+    # Plain tuples, like every other core report -- nothing numpy-shaped escapes.
+    assert isinstance(curve.probability_accept, tuple)
 
 
 def test_design_rejects_unusable_requests() -> None:

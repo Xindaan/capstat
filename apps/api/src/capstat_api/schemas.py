@@ -344,3 +344,57 @@ class CusumChartOut(_CoreModel):
     violations: list[int]
     warnings: list[str]
     in_control: bool
+
+
+# ---------------------------------------------------------------------------
+# acceptance_sampling.py
+# ---------------------------------------------------------------------------
+
+SamplingModel = Literal["binomial", "hypergeometric", "poisson"]
+
+
+class SamplingPlanOut(_CoreModel):
+    sample_size: int
+    acceptance_number: int
+    # Absent unless the caller is talking about one finite lot; the binomial OC
+    # curve does not need it.
+    lot_size: int | None
+    # Derived property on the core dataclass; read via from_attributes.
+    rejection_number: int
+
+
+class AOQLimitOut(_CoreModel):
+    aoql: float
+    at_fraction_defective: float
+
+
+class OCCurveOut(_CoreModel):
+    plan: SamplingPlanOut
+    model: SamplingModel
+    fraction_defective: list[float]
+    probability_accept: list[float]
+
+
+class LotDecisionOut(_CoreModel):
+    plan: SamplingPlanOut
+    defectives: int
+    accepted: bool
+    sample_fraction_defective: float
+    warnings: list[str]
+
+
+class SamplingPlanReportOut(_CoreModel):
+    plan: SamplingPlanOut
+    model: SamplingModel
+    aql: float
+    ltpd: float
+    producer_risk: float
+    consumer_risk: float
+    probability_accept_at_aql: float
+    probability_accept_at_ltpd: float
+    indifference_quality: float
+    # Both are None without a lot size: they describe rectifying inspection of
+    # a finite lot, and "not applicable" is not the same as zero.
+    aoql: AOQLimitOut | None
+    ati_at_aql: float | None
+    warnings: list[str]

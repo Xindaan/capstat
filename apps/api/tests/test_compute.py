@@ -12,15 +12,20 @@ import math
 from typing import ClassVar
 
 from capstat_core import (
+    SamplingPlan,
     bias,
     capability,
     cusum_chart,
     describe,
+    design_single_sampling_plan,
+    evaluate_plan,
     ewma_chart,
     gage_rr,
     gage_rr_range,
     i_mr_chart,
+    inspect_lot,
     linearity,
+    oc_curve,
     stability,
     xbar_r_chart,
     xbar_s_chart,
@@ -356,3 +361,138 @@ def test_rules_catalogue(client: TestClient) -> None:
     # Nelson has eight rules, Western Electric four.
     assert len(body["nelson"]) == 8
     assert len(body["western_electric"]) == 4
+
+
+# ---------------------------------------------------------------------------
+# Acceptance sampling
+# ---------------------------------------------------------------------------
+
+# The NIST handbook's worked plan, the one the core's reference tests use.
+SAMPLING_PLAN = {"sample_size": 52, "acceptance_number": 3, "lot_size": 10000}
+
+
+def test_acceptance_sampling_evaluate_matches_core(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/acceptance-sampling/evaluate",
+        json={"plan": SAMPLING_PLAN, "aql": 0.01, "ltpd": 0.09},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = evaluate_plan(SamplingPlan(52, 3, lot_size=10000), 0.01, 0.09)
+    assert body["producer_risk"] == core.producer_risk
+    assert body["consumer_risk"] == core.consumer_risk
+    assert body["probability_accept_at_aql"] == core.probability_accept_at_aql
+    assert body["indifference_quality"] == core.indifference_quality
+    assert core.aoql is not None
+    assert body["aoql"]["aoql"] == core.aoql.aoql
+    assert body["aoql"]["at_fraction_defective"] == core.aoql.at_fraction_defective
+    assert body["ati_at_aql"] == core.ati_at_aql
+    assert body["warnings"] == list(core.warnings)
+    # rejection_number is a derived property, not a dataclass field.
+    assert body["plan"]["rejection_number"] == core.plan.rejection_number
+
+
+def test_acceptance_sampling_without_a_lot_size_nulls_the_finite_lot_fields(
+    client: TestClient,
+) -> None:
+    # AOQL and ATI describe rectifying inspection of a finite lot. Without a lot
+    # size they are not zero, they are absent.
+    resp = client.post(
+        "/compute/acceptance-sampling/evaluate",
+        json={
+            "plan": {"sample_size": 52, "acceptance_number": 3},
+            "aql": 0.01,
+            "ltpd": 0.09,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["aoql"] is None
+    assert body["ati_at_aql"] is None
+    assert body["plan"]["lot_size"] is None
+    assert body["producer_risk"] is not None
+
+
+def test_acceptance_sampling_design_matches_core(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/acceptance-sampling/design",
+        json={"aql": 0.01, "ltpd": 0.05, "producer_risk": 0.02, "consumer_risk": 0.15},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = design_single_sampling_plan(
+        0.01, 0.05, producer_risk=0.02, consumer_risk=0.15
+    )
+    # A plan is a decision, so it is asserted exactly on both sides of the wire.
+    assert body["sample_size"] == core.sample_size == 144
+    assert body["acceptance_number"] == core.acceptance_number == 4
+    assert body["rejection_number"] == core.rejection_number
+
+
+def test_acceptance_sampling_oc_curve_matches_core(client: TestClient) -> None:
+    grid = [0.01, 0.05, 0.1]
+    resp = client.post(
+        "/compute/acceptance-sampling/oc-curve",
+        json={"plan": SAMPLING_PLAN, "fraction_defective": grid, "model": "poisson"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = oc_curve(SamplingPlan(52, 3, lot_size=10000), grid, model="poisson")
+    assert body["model"] == "poisson"
+    assert body["fraction_defective"] == list(core.fraction_defective)
+    assert body["probability_accept"] == list(core.probability_accept)
+
+
+def test_acceptance_sampling_oc_curve_derives_its_own_grid(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/acceptance-sampling/oc-curve", json={"plan": SAMPLING_PLAN}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["fraction_defective"]) == len(body["probability_accept"]) > 1
+    assert body["probability_accept"][0] == 1.0
+
+
+def test_acceptance_sampling_inspect_carries_the_decision(client: TestClient) -> None:
+    accepted = client.post(
+        "/compute/acceptance-sampling/inspect",
+        json={"plan": SAMPLING_PLAN, "defectives": 3},
+    ).json()
+    rejected = client.post(
+        "/compute/acceptance-sampling/inspect",
+        json={"plan": SAMPLING_PLAN, "defectives": 4},
+    ).json()
+    core = inspect_lot(SamplingPlan(52, 3, lot_size=10000), 3)
+    # The boundary is the whole point of the endpoint; it survives the wire.
+    assert accepted["accepted"] is True
+    assert rejected["accepted"] is False
+    assert accepted["sample_fraction_defective"] == core.sample_fraction_defective
+    assert accepted["warnings"] == list(core.warnings)
+
+
+def test_acceptance_sampling_impossible_plan_maps_core_error_to_422(
+    client: TestClient,
+) -> None:
+    # Passes the schema (both are non-negative ints), and the core rejects it.
+    resp = client.post(
+        "/compute/acceptance-sampling/evaluate",
+        json={
+            "plan": {"sample_size": 5, "acceptance_number": 9},
+            "aql": 0.01,
+            "ltpd": 0.09,
+        },
+    )
+    assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], str)
+
+
+def test_acceptance_sampling_rejects_a_percentage_where_a_fraction_belongs(
+    client: TestClient,
+) -> None:
+    # 15 meaning "15 %" is the likeliest caller mistake; it must not be read as
+    # a fraction of 1500 %.
+    resp = client.post(
+        "/compute/acceptance-sampling/evaluate",
+        json={"plan": SAMPLING_PLAN, "aql": 0.01, "ltpd": 15},
+    )
+    assert resp.status_code == 422

@@ -14,9 +14,8 @@ every statistical result is validated against published reference values
 
 > **Status:** v0.1.0. All three pieces are built and tested — the statistics
 > library, the HTTP API, and the web app (capability, control charts, Gage R&R,
-> bias/linearity/stability). Acceptance sampling landed after v0.1.0 and is
-> **library-only for now**: it is not yet exposed over the API or the web app.
-> capstat is not on PyPI, so install from the checkout. There is **no hosted demo, by design**: you run it on your own
+> bias/linearity/stability, acceptance sampling). capstat is not on PyPI, so
+> install from the checkout. There is **no hosted demo, by design**: you run it on your own
 > machine, and your measurements never leave it. See [TASK.md](TASK.md) for
 > what is next.
 
@@ -393,9 +392,6 @@ implemented — those are committee conventions rather than derived values, and
 reproducing them is a licensing question first. capstat designs a plan from your
 risks instead.
 
-This is the one method that is library-only: there is no `/compute` endpoint and
-no web page for it yet (TASK.md T-0037).
-
 ## HTTP API
 
 `apps/api` is a stateless FastAPI service that exposes every core statistic
@@ -417,7 +413,9 @@ the nullable capability indices survive serialisation rather than being
 flattened away. Endpoints: `/compute/descriptive`, `/compute/capability`,
 `/compute/capability/analyze`, `/compute/control-chart/{i-mr,xbar-r,xbar-s,ewma,cusum}`,
 `/compute/rules/{nelson,western-electric}`, `/compute/gage-rr`,
-`/compute/{bias,linearity,stability}`, and `/ingest` for files.
+`/compute/{bias,linearity,stability}`,
+`/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}`, and
+`/ingest` for files.
 
 The OpenAPI schema at `apps/api/openapi.json` is the single source of truth for
 the generated TypeScript client (added with the web app) and is checked for
@@ -437,7 +435,9 @@ percentile decision path and a spec-limit histogram) plus I-MR control charts
 with Nelson run-rule flags. A separate `/gage-rr` page runs a full Gage R&R
 study from a data-entry grid (both the ANOVA and average-and-range methods), and
 `/msa` runs the bias, linearity and stability studies — each pre-filled with a
-worked example.
+worked example. `/acceptance-sampling` designs a lot-acceptance plan from your
+two risk points, draws its OC curve with both quality levels on it, and decides
+a lot from an observed defect count.
 
 Every analysis page is also its own report: **Print / save as PDF** drops the
 navigation and the controls, keeps the results, and prints the charts as vector
@@ -499,6 +499,14 @@ and says why if you pick it anyway.
 
 ![The upload panel warning that the selected column looks like a row
 number](docs/images/row-index-warning.png)
+
+An acceptance-sampling plan designed from two risk points, not read out of a
+standard's table. The OC curve carries both quality levels, because how steeply
+a plan falls between them is the whole comparison — and the report ends by
+saying what the AOQL does not bound.
+
+![Acceptance sampling: n 144, accept on 4 or fewer, producer risk 1.53 %,
+consumer risk 14.87 %, with the OC curve](docs/images/acceptance-sampling.png)
 
 These are captured by a script, not by hand, so they cannot quietly go stale
 against a changed UI:

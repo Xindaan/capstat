@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+    "/compute/acceptance-sampling/design": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Acceptance Sampling Design */
+        post: operations["compute_acceptance_sampling_design_compute_acceptance_sampling_design_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compute/acceptance-sampling/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Acceptance Sampling Evaluate */
+        post: operations["compute_acceptance_sampling_evaluate_compute_acceptance_sampling_evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compute/acceptance-sampling/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Acceptance Sampling Inspect */
+        post: operations["compute_acceptance_sampling_inspect_compute_acceptance_sampling_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compute/acceptance-sampling/oc-curve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Acceptance Sampling Oc Curve */
+        post: operations["compute_acceptance_sampling_oc_curve_compute_acceptance_sampling_oc_curve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compute/bias": {
         parameters: {
             query?: never;
@@ -300,6 +368,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AOQLimitOut */
+        AOQLimitOut: {
+            /** Aoql */
+            aoql: number;
+            /** At Fraction Defective */
+            at_fraction_defective: number;
+        };
+        /**
+         * AcceptanceSamplingRequest
+         * @description Judge a plan at the two quality levels it exists to discriminate.
+         */
+        AcceptanceSamplingRequest: {
+            /** Aql */
+            aql: number;
+            /** Ltpd */
+            ltpd: number;
+            /**
+             * Model
+             * @default binomial
+             * @enum {string}
+             */
+            model: "binomial" | "hypergeometric" | "poisson";
+            plan: components["schemas"]["SamplingPlanIn"];
+        };
         /** AnalyzeCapabilityRequest */
         AnalyzeCapabilityRequest: {
             /**
@@ -824,6 +916,33 @@ export interface components {
             /** References */
             references: number[];
         };
+        /** LotDecisionOut */
+        LotDecisionOut: {
+            /** Accepted */
+            accepted: boolean;
+            /** Defectives */
+            defectives: number;
+            plan: components["schemas"]["SamplingPlanOut"];
+            /** Sample Fraction Defective */
+            sample_fraction_defective: number;
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * LotInspectionRequest
+         * @description Apply a plan to one observed sample. The result is a decision.
+         */
+        LotInspectionRequest: {
+            /** Defectives */
+            defectives: number;
+            /**
+             * Model
+             * @default binomial
+             * @enum {string}
+             */
+            model: "binomial" | "hypergeometric" | "poisson";
+            plan: components["schemas"]["SamplingPlanIn"];
+        };
         /** NormalityAssessmentOut */
         NormalityAssessmentOut: {
             /** Alpha */
@@ -855,6 +974,34 @@ export interface components {
             statistic: number | null;
             /** Test */
             test: string;
+        };
+        /** OCCurveOut */
+        OCCurveOut: {
+            /** Fraction Defective */
+            fraction_defective: number[];
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "binomial" | "hypergeometric" | "poisson";
+            plan: components["schemas"]["SamplingPlanOut"];
+            /** Probability Accept */
+            probability_accept: number[];
+        };
+        /**
+         * OCCurveRequest
+         * @description The plan's OC curve. Omit the grid and the core derives one.
+         */
+        OCCurveRequest: {
+            /** Fraction Defective */
+            fraction_defective?: number[] | null;
+            /**
+             * Model
+             * @default binomial
+             * @enum {string}
+             */
+            model: "binomial" | "hypergeometric" | "poisson";
+            plan: components["schemas"]["SamplingPlanIn"];
         };
         /** PercentileCapabilityOut */
         PercentileCapabilityOut: {
@@ -916,6 +1063,90 @@ export interface components {
             /** Rules */
             rules?: number[] | null;
         };
+        /**
+         * SamplingPlanDesignRequest
+         * @description Two risk points in, the smallest plan meeting both out.
+         */
+        SamplingPlanDesignRequest: {
+            /** Aql */
+            aql: number;
+            /**
+             * Consumer Risk
+             * @default 0.1
+             */
+            consumer_risk: number;
+            /** Lot Size */
+            lot_size?: number | null;
+            /** Ltpd */
+            ltpd: number;
+            /**
+             * Model
+             * @default binomial
+             * @enum {string}
+             */
+            model: "binomial" | "hypergeometric" | "poisson";
+            /**
+             * Producer Risk
+             * @default 0.05
+             */
+            producer_risk: number;
+        };
+        /**
+         * SamplingPlanIn
+         * @description A single sampling plan by attributes: sample ``n``, accept on ``Ac``.
+         *
+         *     ``lot_size`` is optional here for the same reason it is optional in the
+         *     core: the binomial (Type B) curve does not depend on the lot. The core
+         *     rejects the impossible combinations (Ac above n, a lot smaller than the
+         *     sample) with a ValueError, which becomes a 422.
+         */
+        SamplingPlanIn: {
+            /** Acceptance Number */
+            acceptance_number: number;
+            /** Lot Size */
+            lot_size?: number | null;
+            /** Sample Size */
+            sample_size: number;
+        };
+        /** SamplingPlanOut */
+        SamplingPlanOut: {
+            /** Acceptance Number */
+            acceptance_number: number;
+            /** Lot Size */
+            lot_size: number | null;
+            /** Rejection Number */
+            rejection_number: number;
+            /** Sample Size */
+            sample_size: number;
+        };
+        /** SamplingPlanReportOut */
+        SamplingPlanReportOut: {
+            aoql: components["schemas"]["AOQLimitOut"] | null;
+            /** Aql */
+            aql: number;
+            /** Ati At Aql */
+            ati_at_aql: number | null;
+            /** Consumer Risk */
+            consumer_risk: number;
+            /** Indifference Quality */
+            indifference_quality: number;
+            /** Ltpd */
+            ltpd: number;
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "binomial" | "hypergeometric" | "poisson";
+            plan: components["schemas"]["SamplingPlanOut"];
+            /** Probability Accept At Aql */
+            probability_accept_at_aql: number;
+            /** Probability Accept At Ltpd */
+            probability_accept_at_ltpd: number;
+            /** Producer Risk */
+            producer_risk: number;
+            /** Warnings */
+            warnings: string[];
+        };
         /** StabilityReportOut */
         StabilityReportOut: {
             chart: components["schemas"]["ChartPairOut"];
@@ -959,6 +1190,138 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    compute_acceptance_sampling_design_compute_acceptance_sampling_design_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SamplingPlanDesignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SamplingPlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compute_acceptance_sampling_evaluate_compute_acceptance_sampling_evaluate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptanceSamplingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SamplingPlanReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compute_acceptance_sampling_inspect_compute_acceptance_sampling_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotInspectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compute_acceptance_sampling_oc_curve_compute_acceptance_sampling_oc_curve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OCCurveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OCCurveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     compute_bias_compute_bias_post: {
         parameters: {
             query?: never;

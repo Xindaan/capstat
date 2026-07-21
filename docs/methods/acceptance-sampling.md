@@ -108,6 +108,14 @@ number above zero was found for the Type A (hypergeometric) curve, so that path
 is validated against `scipy.stats.hypergeom` and a hand-written enumeration of
 the definition instead of against a citation.
 
+## In the app
+
+The `/acceptance-sampling` page designs a plan from your two risk points, draws
+the OC curve with both levels marked, and decides a lot from an observed defect
+count. Over HTTP it is
+`/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}` — one route
+per core entry point, as everywhere else in the API.
+
 ## Not implemented
 
 The AQL master tables and sample-size code letters of ISO 2859-1 / ANSI-ASQ

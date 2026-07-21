@@ -1,6 +1,62 @@
 {
   "components": {
     "schemas": {
+      "AOQLimitOut": {
+        "properties": {
+          "aoql": {
+            "title": "Aoql",
+            "type": "number"
+          },
+          "at_fraction_defective": {
+            "title": "At Fraction Defective",
+            "type": "number"
+          }
+        },
+        "required": [
+          "aoql",
+          "at_fraction_defective"
+        ],
+        "title": "AOQLimitOut",
+        "type": "object"
+      },
+      "AcceptanceSamplingRequest": {
+        "additionalProperties": false,
+        "description": "Judge a plan at the two quality levels it exists to discriminate.",
+        "properties": {
+          "aql": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Aql",
+            "type": "number"
+          },
+          "ltpd": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ltpd",
+            "type": "number"
+          },
+          "model": {
+            "default": "binomial",
+            "enum": [
+              "binomial",
+              "hypergeometric",
+              "poisson"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SamplingPlanIn"
+          }
+        },
+        "required": [
+          "plan",
+          "aql",
+          "ltpd"
+        ],
+        "title": "AcceptanceSamplingRequest",
+        "type": "object"
+      },
       "AnalyzeCapabilityRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1774,6 +1830,71 @@
         "title": "LinearityRequest",
         "type": "object"
       },
+      "LotDecisionOut": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "defectives": {
+            "title": "Defectives",
+            "type": "integer"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SamplingPlanOut"
+          },
+          "sample_fraction_defective": {
+            "title": "Sample Fraction Defective",
+            "type": "number"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "defectives",
+          "accepted",
+          "sample_fraction_defective",
+          "warnings"
+        ],
+        "title": "LotDecisionOut",
+        "type": "object"
+      },
+      "LotInspectionRequest": {
+        "additionalProperties": false,
+        "description": "Apply a plan to one observed sample. The result is a decision.",
+        "properties": {
+          "defectives": {
+            "minimum": 0.0,
+            "title": "Defectives",
+            "type": "integer"
+          },
+          "model": {
+            "default": "binomial",
+            "enum": [
+              "binomial",
+              "hypergeometric",
+              "poisson"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SamplingPlanIn"
+          }
+        },
+        "required": [
+          "plan",
+          "defectives"
+        ],
+        "title": "LotInspectionRequest",
+        "type": "object"
+      },
       "NormalityAssessmentOut": {
         "properties": {
           "alpha": {
@@ -1873,6 +1994,82 @@
           "normal"
         ],
         "title": "NormalityTestResultOut",
+        "type": "object"
+      },
+      "OCCurveOut": {
+        "properties": {
+          "fraction_defective": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Fraction Defective",
+            "type": "array"
+          },
+          "model": {
+            "enum": [
+              "binomial",
+              "hypergeometric",
+              "poisson"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SamplingPlanOut"
+          },
+          "probability_accept": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Probability Accept",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "model",
+          "fraction_defective",
+          "probability_accept"
+        ],
+        "title": "OCCurveOut",
+        "type": "object"
+      },
+      "OCCurveRequest": {
+        "additionalProperties": false,
+        "description": "The plan's OC curve. Omit the grid and the core derives one.",
+        "properties": {
+          "fraction_defective": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fraction Defective"
+          },
+          "model": {
+            "default": "binomial",
+            "enum": [
+              "binomial",
+              "hypergeometric",
+              "poisson"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SamplingPlanIn"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "OCCurveRequest",
         "type": "object"
       },
       "PercentileCapabilityOut": {
@@ -2081,6 +2278,219 @@
         "title": "RulesRequest",
         "type": "object"
       },
+      "SamplingPlanDesignRequest": {
+        "additionalProperties": false,
+        "description": "Two risk points in, the smallest plan meeting both out.",
+        "properties": {
+          "aql": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Aql",
+            "type": "number"
+          },
+          "consumer_risk": {
+            "default": 0.1,
+            "title": "Consumer Risk",
+            "type": "number"
+          },
+          "lot_size": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Size"
+          },
+          "ltpd": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ltpd",
+            "type": "number"
+          },
+          "model": {
+            "default": "binomial",
+            "enum": [
+              "binomial",
+              "hypergeometric",
+              "poisson"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "producer_risk": {
+            "default": 0.05,
+            "title": "Producer Risk",
+            "type": "number"
+          }
+        },
+        "required": [
+          "aql",
+          "ltpd"
+        ],
+        "title": "SamplingPlanDesignRequest",
+        "type": "object"
+      },
+      "SamplingPlanIn": {
+        "additionalProperties": false,
+        "description": "A single sampling plan by attributes: sample ``n``, accept on ``Ac``.\n\n``lot_size`` is optional here for the same reason it is optional in the\ncore: the binomial (Type B) curve does not depend on the lot. The core\nrejects the impossible combinations (Ac above n, a lot smaller than the\nsample) with a ValueError, which becomes a 422.",
+        "properties": {
+          "acceptance_number": {
+            "minimum": 0.0,
+            "title": "Acceptance Number",
+            "type": "integer"
+          },
+          "lot_size": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Size"
+          },
+          "sample_size": {
+            "minimum": 1.0,
+            "title": "Sample Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sample_size",
+          "acceptance_number"
+        ],
+        "title": "SamplingPlanIn",
+        "type": "object"
+      },
+      "SamplingPlanOut": {
+        "properties": {
+          "acceptance_number": {
+            "title": "Acceptance Number",
+            "type": "integer"
+          },
+          "lot_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Size"
+          },
+          "rejection_number": {
+            "title": "Rejection Number",
+            "type": "integer"
+          },
+          "sample_size": {
+            "title": "Sample Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sample_size",
+          "acceptance_number",
+          "lot_size",
+          "rejection_number"
+        ],
+        "title": "SamplingPlanOut",
+        "type": "object"
+      },
+      "SamplingPlanReportOut": {
+        "properties": {
+          "aoql": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AOQLimitOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "aql": {
+            "title": "Aql",
+            "type": "number"
+          },
+          "ati_at_aql": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ati At Aql"
+          },
+          "consumer_risk": {
+            "title": "Consumer Risk",
+            "type": "number"
+          },
+          "indifference_quality": {
+            "title": "Indifference Quality",
+            "type": "number"
+          },
+          "ltpd": {
+            "title": "Ltpd",
+            "type": "number"
+          },
+          "model": {
+            "enum": [
+              "binomial",
+              "hypergeometric",
+              "poisson"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/SamplingPlanOut"
+          },
+          "probability_accept_at_aql": {
+            "title": "Probability Accept At Aql",
+            "type": "number"
+          },
+          "probability_accept_at_ltpd": {
+            "title": "Probability Accept At Ltpd",
+            "type": "number"
+          },
+          "producer_risk": {
+            "title": "Producer Risk",
+            "type": "number"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "model",
+          "aql",
+          "ltpd",
+          "producer_risk",
+          "consumer_risk",
+          "probability_accept_at_aql",
+          "probability_accept_at_ltpd",
+          "indifference_quality",
+          "aoql",
+          "ati_at_aql",
+          "warnings"
+        ],
+        "title": "SamplingPlanReportOut",
+        "type": "object"
+      },
       "StabilityReportOut": {
         "properties": {
           "chart": {
@@ -2208,6 +2618,170 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/compute/acceptance-sampling/design": {
+      "post": {
+        "operationId": "compute_acceptance_sampling_design_compute_acceptance_sampling_design_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SamplingPlanDesignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SamplingPlanOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Acceptance Sampling Design",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/acceptance-sampling/evaluate": {
+      "post": {
+        "operationId": "compute_acceptance_sampling_evaluate_compute_acceptance_sampling_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptanceSamplingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SamplingPlanReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Acceptance Sampling Evaluate",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/acceptance-sampling/inspect": {
+      "post": {
+        "operationId": "compute_acceptance_sampling_inspect_compute_acceptance_sampling_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotInspectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotDecisionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Acceptance Sampling Inspect",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/acceptance-sampling/oc-curve": {
+      "post": {
+        "operationId": "compute_acceptance_sampling_oc_curve_compute_acceptance_sampling_oc_curve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OCCurveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OCCurveOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Acceptance Sampling Oc Curve",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/bias": {
       "post": {
         "operationId": "compute_bias_compute_bias_post",

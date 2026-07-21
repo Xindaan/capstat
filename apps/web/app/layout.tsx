@@ -23,11 +23,23 @@ export default function RootLayout({
           <Link href="/" className="text-foreground/60 hover:text-foreground">
             Capability &amp; charts
           </Link>
-          <Link href="/gage-rr" className="text-foreground/60 hover:text-foreground">
+          <Link
+            href="/gage-rr"
+            className="text-foreground/60 hover:text-foreground"
+          >
             Gage R&amp;R
           </Link>
-          <Link href="/msa" className="text-foreground/60 hover:text-foreground">
+          <Link
+            href="/msa"
+            className="text-foreground/60 hover:text-foreground"
+          >
             Bias &amp; linearity
+          </Link>
+          <Link
+            href="/acceptance-sampling"
+            className="text-foreground/60 hover:text-foreground"
+          >
+            Acceptance sampling
           </Link>
         </nav>
         {children}

@@ -162,3 +162,76 @@ export function ingestFile(file: File) {
     },
   });
 }
+
+export type SamplingPlan = components["schemas"]["SamplingPlanOut"];
+export type SamplingPlanReport = components["schemas"]["SamplingPlanReportOut"];
+export type OCCurve = components["schemas"]["OCCurveOut"];
+export type LotDecision = components["schemas"]["LotDecisionOut"];
+export type SamplingModel = SamplingPlanReport["model"];
+
+export interface SamplingPlanInput {
+  sample_size: number;
+  acceptance_number: number;
+  lot_size: number | null;
+}
+
+/**
+ * Judge a sampling plan at the two quality levels it exists to discriminate.
+ * `aql` and `ltpd` are fractions defective, not percentages — the API rejects
+ * anything above 1, which is the mistake worth catching early.
+ */
+export function evaluateSamplingPlan(
+  plan: SamplingPlanInput,
+  aql: number,
+  ltpd: number,
+  model: SamplingModel,
+) {
+  return api.POST("/compute/acceptance-sampling/evaluate", {
+    body: { plan, aql, ltpd, model },
+  });
+}
+
+/** The smallest plan meeting both risk points, searched over the OC curve. */
+export function designSamplingPlan(opts: {
+  aql: number;
+  ltpd: number;
+  producerRisk: number;
+  consumerRisk: number;
+  model: SamplingModel;
+  lotSize: number | null;
+}) {
+  return api.POST("/compute/acceptance-sampling/design", {
+    body: {
+      aql: opts.aql,
+      ltpd: opts.ltpd,
+      // openapi-typescript types defaulted fields as required, so pass the
+      // server defaults explicitly.
+      producer_risk: opts.producerRisk,
+      consumer_risk: opts.consumerRisk,
+      model: opts.model,
+      lot_size: opts.lotSize,
+    },
+  });
+}
+
+/** The plan's OC curve. `null` grid lets the core derive a readable one. */
+export function samplingOcCurve(
+  plan: SamplingPlanInput,
+  model: SamplingModel,
+  fractionDefective: number[] | null = null,
+) {
+  return api.POST("/compute/acceptance-sampling/oc-curve", {
+    body: { plan, model, fraction_defective: fractionDefective },
+  });
+}
+
+/** Apply a plan to one observed sample. The answer is a decision, not a score. */
+export function inspectLot(
+  plan: SamplingPlanInput,
+  defectives: number,
+  model: SamplingModel,
+) {
+  return api.POST("/compute/acceptance-sampling/inspect", {
+    body: { plan, defectives, model },
+  });
+}

@@ -10,17 +10,22 @@ from __future__ import annotations
 from capstat_core import (
     ControlChart,
     ControlLimits,
+    SamplingPlan,
     analyze_capability,
     bias,
     capability,
     cusum_chart,
     describe,
+    design_single_sampling_plan,
+    evaluate_plan,
     ewma_chart,
     gage_rr,
     gage_rr_range,
     i_mr_chart,
+    inspect_lot,
     linearity,
     nelson_rules,
+    oc_curve,
     stability,
     western_electric_rules,
     xbar_r_chart,
@@ -30,6 +35,7 @@ from fastapi import APIRouter
 
 from capstat_api.errors import core_errors
 from capstat_api.requests import (
+    AcceptanceSamplingRequest,
     AnalyzeCapabilityRequest,
     BiasRequest,
     CapabilityRequest,
@@ -39,7 +45,11 @@ from capstat_api.requests import (
     GageRRRequest,
     IMRRequest,
     LinearityRequest,
+    LotInspectionRequest,
+    OCCurveRequest,
     RulesRequest,
+    SamplingPlanDesignRequest,
+    SamplingPlanIn,
     StabilityRequest,
     SubgroupRequest,
 )
@@ -53,7 +63,11 @@ from capstat_api.schemas import (
     EwmaChartOut,
     GageRRReportOut,
     LinearityReportOut,
+    LotDecisionOut,
+    OCCurveOut,
     RuleViolationOut,
+    SamplingPlanOut,
+    SamplingPlanReportOut,
     StabilityReportOut,
 )
 
@@ -215,3 +229,56 @@ def compute_western_electric_rules(req: RulesRequest) -> list[RuleViolationOut]:
     with core_errors():
         violations = western_electric_rules(_chart_from_request(req), req.rules)
     return [RuleViolationOut.model_validate(v) for v in violations]
+
+
+# ---------------------------------------------------------------------------
+# Acceptance sampling. One route per core entry point, as everywhere else.
+# ---------------------------------------------------------------------------
+
+
+def _plan(spec: SamplingPlanIn) -> SamplingPlan:
+    """Build the core plan. Invalid combinations raise ValueError -> 422."""
+    return SamplingPlan(
+        sample_size=spec.sample_size,
+        acceptance_number=spec.acceptance_number,
+        lot_size=spec.lot_size,
+    )
+
+
+@router.post("/acceptance-sampling/evaluate", response_model=SamplingPlanReportOut)
+def compute_acceptance_sampling_evaluate(
+    req: AcceptanceSamplingRequest,
+) -> SamplingPlanReportOut:
+    with core_errors():
+        result = evaluate_plan(_plan(req.plan), req.aql, req.ltpd, model=req.model)
+    return SamplingPlanReportOut.model_validate(result)
+
+
+@router.post("/acceptance-sampling/design", response_model=SamplingPlanOut)
+def compute_acceptance_sampling_design(
+    req: SamplingPlanDesignRequest,
+) -> SamplingPlanOut:
+    with core_errors():
+        result = design_single_sampling_plan(
+            req.aql,
+            req.ltpd,
+            producer_risk=req.producer_risk,
+            consumer_risk=req.consumer_risk,
+            model=req.model,
+            lot_size=req.lot_size,
+        )
+    return SamplingPlanOut.model_validate(result)
+
+
+@router.post("/acceptance-sampling/oc-curve", response_model=OCCurveOut)
+def compute_acceptance_sampling_oc_curve(req: OCCurveRequest) -> OCCurveOut:
+    with core_errors():
+        result = oc_curve(_plan(req.plan), req.fraction_defective, model=req.model)
+    return OCCurveOut.model_validate(result)
+
+
+@router.post("/acceptance-sampling/inspect", response_model=LotDecisionOut)
+def compute_acceptance_sampling_inspect(req: LotInspectionRequest) -> LotDecisionOut:
+    with core_errors():
+        result = inspect_lot(_plan(req.plan), req.defectives, model=req.model)
+    return LotDecisionOut.model_validate(result)

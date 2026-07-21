@@ -158,12 +158,18 @@ class LotDecision:
 
 @dataclass(frozen=True, slots=True)
 class OCCurve:
-    """The operating characteristic curve: ``Pa`` against fraction defective."""
+    """The operating characteristic curve: ``Pa`` against fraction defective.
+
+    The two series are plain tuples, as everywhere else in the public API: a
+    frozen dataclass holding a mutable array would only be frozen in name, and
+    every consumer -- the HTTP layer above all -- wants a sequence it can
+    serialise without knowing about numpy.
+    """
 
     plan: SamplingPlan
     model: SamplingModel
-    fraction_defective: npt.NDArray[np.float64]
-    probability_accept: npt.NDArray[np.float64]
+    fraction_defective: tuple[float, ...]
+    probability_accept: tuple[float, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,15 +300,13 @@ def oc_curve(
             raise ValueError("fraction_defective must not be empty")
         for value in grid:
             _check_fraction(float(value))
-    pa = np.array(
-        [probability_of_acceptance(plan, float(p), model=model) for p in grid],
-        dtype=np.float64,
-    )
     return OCCurve(
         plan=plan,
         model=model,
-        fraction_defective=grid,
-        probability_accept=pa,
+        fraction_defective=tuple(float(p) for p in grid),
+        probability_accept=tuple(
+            probability_of_acceptance(plan, float(p), model=model) for p in grid
+        ),
     )
 
 
