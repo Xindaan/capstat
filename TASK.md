@@ -8,15 +8,6 @@
   studies all reach the UI. Next in Backlog: the M6 release path.)
 
 ## Backlog
-- T-0033 Upload panel auto-selects the *first* numeric column, which on a
-  realistic file is the row index. `examples/shaft-diameter.csv` starts with a
-  `part` column of 1..60, so the app lands on it and computes capability of the
-  part *numbers* against the spec limits -- Pp 0.006, confidently nonsense.
-  Nothing warns, because 1..60 is perfectly valid numeric data. Options: skip
-  columns that look like an index (monotonic integers starting at 0/1, or a name
-  like id/part/no/index) when auto-selecting; or select nothing and make the user
-  choose. The second is safer but costs a click on files with one real column.
-  Seen while verifying T-0028.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together. We pin
@@ -85,6 +76,25 @@
   only github-actions is) or a routine `next` bump will resolve it.
 
 ## Done
+
+- T-0033 (2026-07-21) The upload panel no longer auto-selects a row index. It
+  landed on `part` = 1..60 in the demo CSV and computed Pp 0.006 -- capability of
+  the *part numbers* against a diameter spec. Nothing objected, because
+  consecutive integers are perfectly good numeric data; that is precisely the
+  failure mode this project exists to prevent.
+  * `looksLikeRowIndex()` in `lib/stats.ts`: consecutive integers stepping by one
+    from 0 or 1, at least three of them. Deliberately strict -- the two mistakes
+    are not symmetric. Missing an index is the status quo; wrongly flagging a
+    real measurement would teach people to ignore the warning.
+  * Auto-select takes the first column that does *not* look like an index, and
+    falls back to the first column when every one of them does.
+  * Selecting it manually is still allowed -- but the summary then says so in
+    amber, naming the arithmetic ("these values run 1, 2, 3 ...").
+  * Isomorphy check: `columns[0]`/`columns.find` appears only in
+    `upload-panel.tsx`; `/gage-rr` and `/msa` take typed grids, not column
+    picking, so there is no second site to fix.
+  * 6 unit tests (31 vitest total) + an e2e test covering both halves: the index
+    is not preselected, and picking it raises the warning.
 
 - T-0028 (2026-07-20) An index with no value now says *why*, instead of showing
   a bare dash. Prompted by the maintainer asking "did I enter LSL/USL wrong?"

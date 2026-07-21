@@ -34,6 +34,29 @@ export function parseNumberList(text: string): number[] | null {
   return values;
 }
 
+/**
+ * Does this column look like a row index (1, 2, 3, ...) rather than a
+ * measurement?
+ *
+ * A spreadsheet's first column is very often a row number, and it is perfectly
+ * valid numeric data — so nothing downstream objects to analysing it. Capability
+ * of the row numbers against a real specification is confident nonsense, which
+ * is the exact failure mode this project exists to prevent.
+ *
+ * The test is deliberately strict — consecutive integers stepping by one from 0
+ * or 1 — because the cost of the two mistakes is not symmetric. Failing to flag
+ * an index is what we have today; wrongly flagging a real measurement would
+ * train people to ignore the warning.
+ */
+export function looksLikeRowIndex(values: number[]): boolean {
+  if (values.length < 3) return false; // too short to show a pattern
+  const start = values[0];
+  if (start !== 0 && start !== 1) return false;
+  return values.every(
+    (value, i) => Number.isInteger(value) && value === start + i,
+  );
+}
+
 /** Min / max / mean in a single pass. Assumes a non-empty array. */
 export function columnStats(values: number[]): {
   min: number;

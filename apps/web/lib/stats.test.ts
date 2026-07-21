@@ -5,9 +5,41 @@ import {
   capabilityDomain,
   columnStats,
   histogram,
+  looksLikeRowIndex,
   normalPdf,
   parseNumberList,
 } from "@/lib/stats";
+
+describe("looksLikeRowIndex", () => {
+  it("flags a 1-based row index", () => {
+    expect(looksLikeRowIndex([1, 2, 3, 4, 5, 6])).toBe(true);
+  });
+
+  it("flags a 0-based row index", () => {
+    expect(looksLikeRowIndex([0, 1, 2, 3])).toBe(true);
+  });
+
+  it("does not flag real measurements", () => {
+    expect(looksLikeRowIndex([10.1, 9.9, 10.0, 10.2])).toBe(false);
+    // Integers, but neither consecutive nor starting at 0/1.
+    expect(looksLikeRowIndex([12, 15, 11, 14])).toBe(false);
+  });
+
+  it("does not flag a monotonic measurement that merely rises", () => {
+    // A drifting process climbs, but not in steps of exactly one from 1.
+    expect(looksLikeRowIndex([10.0, 10.1, 10.2, 10.3])).toBe(false);
+    expect(looksLikeRowIndex([3, 4, 5, 6])).toBe(false); // starts at 3
+  });
+
+  it("does not flag an index with a gap", () => {
+    expect(looksLikeRowIndex([1, 2, 4, 5])).toBe(false);
+  });
+
+  it("needs enough rows to show a pattern", () => {
+    // 1, 2 is as likely a measurement as an index; do not guess from two points.
+    expect(looksLikeRowIndex([1, 2])).toBe(false);
+  });
+});
 
 describe("parseNumberList", () => {
   it("accepts commas, spaces and newlines in any mix", () => {

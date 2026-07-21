@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-07-15
+Date: 2026-07-21
 
 ## Goal
 
@@ -78,14 +78,19 @@ cut v0.1.0. **T-0030** — whether capstat-core goes to PyPI (needs an account).
 
 What I can do without you:
 
-1. T-0033 the upload panel auto-selects the first numeric column, which on a
-   realistic file is the row index -- the demo CSV lands on `part` (1..60) and
-   computes confident nonsense. Found while verifying T-0028.
-2. T-0031 README screenshots -- now the *only* way a reader sees the UI, since
+1. T-0031 README screenshots -- now the *only* way a reader sees the UI, since
    there is no hosted demo (T-0026: local only).
-3. T-0023 postcss audit; T-0021/T-0022 dep-deprecation cleanups.
+2. T-0023 postcss audit; T-0021/T-0022 dep-deprecation cleanups.
+3. T-0024 run-rule selection UI (small feature, low priority).
 
 ## Last done
+
+- 2026-07-21: T-0033 — **the upload panel no longer analyses the row index.**
+  It auto-selected the first numeric column, which on the demo CSV is `part`
+  (1..60): Pp 0.006, capability of the part *numbers* against a diameter spec,
+  with nothing to warn you, because consecutive integers are valid data.
+  Auto-select now skips index-looking columns; picking one manually still works
+  but says what it is. Both halves pinned by an e2e test.
 
 - 2026-07-20: T-0028 — an index with no value now **says why** rather than
   showing a dash: "not defined on the percentile path" (Cp/Cpk have no

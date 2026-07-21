@@ -69,13 +69,34 @@ const CAPABILITY_PERCENTILE = {
   warnings: ["the percentile method yields long-term (Pp/Ppk) indices only."],
 };
 
-async function mockApi(page: Page, capability: unknown = CAPABILITY) {
+// A realistic spreadsheet: the row number comes first, the measurement second.
+// 1, 2, 3 ... is valid numeric data, so nothing downstream would object to
+// analysing it -- which is exactly why the UI has to.
+const INGEST_WITH_ROW_INDEX = {
+  n_rows: VALUES.length,
+  columns: [
+    {
+      name: "part",
+      values: Array.from({ length: VALUES.length }, (_, i) => i + 1),
+      dropped_missing: 0,
+    },
+    { name: "diameter_mm", values: VALUES, dropped_missing: 0 },
+  ],
+  ignored_columns: [],
+  warnings: [],
+};
+
+async function mockApi(
+  page: Page,
+  capability: unknown = CAPABILITY,
+  ingest: unknown = INGEST,
+) {
   const json = (body: unknown) => ({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify(body),
   });
-  await page.route("**/ingest", (r) => r.fulfill(json(INGEST)));
+  await page.route("**/ingest", (r) => r.fulfill(json(ingest)));
   await page.route("**/compute/capability/analyze", (r) =>
     r.fulfill(json(capability)),
   );
@@ -150,4 +171,30 @@ test("an index with no value says why, instead of showing a bare dash", async ({
   );
   // Ppk is defined by one limit, so it still shows a number.
   await expect(cards.filter({ hasText: "Ppk" }).first()).toContainText("0.942");
+});
+
+test("a row-index column is neither auto-selected nor silently analysed", async ({
+  page,
+}) => {
+  // The demo CSV starts with `part` = 1..60. Auto-selecting it produced Pp 0.006
+  // -- arithmetically correct, entirely meaningless, and with no warning, since
+  // consecutive integers are perfectly good numbers.
+  await mockApi(page, CAPABILITY, INGEST_WITH_ROW_INDEX);
+  await page.goto("/");
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "shaft.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("part,diameter_mm\n1,10.0\n2,10.1\n"),
+    });
+
+  // The measurement is preselected, not the index.
+  await expect(page.getByText("diameter_mm — selected")).toBeVisible();
+  await expect(page.getByText(/looks like a row number/)).toHaveCount(0);
+
+  // Picking the index anyway is allowed -- but it says what it is.
+  await page.getByRole("radio").first().check();
+  await expect(page.getByText("part — selected")).toBeVisible();
+  await expect(page.getByText(/looks like a row number/)).toBeVisible();
 });

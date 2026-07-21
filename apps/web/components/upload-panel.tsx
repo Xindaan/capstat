@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { ingestFile, type IngestColumn, type IngestResponse } from "@/lib/api-client";
 import { describeApiError } from "@/lib/errors";
-import { columnStats } from "@/lib/stats";
+import { columnStats, looksLikeRowIndex } from "@/lib/stats";
 
 type Status =
   | { kind: "idle" }
@@ -43,8 +43,12 @@ export function UploadPanel({
         return;
       }
       setStatus({ kind: "done", filename: file.name, result: data });
-      // Preselect the first numeric column so the panel is immediately useful.
-      setSelected(data.columns[0]?.name ?? null);
+      // Preselect a column so the panel is immediately useful -- but skip the
+      // row index a spreadsheet usually starts with. Landing on it analyses the
+      // row numbers, and nothing downstream objects, because 1, 2, 3 ... is
+      // perfectly good numeric data.
+      const measured = data.columns.find((c) => !looksLikeRowIndex(c.values));
+      setSelected((measured ?? data.columns[0])?.name ?? null);
     } catch {
       setStatus({
         kind: "error",
@@ -267,6 +271,7 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
     );
   }
   const { min, max, mean } = columnStats(column.values);
+  const rowIndex = looksLikeRowIndex(column.values);
   return (
     <div className="rounded-lg border border-foreground/15 p-4">
       <p className="mb-3 text-sm font-medium">
@@ -279,10 +284,18 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
         <Stat label="max" value={numberFormat.format(max)} />
         <Stat label="mean" value={numberFormat.format(mean)} />
       </dl>
-      <p className="mt-3 text-xs text-foreground/50">
-        Ready for the capability report and control charts — coming in the next
-        increment.
-      </p>
+      {rowIndex ? (
+        <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200/90">
+          These values run {numberFormat.format(min)}, {numberFormat.format(min + 1)},{" "}
+          {numberFormat.format(min + 2)} … — this looks like a row number, not a
+          measurement. Analysing it will produce indices that are arithmetically
+          correct and meaningless. Pick the column you actually measured.
+        </p>
+      ) : (
+        <p className="mt-3 text-xs text-foreground/50">
+          Ready for the capability report and the control charts below.
+        </p>
+      )}
     </div>
   );
 }
