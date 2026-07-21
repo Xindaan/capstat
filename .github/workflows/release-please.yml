@@ -32,7 +32,7 @@ jobs:
       # workflows, so CI does not run on the release PR itself. The commits it
       # summarises were each tested on main before landing. A PAT fixes that
       # too, if you want CI on the PR.
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
