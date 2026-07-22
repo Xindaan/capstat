@@ -346,8 +346,14 @@ export function AcceptanceSamplingPanel() {
               suffix=" %"
             />
             <Card
-              label="Reject on"
-              value={String(report.plan.rejection_number)}
+              label="Limiting quality"
+              value={pct(report.limiting_quality)}
+              suffix=" %"
+              tone={
+                report.limiting_quality > report.ltpd
+                  ? "text-amber-600 dark:text-amber-400"
+                  : undefined
+              }
             />
             <Card
               label="AOQL"
@@ -361,7 +367,9 @@ export function AcceptanceSamplingPanel() {
             At the AQL the plan accepts {pct(report.probability_accept_at_aql)}{" "}
             % of lots; at the LTPD it still accepts{" "}
             {pct(report.probability_accept_at_ltpd)} %. It is a coin flip at{" "}
-            {pct(report.indifference_quality)} % defective.
+            {pct(report.indifference_quality)} % defective. Its limiting quality
+            — ISO 2859-1&apos;s LQ, the quality it still accepts one time in ten
+            — is {pct(report.limiting_quality)} %.
             {report.aoql &&
               ` The AOQL occurs at ${pct(report.aoql.at_fraction_defective)} % incoming.`}
           </p>

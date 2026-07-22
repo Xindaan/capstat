@@ -383,6 +383,7 @@ def test_acceptance_sampling_evaluate_matches_core(client: TestClient) -> None:
     assert body["consumer_risk"] == core.consumer_risk
     assert body["probability_accept_at_aql"] == core.probability_accept_at_aql
     assert body["indifference_quality"] == core.indifference_quality
+    assert body["limiting_quality"] == core.limiting_quality
     assert core.aoql is not None
     assert body["aoql"]["aoql"] == core.aoql.aoql
     assert body["aoql"]["at_fraction_defective"] == core.aoql.at_fraction_defective

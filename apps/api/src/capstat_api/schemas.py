@@ -393,6 +393,9 @@ class SamplingPlanReportOut(_CoreModel):
     probability_accept_at_aql: float
     probability_accept_at_ltpd: float
     indifference_quality: float
+    # ISO 2859-1's limiting quality: the quality the plan still accepts 10 % of
+    # the time. Computed from the plan, never requested.
+    limiting_quality: float
     # Both are None without a lot size: they describe rectifying inspection of
     # a finite lot, and "not applicable" is not the same as zero.
     aoql: AOQLimitOut | None

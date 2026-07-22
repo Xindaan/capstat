@@ -21,6 +21,7 @@ const REPORT = {
   probability_accept_at_aql: 0.98465157,
   probability_accept_at_ltpd: 0.1487162,
   indifference_quality: 0.03242,
+  limiting_quality: 0.0455,
   aoql: { aoql: 0.0182, at_fraction_defective: 0.0243 },
   ati_at_aql: 218.5,
   warnings: [

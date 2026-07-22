@@ -1130,6 +1130,8 @@ export interface components {
             consumer_risk: number;
             /** Indifference Quality */
             indifference_quality: number;
+            /** Limiting Quality */
+            limiting_quality: number;
             /** Ltpd */
             ltpd: number;
             /**

@@ -81,6 +81,19 @@ report = evaluate_plan(plan, aql=0.01, ltpd=0.05)
 report.producer_risk, report.consumer_risk # (0.01534843..., 0.1487162...)
 ```
 
+### Limiting quality: what the plan delivers, not what you asked for
+
+The LTPD is a wish. ISO 2859-1's **limiting quality (LQ)** is the answer: the
+quality a plan still accepts one time in ten. capstat computes it by inverting
+the plan's own OC curve — it is a property of the plan, never a parameter — and
+reports it beside the LTPD you named, because the two routinely differ.
+
+They differ by construction whenever your consumer's risk is not 10 %. The
+worked example above is designed at `consumer_risk = 0.15`, and its limiting
+quality comes out at 5.47 % against an LTPD of 5 %: the plan accepts *worse*
+quality than the level you called unacceptable, one time in ten, exactly as
+asked. capstat says so rather than leaving you to notice.
+
 !!! note "Ac = 0 plans are not simply 'tighter'"
     With `Ac = 0` the curve is `Pa = (1 - p)^n`: it has no shoulder and falls
     from the first defective onward, so it rejects genuinely good lots far more

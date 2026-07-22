@@ -94,6 +94,13 @@ _OC_GRID_POINTS = 201
 # binomial stands in for the hypergeometric; above it we say so.
 _LARGE_LOT_RATIO = 0.1
 
+# ISO 2859-1 names the quality a plan accepts only 10 % of the time the
+# *limiting quality* (LQ). It is a property of the plan, not a choice, so
+# capstat computes it by inverting the OC curve rather than asking for it --
+# and reporting it next to the LTPD you asked for is how you find out whether
+# the plan protects you where you thought it did.
+_LIMITING_QUALITY_PA = 0.10
+
 
 @dataclass(frozen=True, slots=True)
 class SamplingPlan:
@@ -186,7 +193,11 @@ class SamplingPlanReport:
 
     ``producer_risk`` is the probability of *rejecting* a lot at the AQL,
     ``consumer_risk`` the probability of *accepting* one at the LTPD.
-    ``indifference_quality`` is where the plan is a coin flip (``Pa = 0.5``).
+    ``indifference_quality`` is where the plan is a coin flip (``Pa = 0.5``),
+    and ``limiting_quality`` is ISO 2859-1's LQ -- the quality this plan accepts
+    only 10 % of the time. LQ is computed from the plan, not requested: reading
+    it against the LTPD you asked for is how you learn whether the plan protects
+    you where you believed it did.
     ``aoql`` and ``ati_at_aql`` are ``None`` unless a lot size is known, because
     both describe rectifying inspection of a finite lot.
     """
@@ -200,6 +211,7 @@ class SamplingPlanReport:
     probability_accept_at_aql: float
     probability_accept_at_ltpd: float
     indifference_quality: float
+    limiting_quality: float
     aoql: AOQLimit | None
     ati_at_aql: float | None
     warnings: tuple[str, ...]
@@ -565,6 +577,14 @@ def evaluate_plan(
             "the producer can ship routinely; check that n and Ac are the ones "
             "you intended."
         )
+    limiting_quality = quality_for_acceptance(plan, _LIMITING_QUALITY_PA, model=model)
+    if limiting_quality > ltpd:
+        warnings.append(
+            f"this plan's limiting quality is {limiting_quality:.4f} -- the "
+            f"quality it still accepts 10 % of the time (ISO 2859-1's LQ). That "
+            f"is worse than the {ltpd} you named as unacceptable, so the plan "
+            "does not give the protection the LTPD implies."
+        )
     return SamplingPlanReport(
         plan=plan,
         model=model,
@@ -575,6 +595,7 @@ def evaluate_plan(
         probability_accept_at_aql=pa_aql,
         probability_accept_at_ltpd=pa_ltpd,
         indifference_quality=quality_for_acceptance(plan, 0.5, model=model),
+        limiting_quality=limiting_quality,
         aoql=limit,
         ati_at_aql=ati,
         warnings=tuple(warnings),

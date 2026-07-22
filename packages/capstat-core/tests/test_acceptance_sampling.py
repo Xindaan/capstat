@@ -607,6 +607,37 @@ def test_quality_for_acceptance_inverts_the_oc_curve() -> None:
         assert probability_of_acceptance(plan, p) == pytest.approx(target, abs=1e-9)
 
 
+def test_limiting_quality_is_the_iso_definition_computed_not_requested() -> None:
+    """ISO 2859-1's LQ: the quality the plan still accepts 10 % of the time.
+
+    It is a property of the plan, so it is inverted out of the OC curve rather
+    than asked for -- and it is the number that tells you whether the plan
+    protects you where you thought it did.
+    """
+    plan = SamplingPlan(52, 3)
+    report = evaluate_plan(plan, 0.01, 0.09)
+    assert probability_of_acceptance(plan, report.limiting_quality) == pytest.approx(
+        0.10, abs=1e-9
+    )
+    # It sits between the indifference quality and certain rejection, always.
+    assert report.indifference_quality < report.limiting_quality
+
+
+def test_a_plan_weaker_than_its_ltpd_says_so() -> None:
+    """The LTPD is a wish; the LQ is what the plan actually delivers."""
+    # n=52, Ac=3 still accepts 10 % of lots at 12.4 % defective, so naming 9 %
+    # as the unacceptable level does not make the plan reject it reliably.
+    weak = evaluate_plan(SamplingPlan(52, 3), 0.01, 0.09)
+    assert weak.limiting_quality > 0.09
+    assert any("does not give the protection" in w for w in weak.warnings)
+
+    # A plan designed for that LTPD does not draw the warning.
+    designed = design_single_sampling_plan(0.01, 0.09, consumer_risk=0.10)
+    strong = evaluate_plan(designed, 0.01, 0.09)
+    assert strong.limiting_quality <= 0.09
+    assert not any("does not give the protection" in w for w in strong.warnings)
+
+
 def test_quality_for_acceptance_has_no_answer_for_a_plan_that_never_rejects() -> None:
     assert quality_for_acceptance(SamplingPlan(5, 5), 0.10) == 1.0
 

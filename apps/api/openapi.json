@@ -2438,6 +2438,10 @@
             "title": "Indifference Quality",
             "type": "number"
           },
+          "limiting_quality": {
+            "title": "Limiting Quality",
+            "type": "number"
+          },
           "ltpd": {
             "title": "Ltpd",
             "type": "number"
@@ -2484,6 +2488,7 @@
           "probability_accept_at_aql",
           "probability_accept_at_ltpd",
           "indifference_quality",
+          "limiting_quality",
           "aoql",
           "ati_at_aql",
           "warnings"
