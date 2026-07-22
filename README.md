@@ -389,8 +389,11 @@ AOQL is an average, not a bound on any single outgoing lot.
 
 The AQL master tables of ISO 2859-1 and its relatives are deliberately *not*
 implemented — those are committee conventions rather than derived values, and
-reproducing them is a licensing question first. capstat designs a plan from your
-risks instead.
+reproducing them is a licensing question first. If a specification prescribes a
+plan, read `n` and `Ac` from your own copy of the standard and hand them to
+`evaluate_plan`: capstat then reports what the table does not — the risk each
+side actually carries, the AOQL, and the inspection it costs. The standard says
+*which* plan; capstat says *what it buys*.
 
 ## HTTP API
 

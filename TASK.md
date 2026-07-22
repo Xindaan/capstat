@@ -82,16 +82,84 @@
   "approved for public release, distribution unlimited". NIST states the
   lineage plainly: Mil. Std. 105D was adopted as ANSI Z1.4 in 1971 and, with
   minor changes, as ISO 2859 in 1974.
-  So the path is open: **ship MIL-STD-105E tables, cite ISO 2859-1 in prose
-  without copying it, and do not claim the two are identical** -- "with minor
-  changes" is the published wording, and ANSI/ASQ Z1.4 (itself copyrighted by
-  ASQ) is the one described as identical to 105E. Remaining caveat before
-  typing anything: this is a reading of primary sources, not legal advice, and
-  the maintainer should be comfortable with it.
-  Still open, and the more interesting question: whether it is worth doing at
-  all. T-0035 already designs a plan from the user's own risks, which is the
-  more defensible product; a lookup table adds compatibility with a standard,
-  not capability.
+  **Worth doing: decided yes, 2026-07-21.** The maintainer confirmed AQL
+  sampling is used in their own work, which is the only thing that justified it
+  -- the value here is reproducing exactly what a customer or auditor
+  *specifies*, not computing a better plan. T-0035 remains the better product
+  for anyone free to choose their own risks; this is for the case where you are
+  not free.
+  **Standard: ISO 2859-1, decided 2026-07-21.** Which changes what can be
+  built, and rules out what an earlier draft of this entry recommended. That
+  draft said "ship MIL-STD-105E tables and cite ISO in prose"; with ISO as the
+  target that is the *worst* of the options, not a workaround. NIST's own
+  wording is that Mil. Std. 105D was adopted into ISO 2859 "with minor
+  changes" -- so a 105E cell may differ from the ISO cell a specification
+  names, while looking conformant. For an auditor that is worse than shipping
+  nothing. And ISO's own tables may not be reproduced here at all.
+  **So the buildable shape has no master table in it.** Three increments, in
+  order, none of which requires copying a table:
+  1. *ISO vocabulary and the workflow that needs no table.* Limiting quality
+     (LQ) alongside LTPD, the preferred AQL series as a chooser, and the
+     "bring the plan from your own licensed copy, capstat tells you what it
+     buys" path -- which T-0037 already ships and the docs now name.
+  2. *The switching rules* (normal -> tightened -> reduced -> discontinue).
+     This is where 2859-1's protection actually lives: a normal-inspection
+     lookup with no switching does not deliver what the standard promises.
+     Procedures are not the part of a standard that copyright protects, but
+     the thresholds are read from it, so this needs the maintainer's explicit
+     go before it is typed.
+  3. *Code-letter lookup* -- only if 1 and 2 leave a real gap, and only from a
+     source we may reproduce. Currently that means: not from ISO.
+  Caveat that has not changed: the licensing reading above came from a research
+  pass whose primary sources I did not open myself (the subagents quoted them).
+  Before any of this ships publicly, read 17 U.S.C. 105(a) and the ISO
+  copyright notice yourself, or have someone who does this for a living do it.
+  It is a reading of primary sources, not legal advice.
+
+  Split into sub-tasks, in order. Each is a gate for the next:
+
+  - **T-0036a Provenance gate.** Read the two primary sources *first-hand*
+    before any table is extracted: MIL-STD-105E Notice 3 (the cancellation
+    notice carrying DISTRIBUTION STATEMENT A) and 17 U.S.C. 105(a). The
+    licensing note above rests on subagent reports with quotes, which is
+    second-hand and explicitly not good enough for the step that puts a
+    standard's tables into an MIT repository. Record what was read, and where,
+    in the reference YAML.
+  - **T-0036b Obtain and extract.** Get the authoritative MIL-STD-105E text and
+    extract Table I (sample size code letters: lot size x inspection level) and
+    Tables II-A / II-B / II-C (normal / tightened / reduced: code letter x AQL
+    -> n, Ac, Re) *mechanically*, by parsing the document -- not by hand. Hand
+    typing ~16 code letters x ~26 AQL columns x 3 tables is where transcription
+    errors come from; deterministic extraction plus the verification below is
+    strictly safer. Arrow cells ("use the first plan below/above the arrow")
+    must be represented as arrows, not silently resolved, because resolving one
+    changes the sample size.
+  - **T-0036c Verify every entry against T-0035.** For each normal-inspection
+    cell compute Pa at its AQL from the core's own OC function and record it.
+    Do not assert a fixed threshold: the standard does not hold Pa at the AQL
+    constant, and pretending otherwise would manufacture failures. Assert the
+    properties that are actually true -- Pa at the AQL rises with the sample
+    size code letter for a fixed AQL, every cell's Ac is below its n, Re = Ac+1
+    -- and *publish the computed Pa per cell* so the spread is visible rather
+    than assumed. Any cell that cannot be reconciled gets named in the YAML,
+    the way the four NIST table errors were.
+  - **T-0036d The switching rules.** ISO 2859-1 and 105E are *schemes*, not
+    plans: the protection comes from switching between normal, tightened and
+    reduced inspection, and from discontinuation. A lookup that stops at the
+    normal table gives users less than the standard promises while looking like
+    compliance. This is the part with real substance -- and it is state over a
+    sequence of lots, so it needs a deliberate answer to "where does that state
+    live" given T-0026 and T-0040 (probably: the caller passes the history in,
+    the library holds nothing).
+  - **T-0036e Surface it.** Code letter + AQL lookup over the API and on the
+    existing `/acceptance-sampling` page, next to the computed plan rather than
+    instead of it, so the two can be compared -- which is the most useful thing
+    this feature can do: show what the standard's plan actually costs you in
+    risk against the plan your own numbers would have chosen.
+
+  Standing constraint: ISO 2859-1's tables must not be copied. Cite it in prose
+  for terminology and correspondence, ship 105E, and do not claim the two are
+  identical -- "with minor changes" is the published wording.
 
 - T-0038 [DEFERRED 2026-07-21, by decision] Server-side PDF endpoint. Neutral
   on principle -- it conflicts with no decision -- but it is the weakest of the

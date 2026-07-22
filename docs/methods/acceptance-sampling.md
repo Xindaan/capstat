@@ -116,10 +116,37 @@ count. Over HTTP it is
 `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}` — one route
 per core entry point, as everywhere else in the API.
 
-## Not implemented
+## If your specification names a standard
 
-The AQL master tables and sample-size code letters of ISO 2859-1 / ANSI-ASQ
-Z1.4 / MIL-STD-105E. Those are committee conventions rather than values derived
-from a definition, and reproducing ISO's tables in an MIT-licensed project is a
-licensing question before it is a statistical one. capstat designs plans from
-your risks instead.
+capstat does **not** implement the AQL master tables and sample-size code
+letters of ISO 2859-1 / ANSI-ASQ Z1.4 / MIL-STD-105E. That is a position, not a
+gap waiting to be filled.
+
+Those tables are committee conventions rather than values derived from a
+definition — the sample sizes follow the R5 preferred-number series and the
+acceptance numbers were chosen so that `Pa` lands near 0.95 at the AQL, but no
+formula generates a given cell. Reproducing ISO's tables in an MIT-licensed
+project is also a licensing question before it is a statistical one: ISO
+standards may not be reproduced without permission. MIL-STD-105E, the
+public-domain ancestor, is **not** a substitute — its tables were adopted into
+ISO 2859 *"with minor changes"*, so a plan taken from it may differ from the ISO
+cell your specification actually names. A plan that looks conformant without
+being conformant is worse than no plan at all.
+
+What to do instead, which loses you nothing: anyone claiming conformity to
+ISO 2859-1 needs a licensed copy of it in any case. Read `n` and `Ac` out of it,
+enter them on the `/acceptance-sampling` page or pass them to `evaluate_plan`,
+and capstat reports what the table itself does not — the producer's and
+consumer's risk the plan really carries at your two quality levels, the quality
+at which it is a coin flip, the AOQL, and the inspection it costs. The standard
+tells you *which* plan to use; capstat tells you *what that plan buys*.
+
+Two things worth knowing if you work to ISO 2859-1, neither of which a lookup
+table would have given you:
+
+- It is a **scheme, not a plan**. Its protection comes from the switching rules
+  between normal, tightened and reduced inspection. Looking up the
+  normal-inspection row and never switching does not deliver what the standard
+  promises.
+- Where a cell carries an **arrow**, you follow it to the next usable row — which
+  changes the sample size, and with it everything on this page.

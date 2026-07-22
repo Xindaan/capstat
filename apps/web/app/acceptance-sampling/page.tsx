@@ -21,6 +21,14 @@ export default function AcceptanceSamplingPage() {
           from your risks. It is pre-filled with a published worked example that
           designs to n = 144, Ac = 4.
         </p>
+        <p className="text-foreground/70">
+          Already have a plan — because a specification prescribes one, or a
+          customer named an AQL scheme? Enter its sample size and acceptance
+          number and press <strong>Judge this plan</strong>. capstat then
+          reports what the table it came from does not: the risk each side
+          actually carries at your two quality levels, the quality at which the
+          plan is a coin flip, and how much inspection it costs.
+        </p>
       </header>
       <AcceptanceSamplingPanel />
     </main>

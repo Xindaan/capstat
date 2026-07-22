@@ -245,14 +245,19 @@ test("the applied run rules are selectable, and the report names them", async ({
   await expect(
     page.getByText("No Nelson run-rule violations (rules 1–4)"),
   ).toBeVisible();
-  expect(requested.at(-1)).toEqual([1, 2, 3, 4]);
+  // Poll, do not read once. The label is rendered from the checkbox state, not
+  // from the response, so it appears *before* the request necessarily has --
+  // reading `requested` at that moment is a race that lost about one run in
+  // three under load. The claim here is about the request, so it has to wait
+  // for the request.
+  await expect.poll(() => requested.at(-1)).toEqual([1, 2, 3, 4]);
 
   // Adding rule 5 must reach the API and change the stated set.
   await page.getByRole("checkbox", { name: /Rule 5/ }).check();
   await expect(
     page.getByText("No Nelson run-rule violations (rules 1–5)"),
   ).toBeVisible();
-  expect(requested.at(-1)).toEqual([1, 2, 3, 4, 5]);
+  await expect.poll(() => requested.at(-1)).toEqual([1, 2, 3, 4, 5]);
 
   // Going beyond the default set says what it costs.
   await expect(page.getByText(/More rules means more false alarms/)).toBeVisible();
@@ -265,7 +270,7 @@ test("the applied run rules are selectable, and the report names them", async ({
   await expect(
     page.getByText("No Nelson run-rule violations (rules 1, 3)"),
   ).toBeVisible();
-  expect(requested.at(-1)).toEqual([1, 3]);
+  await expect.poll(() => requested.at(-1)).toEqual([1, 3]);
 
   // Nothing selected: say that plainly rather than implying a clean chart.
   await page.getByRole("checkbox", { name: /Rule 1/ }).uncheck();
@@ -277,5 +282,5 @@ test("the applied run rules are selectable, and the report names them", async ({
   await expect(
     page.getByText("No Nelson run-rule violations (rules 1–4)"),
   ).toBeVisible();
-  expect(requested.at(-1)).toEqual([1, 2, 3, 4]);
+  await expect.poll(() => requested.at(-1)).toEqual([1, 2, 3, 4]);
 });

@@ -82,12 +82,19 @@ M5 MSA, M6 release (report, deployment, docs, release).
 carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are
 both done -- acceptance sampling is end-to-end.** What is left:
 
-- **T-0036** -- the AQL master tables. The licensing question is *answered*
-  (MIL-STD-105E is a US-government work under 17 U.S.C. 105(a), Notice 3 carries
-  DISTRIBUTION STATEMENT A; ISO 2859-1 is copyrighted and must not be copied),
-  so the path is open. The open question is now whether it is worth doing at
-  all: T-0035 already designs a plan from the user's own risks, which is the
-  better product; a table adds standards compatibility, not capability.
+- **T-0036 -- decided: yes, and the standard is ISO 2859-1** (2026-07-21). AQL
+  sampling is used in the maintainer's own work, so the value is reproducing
+  what a customer specifies, not computing a better plan.
+  **But ISO changes the shape, and rules out the obvious route.** ISO's tables
+  may not be reproduced here, and MIL-STD-105E is not a stand-in: it was adopted
+  into ISO 2859 "with minor changes", so a 105E cell may differ from the ISO
+  cell a specification names while looking conformant. The buildable shape
+  therefore contains no master table: (1) ISO vocabulary plus the
+  bring-your-own-plan path that T-0037 already ships, (2) the switching rules
+  normal/tightened/reduced -- where 2859-1's protection actually lives, and
+  which needs an explicit go because its thresholds are read from the standard,
+  (3) a code-letter lookup only if 1 and 2 leave a gap, and only from a source
+  we may reproduce. Increment 1 is next.
 - **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
   persistence would both reverse T-0026. What survived is **T-0041** -- saving a
   study as a JSON file the user owns, which is a file format, not persistence,

@@ -77,7 +77,10 @@ test("acceptance sampling: design the pre-filled plan and show the risks", async
 
   await page.getByRole("button", { name: "Design the plan" }).click();
 
-  await expect(page.getByText("Sample size")).toBeVisible();
+  // exact: getByText matches case-insensitive substrings, and both the input
+  // label ("Sample size n") and the intro prose contain these words. Only the
+  // result card is exactly "Sample size", and the card is what the click made.
+  await expect(page.getByText("Sample size", { exact: true })).toBeVisible();
   // exact: the intro paragraph mentions n = 144 too.
   await expect(page.getByText("144", { exact: true })).toBeVisible();
   await expect(page.getByText("4 or fewer")).toBeVisible();
