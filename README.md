@@ -443,6 +443,13 @@ two risk points, draws its OC curve with both quality levels on it, decides a
 lot from an observed defect count, and runs a series of lots through
 ISO 2859-1's switching rules.
 
+That page can also **save a study to a file and load it back** — a file on your
+own disk, written and read by the browser, with nothing uploaded. Only your
+inputs are stored, never the results: the numbers are recomputed from the
+validated core on load, so a saved study can never show figures this version of
+capstat would not produce. A file from a newer capstat is refused with a message
+saying so, rather than half-read.
+
 Every analysis page is also its own report: **Print / save as PDF** drops the
 navigation and the controls, keeps the results, and prints the charts as vector
 (ECharts renders SVG, not canvas), so a study goes to a PDF that still looks

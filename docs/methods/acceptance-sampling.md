@@ -129,6 +129,15 @@ count, and runs a series of lots through the switching rules. Over HTTP it is
 `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect,switching-rules}`
 — one route per core entry point, as everywhere else in the API.
 
+The page also saves a study to a file and loads it back. It is a file format,
+not persistence: the document goes to your own disk through the browser, and
+capstat still holds nothing between requests. **Only inputs are stored, never
+results** — a document carrying saved numbers could show figures this version
+would no longer produce, with nothing on screen to reveal it, so the values are
+recomputed from the core on load. A file from a newer capstat is refused rather
+than read optimistically, because reading it would mean silently dropping fields
+whose meaning this version does not know.
+
 ## Switching: what makes ISO 2859-1 a scheme
 
 A plan judges one lot. A **scheme** judges a supplier — it inspects a stream of

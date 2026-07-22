@@ -53,6 +53,20 @@ const json = (body: unknown) => ({
   body: JSON.stringify(body),
 });
 
+/**
+ * Wait until React owns the page before touching it.
+ *
+ * The page is a server component wrapping a client workspace, so between the
+ * HTML arriving and hydration finishing the inputs are inert: a click does
+ * nothing and a fill is overwritten by the component's own initial state. Both
+ * failures surface later as an unrelated-looking assertion -- a request
+ * carrying the example series, or a result that never appears -- so every test
+ * here waits for a pre-filled field to be present first.
+ */
+async function ready(page: Page) {
+  await expect(page.getByLabel("AQL %")).toHaveValue("1");
+}
+
 async function mockApi(page: Page) {
   // One route per endpoint the page calls: an unmocked fetch would hang, since
   // no Python backend runs during e2e.
@@ -75,6 +89,7 @@ test("acceptance sampling: design the pre-filled plan and show the risks", async
 }) => {
   await mockApi(page);
   await page.goto("/acceptance-sampling");
+  await ready(page);
 
   await page.getByRole("button", { name: "Design the plan" }).click();
 
@@ -108,6 +123,7 @@ test("acceptance sampling: the plan actually posted is the one on screen", async
     await r.fulfill(json(REPORT));
   });
   await page.goto("/acceptance-sampling");
+  await ready(page);
 
   await page.getByRole("button", { name: "Judge this plan" }).click();
 
@@ -126,6 +142,7 @@ test("acceptance sampling: a lot decision is accept or reject, and says so", asy
 }) => {
   await mockApi(page);
   await page.goto("/acceptance-sampling");
+  await ready(page);
   await page.getByRole("button", { name: "Judge this plan" }).click();
 
   await page.getByRole("button", { name: "Decide the lot" }).click();
@@ -140,6 +157,7 @@ test("acceptance sampling is reachable from the nav", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: "Acceptance sampling" }).click();
   await expect(page).toHaveURL(/\/acceptance-sampling$/);
+  await ready(page);
   await expect(
     page.getByRole("button", { name: "Design the plan" }),
   ).toBeVisible();
@@ -150,6 +168,7 @@ test("acceptance sampling prints its report without the controls", async ({
 }) => {
   await mockApi(page);
   await page.goto("/acceptance-sampling");
+  await ready(page);
   await page.getByRole("button", { name: "Design the plan" }).click();
   await expect(page.getByText("4 or fewer")).toBeVisible();
 
@@ -297,6 +316,7 @@ test("switching rules: the pre-filled series tightens and recovers", async ({
     r.fulfill(json(SCHEME)),
   );
   await page.goto("/acceptance-sampling");
+  await ready(page);
 
   const panel = page.getByLabel("Switching rules");
   await panel
@@ -326,6 +346,7 @@ test("switching rules: what reaches the API is the parsed series", async ({
     },
   );
   await page.goto("/acceptance-sampling");
+  await ready(page);
 
   const panel = page.getByLabel("Switching rules");
   await panel.getByLabel("Lot outcomes").fill("A R A");
@@ -353,6 +374,7 @@ test("switching rules: an unusable series disables the button and says why", asy
 }) => {
   await mockApi(page);
   await page.goto("/acceptance-sampling");
+  await ready(page);
 
   const panel = page.getByLabel("Switching rules");
   await panel.getByLabel("Lot outcomes").fill("A R X");
@@ -361,4 +383,134 @@ test("switching rules: an unusable series disables the button and says why", asy
   await expect(
     panel.getByRole("button", { name: "Apply the switching rules" }),
   ).toBeDisabled();
+});
+
+test("a study saves the inputs, and only the inputs", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/acceptance-sampling");
+  await ready(page);
+
+  await page.getByLabel("AQL %").fill("0.4");
+  await page.getByLabel("Sample size n").fill("200");
+  await page.getByLabel("Lot outcomes").fill("A R R A");
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save study" }).click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const saved = JSON.parse(Buffer.concat(chunks).toString());
+
+  expect(saved.format).toBe("capstat-study");
+  expect(saved.page).toBe("acceptance-sampling");
+  expect(saved.inputs.plan.aql).toBe("0.4");
+  expect(saved.inputs.plan.sampleSize).toBe("200");
+  expect(saved.inputs.scheme.outcomes).toBe("A R R A");
+  // The whole point of the format: a saved study carries no computed numbers,
+  // so it can never show figures this version would not produce.
+  expect(Object.keys(saved).sort()).toEqual([
+    "format",
+    "inputs",
+    "page",
+    "saved",
+    "schema_version",
+  ]);
+  expect(download.suggestedFilename()).toMatch(
+    /^capstat-acceptance-sampling-\d{4}-\d{2}-\d{2}\.json$/,
+  );
+});
+
+test("a saved study loads back into the fields it came from", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/acceptance-sampling");
+  await ready(page);
+
+  const study = {
+    format: "capstat-study",
+    schema_version: 1,
+    page: "acceptance-sampling",
+    saved: "2026-07-22",
+    inputs: {
+      plan: {
+        aql: "0.65",
+        ltpd: "4",
+        producerRisk: "5",
+        consumerRisk: "10",
+        lotSize: "1200",
+        sampleSize: "80",
+        acceptanceNumber: "1",
+        model: "hypergeometric",
+        defectives: "3",
+      },
+      scheme: { outcomes: "R R A A", authorised: true },
+    },
+  };
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "study.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(study)),
+  });
+
+  await expect(page.getByLabel("AQL %")).toHaveValue("0.65");
+  await expect(page.getByLabel("Sample size n")).toHaveValue("80");
+  await expect(page.getByLabel("Sampling model")).toHaveValue("hypergeometric");
+  await expect(page.getByLabel("Lot outcomes")).toHaveValue("R R A A");
+  await expect(page.getByRole("checkbox")).toBeChecked();
+});
+
+test("a study from another page is refused, and says which", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/acceptance-sampling");
+  await ready(page);
+
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "elsewhere.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "capstat-study",
+        schema_version: 1,
+        page: "gage-rr",
+        inputs: {},
+      }),
+    ),
+  });
+
+  // Scope to the controls: Next injects its own role="alert" route
+  // announcer, so an unscoped locator is ambiguous.
+  const controls = page.getByLabel("Study file");
+  await expect(controls.getByRole("alert")).toContainText("gage-rr");
+  // And nothing was half-restored on the way to refusing.
+  await expect(page.getByLabel("AQL %")).toHaveValue("1");
+});
+
+test("a study from a newer capstat is refused rather than half-read", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/acceptance-sampling");
+  await ready(page);
+
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "future.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "capstat-study",
+        schema_version: 99,
+        page: "acceptance-sampling",
+        inputs: { plan: { aql: "9" } },
+      }),
+    ),
+  });
+
+  const controls = page.getByLabel("Study file");
+  await expect(controls.getByRole("alert")).toContainText("newer capstat");
+  await expect(page.getByLabel("AQL %")).toHaveValue("1");
 });

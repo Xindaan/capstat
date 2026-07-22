@@ -4,11 +4,10 @@
 
 <!-- max 3 -->
 
-- (Doing is clear. Acceptance sampling is end-to-end, and so is T-0036: the ISO
-  2859-1 switching scheme reaches the API and the page. What is left of the old
-  T-0018 split is increment 3 -- a code-letter lookup, which is only worth
-  revisiting if something real turns out to need it -- and the two parked items
-  T-0038 and T-0041.)
+- (Doing is clear. What is left of the old T-0018 split: T-0036 increment 3, a
+  code-letter lookup, only worth revisiting if something real needs it; T-0038,
+  parked; and finishing T-0041 -- the study file works on the
+  acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -197,7 +196,23 @@
   CLI export rather than a service endpoint, given T-0026. Left open rather
   than closed, because the reason to defer is cost, not principle.
 
-- T-0041 Save and reload a study as a JSON file. The carve-out kept when
+- T-0041 [PARTLY DONE 2026-07-22] Save and reload a study as a JSON file.
+  **Shipped:** the format (`apps/web/lib/study-file.ts`, versioned, page-keyed,
+  inputs only), the Save/Load controls, and the acceptance-sampling page wired
+  end to end. **Not yet wired:** `/`, `/gage-rr` and `/msa`. The pattern is
+  established -- a panel reports its inputs upward and accepts a starting value;
+  a small page workspace holds them and remounts on load -- so the rest is
+  mechanical.
+  The open design question is **answered, by looking**: there is no shared
+  document shape to find. The panels have nothing in common but strings (LSL/USL
+  here, a 3-D grid there, number lists elsewhere), so the document carries a
+  version, a page name, and a payload keyed per page. A single flat schema would
+  have been invented rather than derived.
+  `/` is the one page that may never need it: its input is an uploaded CSV, and
+  re-uploading the file is easier than restoring it from JSON.
+  Original scope note below, kept because the reasoning still holds.
+
+- T-0041 (original) Save and reload a study as a JSON file. The carve-out kept when
   T-0040 was declined, and deliberately *not* persistence: a file the user
   owns, on their own disk, written and read by the browser -- no server, no
   database, no schema migration, nothing held between requests. Reverses

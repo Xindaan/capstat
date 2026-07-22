@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   designSamplingPlan,
@@ -20,7 +20,19 @@ import { OcCurveChart } from "./oc-curve-chart";
 // producer's risk, 5 % rejectable at 15 % consumer's risk. It designs to
 // n = 144, Ac = 4 — a number the core's reference tests assert exactly, so the
 // page reproduces a published result on first load rather than a plausible one.
-const EXAMPLE = {
+export interface SamplingPlanInputs {
+  aql: string;
+  ltpd: string;
+  producerRisk: string;
+  consumerRisk: string;
+  lotSize: string;
+  sampleSize: string;
+  acceptanceNumber: string;
+  model: SamplingModel;
+  defectives: string;
+}
+
+const EXAMPLE: SamplingPlanInputs = {
   aql: "1",
   ltpd: "5",
   producerRisk: "2",
@@ -28,7 +40,11 @@ const EXAMPLE = {
   lotSize: "5000",
   sampleSize: "144",
   acceptanceNumber: "4",
+  model: "binomial",
+  defectives: "2",
 };
+
+export const EXAMPLE_PLAN_INPUTS = EXAMPLE;
 
 type Status =
   | { kind: "idle" }
@@ -67,18 +83,49 @@ function asCount(text: string, minimum: number): number | null {
   return value;
 }
 
-export function AcceptanceSamplingPanel() {
-  const [aqlText, setAqlText] = useState(EXAMPLE.aql);
-  const [ltpdText, setLtpdText] = useState(EXAMPLE.ltpd);
-  const [producerText, setProducerText] = useState(EXAMPLE.producerRisk);
-  const [consumerText, setConsumerText] = useState(EXAMPLE.consumerRisk);
-  const [lotText, setLotText] = useState(EXAMPLE.lotSize);
-  const [sampleText, setSampleText] = useState(EXAMPLE.sampleSize);
-  const [acceptText, setAcceptText] = useState(EXAMPLE.acceptanceNumber);
-  const [model, setModel] = useState<SamplingModel>("binomial");
-  const [defectivesText, setDefectivesText] = useState("2");
+export function AcceptanceSamplingPanel({
+  initial = EXAMPLE,
+  onInputsChange,
+}: {
+  initial?: SamplingPlanInputs;
+  onInputsChange?: (inputs: SamplingPlanInputs) => void;
+} = {}) {
+  const [aqlText, setAqlText] = useState(initial.aql);
+  const [ltpdText, setLtpdText] = useState(initial.ltpd);
+  const [producerText, setProducerText] = useState(initial.producerRisk);
+  const [consumerText, setConsumerText] = useState(initial.consumerRisk);
+  const [lotText, setLotText] = useState(initial.lotSize);
+  const [sampleText, setSampleText] = useState(initial.sampleSize);
+  const [acceptText, setAcceptText] = useState(initial.acceptanceNumber);
+  const [model, setModel] = useState<SamplingModel>(initial.model);
+  const [defectivesText, setDefectivesText] = useState(initial.defectives);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [decision, setDecision] = useState<LotDecision | null>(null);
+
+  useEffect(() => {
+    onInputsChange?.({
+      aql: aqlText,
+      ltpd: ltpdText,
+      producerRisk: producerText,
+      consumerRisk: consumerText,
+      lotSize: lotText,
+      sampleSize: sampleText,
+      acceptanceNumber: acceptText,
+      model,
+      defectives: defectivesText,
+    });
+  }, [
+    aqlText,
+    ltpdText,
+    producerText,
+    consumerText,
+    lotText,
+    sampleText,
+    acceptText,
+    model,
+    defectivesText,
+    onInputsChange,
+  ]);
 
   const aql = asFraction(aqlText);
   const ltpd = asFraction(ltpdText);

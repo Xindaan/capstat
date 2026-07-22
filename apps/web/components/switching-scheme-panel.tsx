@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   switchingRules,
@@ -14,6 +14,16 @@ import { describeApiError } from "@/lib/errors";
 // inspection back at lot 12. Built here rather than taken from the standard's
 // own worked example, which is a table capstat does not reproduce.
 const EXAMPLE = "A A R A A R A A A A A A A";
+
+export interface SwitchingSchemeInputs {
+  outcomes: string;
+  authorised: boolean;
+}
+
+export const EXAMPLE_SCHEME_INPUTS: SwitchingSchemeInputs = {
+  outcomes: EXAMPLE,
+  authorised: false,
+};
 
 type Status =
   | { kind: "idle" }
@@ -49,10 +59,20 @@ function severityTone(severity: InspectionSeverity): string {
   return "text-red-600 dark:text-red-400";
 }
 
-export function SwitchingSchemePanel() {
-  const [text, setText] = useState(EXAMPLE);
-  const [authorised, setAuthorised] = useState(false);
+export function SwitchingSchemePanel({
+  initial = EXAMPLE_SCHEME_INPUTS,
+  onInputsChange,
+}: {
+  initial?: SwitchingSchemeInputs;
+  onInputsChange?: (inputs: SwitchingSchemeInputs) => void;
+} = {}) {
+  const [text, setText] = useState(initial.outcomes);
+  const [authorised, setAuthorised] = useState(initial.authorised);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  useEffect(() => {
+    onInputsChange?.({ outcomes: text, authorised });
+  }, [text, authorised, onInputsChange]);
 
   const outcomes = parseOutcomes(text);
   const valid = outcomes != null;

@@ -106,7 +106,9 @@ both done -- acceptance sampling is end-to-end.** What is left:
 - **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
   persistence would both reverse T-0026. What survived is **T-0041** -- saving a
   study as a JSON file the user owns, which is a file format, not persistence,
-  and reverses nothing.
+  and reverses nothing. **Partly done 2026-07-22:** the format and the
+  acceptance-sampling page are shipped; `/`, `/gage-rr` and `/msa` are not wired
+  yet, and the pattern for doing so is established.
 - **T-0038** -- server-side PDF: deferred by decision, not closed. The print
   route already yields a vector PDF; if it is ever wanted, build it as a local
   CLI export rather than a service endpoint.
@@ -135,6 +137,28 @@ postcss half of T-0023, which cannot move until Next raises its pinned floor.
 Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-22: **T-0041 — a study saves to a file and loads back**, on the
+  acceptance-sampling page. A file on the user's own disk, written and read by
+  the browser: no server, nothing held between requests, so it reverses nothing
+  in T-0026. **Only inputs are stored, never results** — a document carrying
+  saved numbers could show figures this version would no longer produce with
+  nothing on screen to reveal it, so `parseStudyFile` rebuilds the document
+  field by field and a stray `results` block is dropped rather than displayed.
+  A file from a newer format is refused with a message saying so.
+  The design question the task left open answered itself by looking: the panels
+  share nothing but strings, so there is no common shape — the document carries
+  a version, a page name, and a per-page payload.
+  **Two failures worth keeping.** An unscoped `getByRole("alert")` matched
+  Next's own route announcer as well as the error card — the same class as the
+  dev-overlay SVG trap already recorded here. And adding a client workspace made
+  the page slower to hydrate, so *existing* tests began racing it: a fill before
+  hydration is overwritten by the component's initial state, and the request
+  then carries the example series while the assertion complains about something
+  else. Both the spec file (a `ready()` gate) and the Playwright config (a
+  global route warm-up) now handle it — the warm-up matters for CI, where the
+  dev server is fresh every run and compiles each route inside the first test's
+  timeout.
 
 - 2026-07-22: **T-0036 increment 2b — the switching scheme reaches the app.**
   A `/compute/acceptance-sampling/switching-rules` route and a second panel on

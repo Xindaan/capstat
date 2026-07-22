@@ -1,6 +1,5 @@
-import { AcceptanceSamplingPanel } from "@/components/acceptance-sampling-panel";
+import { AcceptanceSamplingWorkspace } from "@/components/acceptance-sampling-workspace";
 import { PrintButton } from "@/components/print-button";
-import { SwitchingSchemePanel } from "@/components/switching-scheme-panel";
 
 export default function AcceptanceSamplingPage() {
   return (
@@ -31,9 +30,7 @@ export default function AcceptanceSamplingPage() {
           plan is a coin flip, and how much inspection it costs.
         </p>
       </header>
-      <AcceptanceSamplingPanel />
-      <hr className="border-foreground/10" />
-      <SwitchingSchemePanel />
+      <AcceptanceSamplingWorkspace />
     </main>
   );
 }
