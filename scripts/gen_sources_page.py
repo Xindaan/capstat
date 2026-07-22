@@ -59,6 +59,7 @@ ORDER = [
     ("bias.yaml", "Bias"),
     ("linearity.yaml", "Linearity"),
     ("acceptance_sampling.yaml", "Acceptance sampling"),
+    ("sampling_scheme.yaml", "Switching rules"),
 ]
 
 

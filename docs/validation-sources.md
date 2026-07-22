@@ -130,3 +130,13 @@ Reference file: `tests/references/acceptance_sampling.yaml`
   <https://support.minitab.com/en-us/minitab/help-and-how-to/quality-and-process-improvement/acceptance-sampling/how-to/attributes-acceptance-sampling/interpret-the-results/all-statistics-and-graphs/> Retrieved 2026-07-21. Stated check value: "The worst average outgoing defect level (AOQL) of 2.603% defective occurs when the incoming quality level is 4.3% defective." The only independent source found that publishes an AOQL together with the incoming quality that produces it, which is what makes it a real check on the maximisation rather than on the AOQ formula alone. Minitab also uses the exact AOQ = Pa*p*(N-n)/N -- its 1.420 % at p=1.5 % matches capstat's 1.42013 % -- confirming which of the two AOQ formulas is the correct one where the NIST column disagrees with itself.
 - **scipy.stats.binom / poisson / hypergeom -- independent implementations of the three OC models, evaluated inside the tests themselves.**
   The Type A (hypergeometric) path has no published worked example with an acceptance number above zero behind it: every Type A example found in the search was c=0, which collapses the sum to a single term and so exercises nothing. It is validated instead against scipy's hypergeom and against a hand-written combinatorial enumeration of the definition, and this gap is stated rather than papered over.
+
+## Switching rules
+
+Reference file: `tests/references/sampling_scheme.yaml`
+
+- **ISO 2859-1:1999, Sampling procedures for inspection by attributes -- Part 1, clause 9.3.1 (normal to tightened) and clause 9.3.2 (tightened to normal). Cited by clause; no text reproduced.**
+  Two thresholds are taken from this standard and restated in capstat's own words: tightened inspection begins as soon as two of five or fewer consecutive lots are non-acceptable on original inspection, and normal inspection is restored after five consecutive acceptable lots. Everything else in capstat's implementation -- the window semantics at the boundary, the fresh window on re-entering normal, and the fact that a switch binds the lot after the one that triggered it -- is pinned by tests that label it an interpretation rather than a quotation.
+- **ANSI/ASQ Z1.4-2003, the US equivalent standard, used only to cross-check that the two thresholds above are stated identically there.**
+  Agreement on both numbers. Z1.4 and ISO 2859-1 are not identical documents, so this is corroboration of two figures, not evidence that the schemes coincide.
+- **Simulated lot sequences, constructed so that two plausible readings of a rule produce different severities -- the validation method, in place of reference values that do not exist for a procedure.**

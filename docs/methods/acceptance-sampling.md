@@ -129,6 +129,67 @@ count. Over HTTP it is
 `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}` — one route
 per core entry point, as everywhere else in the API.
 
+## Switching: what makes ISO 2859-1 a scheme
+
+A plan judges one lot. A **scheme** judges a supplier — it inspects a stream of
+lots and changes severity as the evidence changes. That is where ISO 2859-1's
+protection actually comes from: a normal-inspection plan applied forever, with
+no switching, does not deliver what the standard describes, however faithfully
+the plan itself was looked up.
+
+`apply_switching_rules` runs a series of lot outcomes through the two
+transitions:
+
+```python
+from capstat_core import apply_switching_rules
+
+history = apply_switching_rules([True, False, True, True, False, True])
+history.final_severity            # "tightened"
+[step.severity for step in history.steps]
+```
+
+```
+normal ---- 2 non-acceptable within 5 consecutive ----> tightened
+tightened -- 5 consecutive acceptable ---------------> normal
+```
+
+Both count **original inspection only** — a lot resubmitted after screening
+counts towards neither rule. capstat cannot tell a resubmission from a first
+presentation, so the caller must pass original-inspection outcomes, and the
+report says so instead of assuming it was done.
+
+!!! note "A switch binds the *next* lot"
+    The lot whose result triggers a switch was already inspected under the old
+    severity; its sample size came from there. `SchemeStep` therefore carries
+    both `severity` (what this lot was inspected under) and `severity_after`.
+    Recording the trigger lot under the new severity would misreport what was
+    actually done.
+
+### What is deliberately missing
+
+**Reduced inspection.** Qualifying for it cannot be decided from accept/reject
+outcomes alone: it needs either the standard's limit numbers, or a switching
+score whose main branch asks whether a lot *would* have been accepted under the
+plan for the next tighter AQL. Both are master-table questions, and capstat has
+no master table. A guess here would relax when the standard would not — the one
+direction of error that costs the consumer rather than the producer.
+
+**The discontinuation threshold.** The rule exists: inspection stops until the
+supplier improves. But published restatements of *when* disagree, so there is no
+default. Set `discontinue_after_tightened_lots` to the value your own authority
+applies, or leave it unset and the scheme will not discontinue.
+
+### How it is validated
+
+Not against reference values — switching is a procedure, and there are none. It
+is validated by simulation, the way the run rules were: construct the lot
+sequences on which two plausible readings of a rule disagree, and assert the
+severity **exactly**. The sharpest pair differs only in that the two
+non-acceptable lots lie five apart rather than four; a cumulative reading
+switches on both, a windowed reading on neither but the first. Nothing
+downstream would have revealed which reading was implemented, because both
+produce a plausible-looking severity column.
+
 ## If your specification names a standard
 
 capstat does **not** implement the AQL master tables and sample-size code

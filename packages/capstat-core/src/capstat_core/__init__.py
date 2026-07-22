@@ -95,6 +95,13 @@ from capstat_core.rules import (
     nelson_rules,
     western_electric_rules,
 )
+from capstat_core.sampling_scheme import (
+    InspectionSeverity,
+    SchemeHistory,
+    SchemeStep,
+    SwitchingRules,
+    apply_switching_rules,
+)
 from capstat_core.stability import (
     StabilityReport,
     stability,
@@ -130,6 +137,7 @@ __all__ = [
     "DistributionFit",
     "EwmaChart",
     "GageRRReport",
+    "InspectionSeverity",
     "LinearityReport",
     "LotDecision",
     "NormalityAssessment",
@@ -139,12 +147,16 @@ __all__ = [
     "RuleViolation",
     "SamplingPlan",
     "SamplingPlanReport",
+    "SchemeHistory",
+    "SchemeStep",
     "StabilityReport",
+    "SwitchingRules",
     "__version__",
     "analyze_capability",
     "anderson_darling",
     "anderson_darling_pvalue",
     "aoq_limit",
+    "apply_switching_rules",
     "assess_normality",
     "average_outgoing_quality",
     "average_total_inspection",

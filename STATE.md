@@ -94,7 +94,12 @@ both done -- acceptance sampling is end-to-end.** What is left:
   normal/tightened/reduced -- where 2859-1's protection actually lives, and
   which needs an explicit go because its thresholds are read from the standard,
   (3) a code-letter lookup only if 1 and 2 leave a gap, and only from a source
-  we may reproduce. Increment 1 is next.
+  we may reproduce.
+  **Increments 1 and 2a are done** (limiting quality end-to-end; the
+  normal <-> tightened state machine in the core). What is left: 2b, wiring the
+  switching rules to the API and the page, which is optional -- and reduced
+  inspection, which stays unimplemented until there is evidence, not just
+  appetite.
 - **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
   persistence would both reverse T-0026. What survived is **T-0041** -- saving a
   study as a JSON file the user owns, which is a file format, not persistence,

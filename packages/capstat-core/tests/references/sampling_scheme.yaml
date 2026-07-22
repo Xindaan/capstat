@@ -1,0 +1,60 @@
+# Switching rules (ISO 2859-1) -- provenance, not reference values
+#
+# This file has sources but no cases, and that is the point. Switching is a
+# *procedure*, not a quantity: there is no certified number to assert against,
+# the way the OC curve has one. What is taken from the standard is two
+# thresholds -- and thresholds are facts, so they are cited by clause and
+# restated in capstat's own words. No text from the standard is reproduced in
+# this repository, and no test asserts against a copy of it.
+#
+# The rules are validated instead by simulation, the way T-0009 validated the
+# run rules: construct the lot sequences on which two plausible readings of a
+# rule disagree, and assert the resulting severity exactly. See
+# tests/test_sampling_scheme.py -- in particular the pair of sequences whose
+# only difference is that the two non-acceptable lots lie five apart rather
+# than four, which is what separates a sliding window from a cumulative count.
+#
+# Deliberately absent, and therefore not sourced here:
+#   * reduced inspection -- qualifying for it needs the standard's limit
+#     numbers, or a switching score that asks whether a lot would have been
+#     accepted under the next tighter AQL. Both are master-table questions.
+#   * the discontinuation threshold -- published restatements disagree, so
+#     capstat has no default and asks the caller for their authority's value.
+#
+# A note on how the thresholds were checked, because it bears on how much
+# weight they carry: they were confirmed against the wording of ISO 2859-1:1999
+# clause 9.3.1/9.3.2 and cross-checked against ANSI/ASQ Z1.4-2003, which agrees
+# on both numbers. Neither document was read from an authoritative, licensed
+# copy -- the copies reachable online are of uncertain provenance. The numbers
+# are consistent across every restatement found, but if capstat's switching
+# rules are ever relied on for conformity, verify them against a licensed copy
+# of the standard first.
+
+sources:
+  iso_2859_1_switching:
+    title: >
+      ISO 2859-1:1999, Sampling procedures for inspection by attributes --
+      Part 1, clause 9.3.1 (normal to tightened) and clause 9.3.2 (tightened to
+      normal). Cited by clause; no text reproduced.
+    note: >
+      Two thresholds are taken from this standard and restated in capstat's own
+      words: tightened inspection begins as soon as two of five or fewer
+      consecutive lots are non-acceptable on original inspection, and normal
+      inspection is restored after five consecutive acceptable lots. Everything
+      else in capstat's implementation -- the window semantics at the boundary,
+      the fresh window on re-entering normal, and the fact that a switch binds
+      the lot after the one that triggered it -- is pinned by tests that label
+      it an interpretation rather than a quotation.
+  ansi_asq_z1_4_2003:
+    title: >
+      ANSI/ASQ Z1.4-2003, the US equivalent standard, used only to cross-check
+      that the two thresholds above are stated identically there.
+    note: >
+      Agreement on both numbers. Z1.4 and ISO 2859-1 are not identical
+      documents, so this is corroboration of two figures, not evidence that the
+      schemes coincide.
+  simulation:
+    title: >
+      Simulated lot sequences, constructed so that two plausible readings of a
+      rule produce different severities -- the validation method, in place of
+      reference values that do not exist for a procedure.

@@ -4,10 +4,11 @@
 
 <!-- max 3 -->
 
-- (Doing is clear. Acceptance sampling is end-to-end: T-0035 in the core,
-  T-0037 over the API and in the app. What is left of the old T-0018 split is
-  one decision (T-0036, whether the AQL tables are worth shipping at all) and
-  two deliberately-parked items (T-0038, T-0041).)
+- (Doing is clear. Acceptance sampling is end-to-end (T-0035 + T-0037), and
+  T-0036 is decided for ISO 2859-1 with increments 1 and 2a shipped. What is
+  left: 2b (switching rules over the API and in the page, optional), reduced
+  inspection (blocked on evidence, not on appetite), and the two parked items
+  T-0038 and T-0041.)
 
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -98,16 +99,16 @@
   nothing. And ISO's own tables may not be reproduced here at all.
   **So the buildable shape has no master table in it.** Three increments, in
   order, none of which requires copying a table:
-  1. *ISO vocabulary and the workflow that needs no table.* Limiting quality
-     (LQ) alongside LTPD, the preferred AQL series as a chooser, and the
-     "bring the plan from your own licensed copy, capstat tells you what it
-     buys" path -- which T-0037 already ships and the docs now name.
-  2. *The switching rules* (normal -> tightened -> reduced -> discontinue).
-     This is where 2859-1's protection actually lives: a normal-inspection
-     lookup with no switching does not deliver what the standard promises.
-     Procedures are not the part of a standard that copyright protects, but
-     the thresholds are read from it, so this needs the maintainer's explicit
-     go before it is typed.
+  1. *ISO vocabulary and the workflow that needs no table.* **Done
+     2026-07-21** (commit b37e987): limiting quality (LQ) is computed at
+     Pa = 0.10 from the plan's own OC curve and reported next to the LTPD the
+     caller asked for, so a plan that does not protect where you believed it
+     did says so. Core, API and page.
+  2. *The switching rules.* **Increment 2a done 2026-07-21, core only:**
+     normal <-> tightened as a state machine, validated by simulation.
+     Reduced inspection and the discontinuation threshold are deliberately
+     absent -- see the entry below for why. Not yet wired to the API or the
+     page; that is 2b, and it is optional.
   3. *Code-letter lookup* -- only if 1 and 2 leave a real gap, and only from a
      source we may reproduce. Currently that means: not from ISO.
   Caveat that has not changed: the licensing reading above came from a research
@@ -115,6 +116,22 @@
   Before any of this ships publicly, read 17 U.S.C. 105(a) and the ISO
   copyright notice yourself, or have someone who does this for a living do it.
   It is a reading of primary sources, not legal advice.
+  **Two findings from the switching-rule research pass, 2026-07-21, both worth
+  keeping:**
+  *(a) The copies of ISO 2859-1 and ANSI/ASQ Z1.4 reachable online are of
+  uncertain provenance* -- the one the agents read carries IHS "Provided by IHS
+  under license with ISO / Not for Resale" watermarks on a third-party site.
+  The verifying agent flagged it itself. Consequence, and it is now the
+  standing rule for this task: **no wording from either standard goes into this
+  repository, and neither URL goes on the sources page.** Thresholds are facts
+  and are cited by clause, restated in capstat's own words. If the switching
+  rules are ever relied on for conformity, check them against a licensed copy.
+  *(b) The reduced-inspection arm was never verified* -- that half of the
+  research died when the account hit its monthly spend limit, along with the
+  whole MIL-STD-105E comparison and the final synthesis. So reduced inspection
+  is not implemented on evidence, not on preference, and the discontinuation
+  threshold has no default because the sources that would have settled it (5
+  lots vs 10) were not reconciled.
 
   Split into sub-tasks, in order. Each is a gate for the next:
 
