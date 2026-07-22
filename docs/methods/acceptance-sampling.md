@@ -129,7 +129,8 @@ count, and runs a series of lots through the switching rules. Over HTTP it is
 `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect,switching-rules}`
 — one route per core entry point, as everywhere else in the API.
 
-The page also saves a study to a file and loads it back. It is a file format,
+This page, `/gage-rr` and `/msa` all save a study to a file and load it back. It
+is a file format,
 not persistence: the document goes to your own disk through the browser, and
 capstat still holds nothing between requests. **Only inputs are stored, never
 results** — a document carrying saved numbers could show figures this version

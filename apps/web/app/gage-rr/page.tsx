@@ -1,4 +1,4 @@
-import { GageRRPanel } from "@/components/gage-rr-panel";
+import { GageRRWorkspace } from "@/components/gage-rr-workspace";
 import { PrintButton } from "@/components/print-button";
 
 export default function GageRRPage() {
@@ -10,14 +10,14 @@ export default function GageRRPage() {
           <PrintButton />
         </div>
         <p className="text-foreground/70">
-          How much of the variation you measure is the gage, not the parts? Enter
-          a balanced study — each part measured by every operator, several times —
-          and capstat partitions the variance into repeatability, reproducibility,
-          and the real part-to-part spread. The grid is pre-filled with the AIAG
-          worked example.
+          How much of the variation you measure is the gage, not the parts?
+          Enter a balanced study — each part measured by every operator, several
+          times — and capstat partitions the variance into repeatability,
+          reproducibility, and the real part-to-part spread. The grid is
+          pre-filled with the AIAG worked example.
         </p>
       </header>
-      <GageRRPanel />
+      <GageRRWorkspace />
     </main>
   );
 }

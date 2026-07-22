@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { gotoReady } from "./support";
+
 // A seeded, roughly-normal column so the histogram and control charts have
 // something real to bin. The exact values do not matter -- the API is mocked.
 const VALUES = Array.from({ length: 30 }, (_, i) =>
@@ -22,9 +24,11 @@ const CAPABILITY = {
   normal: { cp: 1.45, cpk: 1.33, mean: 10, sigma_overall: 0.058 },
   normality: {
     normal: true,
-    recommendation: "Normal model not rejected; standard indices are defensible.",
+    recommendation:
+      "Normal model not rejected; standard indices are defensible.",
   },
-  rationale: "the normal model was not rejected, so the standard indices apply.",
+  rationale:
+    "the normal model was not rejected, so the standard indices apply.",
   warnings: [],
 };
 
@@ -122,20 +126,20 @@ const NELSON_CATALOGUE: Record<string, string> = {
 
 test("upload -> capability -> control chart", async ({ page }) => {
   await mockApi(page);
-  await page.goto("/");
+  await gotoReady(page, "/");
 
   // Upload a file (the input is visually hidden but still settable).
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "sample.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("measurement\n10.0\n10.1\n"),
-    });
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
 
   // Ingestion result: the parse summary, the ignored-column note, the picker.
   await expect(page.getByText(/Parsed/)).toContainText("sample.csv");
-  await expect(page.getByText("Ignored non-numeric column(s): operator.")).toBeVisible();
+  await expect(
+    page.getByText("Ignored non-numeric column(s): operator."),
+  ).toBeVisible();
   await expect(page.getByText("Choose the column to analyse")).toBeVisible();
 
   // Capability: enter limits and compute.
@@ -165,14 +169,12 @@ test("an index with no value says why, instead of showing a bare dash", async ({
   // Cp/Cpk cards. They had not: on the percentile path those indices do not
   // exist. An absent value and a rejected input must not look the same.
   await mockApi(page, CAPABILITY_PERCENTILE);
-  await page.goto("/");
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "sample.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("measurement\n10.0\n10.1\n"),
-    });
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
 
   // USL only, so Pp is absent too — for a different reason.
   await page.getByLabel("USL").fill("10.3");
@@ -196,14 +198,12 @@ test("a row-index column is neither auto-selected nor silently analysed", async 
   // -- arithmetically correct, entirely meaningless, and with no warning, since
   // consecutive integers are perfectly good numbers.
   await mockApi(page, CAPABILITY, INGEST_WITH_ROW_INDEX);
-  await page.goto("/");
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "shaft.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("part,diameter_mm\n1,10.0\n2,10.1\n"),
-    });
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "shaft.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("part,diameter_mm\n1,10.0\n2,10.1\n"),
+  });
 
   // The measurement is preselected, not the index.
   await expect(page.getByText("diameter_mm — selected")).toBeVisible();
@@ -232,14 +232,12 @@ test("the applied run rules are selectable, and the report names them", async ({
     });
   });
 
-  await page.goto("/");
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "sample.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("measurement\n10.0\n10.1\n"),
-    });
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
 
   // Default: the strongest four, and the label says so.
   await expect(
@@ -260,7 +258,9 @@ test("the applied run rules are selectable, and the report names them", async ({
   await expect.poll(() => requested.at(-1)).toEqual([1, 2, 3, 4, 5]);
 
   // Going beyond the default set says what it costs.
-  await expect(page.getByText(/More rules means more false alarms/)).toBeVisible();
+  await expect(
+    page.getByText(/More rules means more false alarms/),
+  ).toBeVisible();
 
   // A gapped selection must not be described as a range: "1-3" would claim
   // rule 2 was applied when it was not.

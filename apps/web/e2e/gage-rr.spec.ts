@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { gotoReady } from "./support";
+
 // A faithful-shaped GageRRReportOut; the page is pre-filled with the AIAG grid,
 // so clicking Compute posts real data and this stands in for the API's reply.
 const REPORT = {
@@ -47,7 +49,7 @@ test("gage r&r: compute the pre-filled study and show the verdict", async ({
   page,
 }) => {
   await mockApi(page);
-  await page.goto("/gage-rr");
+  await gotoReady(page, "/gage-rr");
 
   // The grid is pre-filled, so a single click computes.
   await page.getByRole("button", { name: "Compute Gage R&R" }).click();
@@ -61,10 +63,66 @@ test("gage r&r: compute the pre-filled study and show the verdict", async ({
 });
 
 test("gage r&r is reachable from the nav", async ({ page }) => {
-  await page.goto("/");
+  await gotoReady(page, "/");
   await page.getByRole("link", { name: "Gage R&R" }).click();
   await expect(page).toHaveURL(/\/gage-rr$/);
   await expect(
     page.getByRole("button", { name: "Compute Gage R&R" }),
   ).toBeVisible();
+});
+
+test("a gage r&r study saves and loads back", async ({ page }) => {
+  await mockApi(page);
+  await gotoReady(page, "/gage-rr");
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save study" }).click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const saved = JSON.parse(Buffer.concat(chunks).toString());
+
+  expect(saved.page).toBe("gage-rr");
+  expect(saved.inputs.parts).toBe(5);
+  expect(saved.inputs.grid).toHaveLength(5);
+  // Inputs only: a saved study never carries the variance table it produced.
+  expect(saved).not.toHaveProperty("results");
+
+  // A three-part study loads back and resizes the grid with it.
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "study.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "capstat-study",
+        schema_version: 1,
+        page: "gage-rr",
+        inputs: {
+          parts: 3,
+          operators: 2,
+          trials: 2,
+          grid: [
+            [
+              ["1", "2"],
+              ["3", "4"],
+            ],
+            [
+              ["5", "6"],
+              ["7", "8"],
+            ],
+            [
+              ["9", "10"],
+              ["11", "12"],
+            ],
+          ],
+          method: "average_range",
+          tolerance: "0.5",
+        },
+      }),
+    ),
+  });
+
+  await expect(page.getByLabel("Tolerance")).toHaveValue("0.5");
 });

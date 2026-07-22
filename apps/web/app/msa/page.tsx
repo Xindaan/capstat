@@ -1,7 +1,5 @@
-import { BiasPanel } from "@/components/bias-panel";
-import { LinearityPanel } from "@/components/linearity-panel";
+import { MsaWorkspace } from "@/components/msa-workspace";
 import { PrintButton } from "@/components/print-button";
-import { StabilityPanel } from "@/components/stability-panel";
 
 export default function MsaPage() {
   return (
@@ -20,11 +18,7 @@ export default function MsaPage() {
           study below is pre-filled with a worked example.
         </p>
       </header>
-      <BiasPanel />
-      <hr className="border-foreground/10" />
-      <LinearityPanel />
-      <hr className="border-foreground/10" />
-      <StabilityPanel />
+      <MsaWorkspace />
     </main>
   );
 }

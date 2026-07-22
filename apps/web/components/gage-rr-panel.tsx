@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { gageRR, type GageRRMethod, type GageRRReport } from "@/lib/api-client";
 import { describeApiError } from "@/lib/errors";
@@ -8,11 +8,31 @@ import { describeApiError } from "@/lib/errors";
 // The SPC/AIAG worked example (5 parts x 3 operators x 3 trials), so the page
 // computes something real on first load.
 const EXAMPLE: string[][][] = [
-  [["3.29", "3.41", "3.64"], ["3.08", "3.25", "3.07"], ["3.04", "2.89", "2.85"]],
-  [["2.44", "2.32", "2.42"], ["2.53", "1.78", "2.32"], ["1.62", "1.87", "2.04"]],
-  [["4.34", "4.17", "4.27"], ["4.19", "3.94", "4.34"], ["3.88", "4.09", "3.67"]],
-  [["3.47", "3.50", "3.64"], ["3.01", "4.03", "3.20"], ["3.14", "3.20", "3.11"]],
-  [["2.20", "2.08", "2.16"], ["2.44", "1.80", "1.72"], ["1.54", "1.93", "1.55"]],
+  [
+    ["3.29", "3.41", "3.64"],
+    ["3.08", "3.25", "3.07"],
+    ["3.04", "2.89", "2.85"],
+  ],
+  [
+    ["2.44", "2.32", "2.42"],
+    ["2.53", "1.78", "2.32"],
+    ["1.62", "1.87", "2.04"],
+  ],
+  [
+    ["4.34", "4.17", "4.27"],
+    ["4.19", "3.94", "4.34"],
+    ["3.88", "4.09", "3.67"],
+  ],
+  [
+    ["3.47", "3.50", "3.64"],
+    ["3.01", "4.03", "3.20"],
+    ["3.14", "3.20", "3.11"],
+  ],
+  [
+    ["2.20", "2.08", "2.16"],
+    ["2.44", "1.80", "1.72"],
+    ["1.54", "1.93", "1.55"],
+  ],
 ];
 
 const OPERATOR_LABELS = "ABCDEFGH";
@@ -49,25 +69,50 @@ function resizeGrid(
   );
 }
 
-export function GageRRPanel() {
-  const [parts, setParts] = useState(5);
-  const [operators, setOperators] = useState(3);
-  const [trials, setTrials] = useState(3);
-  const [grid, setGrid] = useState<string[][][]>(EXAMPLE);
-  const [method, setMethod] = useState<GageRRMethod>("anova");
-  const [tolerance, setTolerance] = useState("");
+export interface GageRRInputs {
+  parts: number;
+  operators: number;
+  trials: number;
+  grid: string[][][];
+  method: GageRRMethod;
+  tolerance: string;
+}
+
+export const EXAMPLE_GAGE_RR_INPUTS: GageRRInputs = {
+  parts: 5,
+  operators: 3,
+  trials: 3,
+  grid: EXAMPLE,
+  method: "anova",
+  tolerance: "",
+};
+
+export function GageRRPanel({
+  initial = EXAMPLE_GAGE_RR_INPUTS,
+  onInputsChange,
+}: {
+  initial?: GageRRInputs;
+  onInputsChange?: (inputs: GageRRInputs) => void;
+} = {}) {
+  const [parts, setParts] = useState(initial.parts);
+  const [operators, setOperators] = useState(initial.operators);
+  const [trials, setTrials] = useState(initial.trials);
+  const [grid, setGrid] = useState<string[][][]>(initial.grid);
+  const [method, setMethod] = useState<GageRRMethod>(initial.method);
+  const [tolerance, setTolerance] = useState(initial.tolerance);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
-  const resize = useCallback(
-    (p: number, o: number, t: number) => {
-      setParts(p);
-      setOperators(o);
-      setTrials(t);
-      setGrid((g) => resizeGrid(g, p, o, t));
-      setStatus({ kind: "idle" });
-    },
-    [],
-  );
+  useEffect(() => {
+    onInputsChange?.({ parts, operators, trials, grid, method, tolerance });
+  }, [parts, operators, trials, grid, method, tolerance, onInputsChange]);
+
+  const resize = useCallback((p: number, o: number, t: number) => {
+    setParts(p);
+    setOperators(o);
+    setTrials(t);
+    setGrid((g) => resizeGrid(g, p, o, t));
+    setStatus({ kind: "idle" });
+  }, []);
 
   const setCell = useCallback(
     (p: number, o: number, t: number, value: string) => {
@@ -105,7 +150,8 @@ export function GageRRPanel() {
 
   const tol = tolerance.trim() === "" ? null : Number(tolerance);
   const tolInvalid = tol != null && (Number.isNaN(tol) || tol <= 0);
-  const canCompute = parsed != null && !tolInvalid && status.kind !== "computing";
+  const canCompute =
+    parsed != null && !tolInvalid && status.kind !== "computing";
 
   const compute = async () => {
     if (parsed == null || tolInvalid) return;
@@ -130,12 +176,24 @@ export function GageRRPanel() {
   return (
     <section className="flex flex-col gap-6" aria-label="Gage R&R">
       <div className="flex flex-wrap items-end gap-3">
-        <DimField label="Parts" value={parts} min={2}
-          onChange={(v) => resize(v, operators, trials)} />
-        <DimField label="Operators" value={operators} min={2}
-          onChange={(v) => resize(parts, v, trials)} />
-        <DimField label="Trials" value={trials} min={2}
-          onChange={(v) => resize(parts, operators, v)} />
+        <DimField
+          label="Parts"
+          value={parts}
+          min={2}
+          onChange={(v) => resize(v, operators, trials)}
+        />
+        <DimField
+          label="Operators"
+          value={operators}
+          min={2}
+          onChange={(v) => resize(parts, v, trials)}
+        />
+        <DimField
+          label="Trials"
+          value={trials}
+          min={2}
+          onChange={(v) => resize(parts, operators, v)}
+        />
         <label className="flex flex-col gap-1">
           <span className="text-xs uppercase tracking-wide text-foreground/50">
             Method
@@ -241,7 +299,9 @@ function DataGrid({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-foreground/15">
-            <th className="p-2 text-left font-medium text-foreground/50">Part</th>
+            <th className="p-2 text-left font-medium text-foreground/50">
+              Part
+            </th>
             {Array.from({ length: operators }, (_, o) => (
               <th
                 key={o}
@@ -261,7 +321,9 @@ function DataGrid({
                 op.map((cell, t) => (
                   <td
                     key={`${o}-${t}`}
-                    className={t === 0 ? "border-l border-foreground/15 p-1" : "p-1"}
+                    className={
+                      t === 0 ? "border-l border-foreground/15 p-1" : "p-1"
+                    }
                   >
                     <input
                       type="number"
@@ -328,19 +390,32 @@ function Report({ result }: { result: GageRRReport }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card label="% Study Var (GRR)" value={fmt(result.pct_study_var_gage_rr, 1)}
-          suffix="%" tone={grrTone(result.pct_study_var_gage_rr)} emphasize />
-        <Card label="ndc" value={result.ndc == null ? "—" : String(result.ndc)}
+        <Card
+          label="% Study Var (GRR)"
+          value={fmt(result.pct_study_var_gage_rr, 1)}
+          suffix="%"
+          tone={grrTone(result.pct_study_var_gage_rr)}
+          emphasize
+        />
+        <Card
+          label="ndc"
+          value={result.ndc == null ? "—" : String(result.ndc)}
           tone={
             result.ndc != null && result.ndc < 5
               ? "text-red-600 dark:text-red-400"
               : "text-emerald-600 dark:text-emerald-400"
           }
-          emphasize />
-        <Card label="% Contribution (GRR)"
-          value={fmt(result.pct_contribution_gage_rr, 2)} suffix="%" />
-        <Card label="Method"
-          value={result.method === "anova" ? "ANOVA" : "Avg & range"} />
+          emphasize
+        />
+        <Card
+          label="% Contribution (GRR)"
+          value={fmt(result.pct_contribution_gage_rr, 2)}
+          suffix="%"
+        />
+        <Card
+          label="Method"
+          value={result.method === "anova" ? "ANOVA" : "Avg & range"}
+        />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-foreground/15">
@@ -356,12 +431,20 @@ function Report({ result }: { result: GageRRReport }) {
           <tbody className="tabular-nums">
             {rows.map((r) => (
               <tr key={r.label} className="border-t border-foreground/10">
-                <td className={`p-2 ${r.indent ? "pl-6 text-foreground/70" : "font-medium"}`}>
+                <td
+                  className={`p-2 ${r.indent ? "pl-6 text-foreground/70" : "font-medium"}`}
+                >
                   {r.label}
                 </td>
-                <td className="p-2 text-right font-mono">{fmt(r.variance, 5)}</td>
-                <td className="p-2 text-right font-mono">{fmt(r.contribution, 2)}</td>
-                <td className="p-2 text-right font-mono">{fmt(r.studyVar, 2)}</td>
+                <td className="p-2 text-right font-mono">
+                  {fmt(r.variance, 5)}
+                </td>
+                <td className="p-2 text-right font-mono">
+                  {fmt(r.contribution, 2)}
+                </td>
+                <td className="p-2 text-right font-mono">
+                  {fmt(r.studyVar, 2)}
+                </td>
               </tr>
             ))}
           </tbody>

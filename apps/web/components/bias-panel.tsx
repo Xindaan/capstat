@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { biasStudy, type BiasReport } from "@/lib/api-client";
 import { describeApiError } from "@/lib/errors";
@@ -18,9 +18,29 @@ function fmt(v: number | null | undefined, d = 4): string {
   return v == null || Number.isNaN(v) ? "—" : v.toFixed(d);
 }
 
-export function BiasPanel() {
-  const [readings, setReadings] = useState(EXAMPLE);
-  const [reference, setReference] = useState("36");
+export interface BiasInputs {
+  readings: string;
+  reference: string;
+}
+
+export const EXAMPLE_BIAS_INPUTS: BiasInputs = {
+  readings: EXAMPLE,
+  reference: "36",
+};
+
+export function BiasPanel({
+  initial = EXAMPLE_BIAS_INPUTS,
+  onInputsChange,
+}: {
+  initial?: BiasInputs;
+  onInputsChange?: (inputs: BiasInputs) => void;
+} = {}) {
+  const [readings, setReadings] = useState(initial.readings);
+  const [reference, setReference] = useState(initial.reference);
+
+  useEffect(() => {
+    onInputsChange?.({ readings, reference });
+  }, [readings, reference, onInputsChange]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   const values = parseNumberList(readings);
@@ -112,25 +132,32 @@ export function BiasPanel() {
       {result && (
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Bias" value={fmt(result.bias)} big
+            <Stat
+              label="Bias"
+              value={fmt(result.bias)}
+              big
               tone={
                 result.bias_significant
                   ? "text-red-600 dark:text-red-400"
                   : "text-emerald-600 dark:text-emerald-400"
-              } />
-            <Stat label="Verdict"
+              }
+            />
+            <Stat
+              label="Verdict"
               value={result.bias_significant ? "Biased" : "No bias"}
               tone={
                 result.bias_significant
                   ? "text-red-600 dark:text-red-400"
                   : "text-emerald-600 dark:text-emerald-400"
-              } />
+              }
+            />
             <Stat label="Repeatability" value={fmt(result.repeatability)} />
             <Stat label="p-value" value={fmt(result.p_value, 4)} />
           </div>
           <p className="text-xs text-foreground/50">
             95% interval for the bias: [{fmt(result.ci_lower)},{" "}
-            {fmt(result.ci_upper)}] — {result.bias_significant
+            {fmt(result.ci_upper)}] —{" "}
+            {result.bias_significant
               ? "it excludes zero, so the bias is real."
               : "it straddles zero, so there is no evidence of bias."}
           </p>

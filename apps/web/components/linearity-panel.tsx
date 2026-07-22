@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { linearityStudy, type LinearityReport } from "@/lib/api-client";
 import { describeApiError } from "@/lib/errors";
 import { parseNumberList } from "@/lib/stats";
 
-interface Row {
+export interface Row {
   reference: string;
   readings: string;
 }
@@ -32,10 +32,32 @@ function fmt(v: number | null | undefined, d = 4): string {
   return v == null || Number.isNaN(v) ? "—" : v.toFixed(d);
 }
 
-export function LinearityPanel() {
-  const [rows, setRows] = useState<Row[]>(EXAMPLE);
-  const [processVariation, setProcessVariation] = useState("");
+export interface LinearityInputs {
+  rows: Row[];
+  processVariation: string;
+}
+
+export const EXAMPLE_LINEARITY_INPUTS: LinearityInputs = {
+  rows: EXAMPLE,
+  processVariation: "",
+};
+
+export function LinearityPanel({
+  initial = EXAMPLE_LINEARITY_INPUTS,
+  onInputsChange,
+}: {
+  initial?: LinearityInputs;
+  onInputsChange?: (inputs: LinearityInputs) => void;
+} = {}) {
+  const [rows, setRows] = useState<Row[]>(initial.rows);
+  const [processVariation, setProcessVariation] = useState(
+    initial.processVariation,
+  );
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  useEffect(() => {
+    onInputsChange?.({ rows, processVariation });
+  }, [rows, processVariation, onInputsChange]);
 
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -126,7 +148,9 @@ export function LinearityPanel() {
         <div className="flex flex-wrap items-end gap-3">
           <button
             type="button"
-            onClick={() => setRows((rs) => [...rs, { reference: "", readings: "" }])}
+            onClick={() =>
+              setRows((rs) => [...rs, { reference: "", readings: "" }])
+            }
             className="h-9 rounded-lg border border-foreground/20 px-3 text-sm text-foreground/70 hover:text-foreground"
           >
             + Add part
@@ -175,13 +199,19 @@ export function LinearityPanel() {
       {result && (
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Slope" value={fmt(result.slope)}
+            <Stat
+              label="Slope"
+              value={fmt(result.slope)}
               tone={
                 result.linearity_significant
                   ? "text-red-600 dark:text-red-400"
                   : "text-emerald-600 dark:text-emerald-400"
-              } />
-            <Stat label="% Linearity" value={fmt(result.percent_linearity, 2)} />
+              }
+            />
+            <Stat
+              label="% Linearity"
+              value={fmt(result.percent_linearity, 2)}
+            />
             <Stat label="Intercept" value={fmt(result.intercept)} />
             <Stat label="R²" value={fmt(result.r_squared, 4)} />
           </div>
@@ -239,9 +269,10 @@ function Stat({
         {label}
       </div>
       <div
-        className={["font-mono text-lg tabular-nums", tone ?? "text-foreground"].join(
-          " ",
-        )}
+        className={[
+          "font-mono text-lg tabular-nums",
+          tone ?? "text-foreground",
+        ].join(" ")}
       >
         {value}
       </div>

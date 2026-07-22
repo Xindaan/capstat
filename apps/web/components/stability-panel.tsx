@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { stabilityStudy, type StabilityReport } from "@/lib/api-client";
 import { describeApiError } from "@/lib/errors";
@@ -21,8 +21,26 @@ type Status =
   | { kind: "done"; result: StabilityReport }
   | { kind: "error"; message: string };
 
-export function StabilityPanel() {
-  const [readings, setReadings] = useState(EXAMPLE);
+export interface StabilityInputs {
+  readings: string;
+}
+
+export const EXAMPLE_STABILITY_INPUTS: StabilityInputs = {
+  readings: EXAMPLE,
+};
+
+export function StabilityPanel({
+  initial = EXAMPLE_STABILITY_INPUTS,
+  onInputsChange,
+}: {
+  initial?: StabilityInputs;
+  onInputsChange?: (inputs: StabilityInputs) => void;
+} = {}) {
+  const [readings, setReadings] = useState(initial.readings);
+
+  useEffect(() => {
+    onInputsChange?.({ readings });
+  }, [readings, onInputsChange]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   const values = parseNumberList(readings);

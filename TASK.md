@@ -196,13 +196,14 @@
   CLI export rather than a service endpoint, given T-0026. Left open rather
   than closed, because the reason to defer is cost, not principle.
 
-- T-0041 [PARTLY DONE 2026-07-22] Save and reload a study as a JSON file.
-  **Shipped:** the format (`apps/web/lib/study-file.ts`, versioned, page-keyed,
-  inputs only), the Save/Load controls, and the acceptance-sampling page wired
-  end to end. **Not yet wired:** `/`, `/gage-rr` and `/msa`. The pattern is
-  established -- a panel reports its inputs upward and accepts a starting value;
-  a small page workspace holds them and remounts on load -- so the rest is
-  mechanical.
+- ~~T-0041~~ **done 2026-07-22.** Save and reload a study as a JSON file:
+  the format (`apps/web/lib/study-file.ts`, versioned, page-keyed, inputs only),
+  the Save/Load controls, and all three hand-entered pages wired --
+  `/acceptance-sampling`, `/gage-rr` and `/msa`.
+  **`/` is deliberately not wired**, and that is the answer rather than an
+  omission: its input is an uploaded CSV, so re-uploading the file is simpler
+  than restoring it from JSON, and a study file holding thousands of
+  measurements would be a copy of data the user already has.
   The open design question is **answered, by looking**: there is no shared
   document shape to find. The panels have nothing in common but strings (LSL/USL
   here, a 3-D grid there, number lists elsewhere), so the document carries a

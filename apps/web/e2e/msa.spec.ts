@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { gotoReady } from "./support";
+
 // Faithful-shaped responses for the three MSA endpoints. The panels are
 // pre-filled, so a single click on each posts real data.
 const BIAS = {
@@ -33,7 +35,9 @@ const LINEARITY = {
   linearity: null,
   references: [7, 9, 11, 13, 15],
   part_mean_biases: [0.49, 0.16, 0.02, -0.28, -0.61],
-  warnings: ["bias changes across the range; the measurement system is not linear"],
+  warnings: [
+    "bias changes across the range; the measurement system is not linear",
+  ],
   linearity_significant: true,
 };
 
@@ -77,7 +81,7 @@ async function mockApi(page: Page) {
 
 test("msa: the three studies compute and report", async ({ page }) => {
   await mockApi(page);
-  await page.goto("/msa");
+  await gotoReady(page, "/msa");
 
   await page.getByRole("button", { name: "Compute bias" }).click();
   await expect(page.getByText("No bias")).toBeVisible();
@@ -93,20 +97,26 @@ test("msa: the three studies compute and report", async ({ page }) => {
   await expect(page.getByText("Not stable", { exact: true })).toBeVisible();
   // Both control charts draw (SVG, so the report prints as vector). Scoped to
   // the panel: Next's dev overlay has SVGs of its own.
-  await expect(page.locator('[aria-label="Stability study"] svg')).toHaveCount(2);
+  await expect(page.locator('[aria-label="Stability study"] svg')).toHaveCount(
+    2,
+  );
 });
 
 test("printing drops the controls and keeps the report", async ({ page }) => {
   await mockApi(page);
-  await page.goto("/msa");
+  await gotoReady(page, "/msa");
   await page.getByRole("button", { name: "Check stability" }).click();
-  await expect(page.locator('[aria-label="Stability study"] svg')).toHaveCount(2);
+  await expect(page.locator('[aria-label="Stability study"] svg')).toHaveCount(
+    2,
+  );
 
   await page.emulateMedia({ media: "print" });
 
   // Navigation and actions are not part of a report.
   await expect(page.locator("nav")).toBeHidden();
-  await expect(page.getByRole("button", { name: "Check stability" })).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Check stability" }),
+  ).toBeHidden();
   await expect(
     page.getByRole("button", { name: "Print / save as PDF" }),
   ).toBeHidden();
@@ -123,8 +133,67 @@ test("printing drops the controls and keeps the report", async ({ page }) => {
 });
 
 test("msa is reachable from the nav", async ({ page }) => {
-  await page.goto("/");
+  await gotoReady(page, "/");
   await page.getByRole("link", { name: "Bias & linearity" }).click();
   await expect(page).toHaveURL(/\/msa$/);
-  await expect(page.getByRole("button", { name: "Compute bias" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Compute bias" }),
+  ).toBeVisible();
+});
+
+test("an msa study saves all three panels and loads them back", async ({
+  page,
+}) => {
+  await gotoReady(page, "/msa");
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Save study" }).click(),
+  ]);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const saved = JSON.parse(Buffer.concat(chunks).toString());
+
+  expect(saved.page).toBe("msa");
+  // The three studies are independent, and the document keeps them apart.
+  expect(Object.keys(saved.inputs).sort()).toEqual([
+    "bias",
+    "linearity",
+    "stability",
+  ]);
+  expect(saved.inputs.bias.reference).toBe("36");
+  expect(saved).not.toHaveProperty("results");
+
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "study.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "capstat-study",
+        schema_version: 1,
+        page: "msa",
+        inputs: {
+          bias: { readings: "1, 2, 3", reference: "2.5" },
+          linearity: {
+            rows: [{ reference: "7", readings: "7.1, 7.2" }],
+            processVariation: "14.1",
+          },
+          stability: { readings: "5, 6, 7" },
+        },
+      }),
+    ),
+  });
+
+  // Scope per panel: "Reference" also names the linearity rows' own inputs.
+  // All three studies must come back, not just the first.
+  await expect(
+    page.getByLabel("Bias study").getByLabel("Reference", { exact: true }),
+  ).toHaveValue("2.5");
+  await expect(
+    page.getByLabel("Linearity study").getByLabel("Process variation"),
+  ).toHaveValue("14.1");
+  await expect(
+    page.getByLabel("Stability study").getByLabel("Readings"),
+  ).toHaveValue("5, 6, 7");
 });

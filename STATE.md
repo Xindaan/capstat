@@ -106,9 +106,8 @@ both done -- acceptance sampling is end-to-end.** What is left:
 - **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
   persistence would both reverse T-0026. What survived is **T-0041** -- saving a
   study as a JSON file the user owns, which is a file format, not persistence,
-  and reverses nothing. **Partly done 2026-07-22:** the format and the
-  acceptance-sampling page are shipped; `/`, `/gage-rr` and `/msa` are not wired
-  yet, and the pattern for doing so is established.
+  and reverses nothing. **Done 2026-07-22**, on all three hand-entered pages;
+  `/` is deliberately excluded because re-uploading its CSV beats restoring it.
 - **T-0038** -- server-side PDF: deferred by decision, not closed. The print
   route already yields a vector PDF; if it is ever wanted, build it as a local
   CLI export rather than a service endpoint.
@@ -138,8 +137,8 @@ Nothing is blocked on me.
 
 ## Last done
 
-- 2026-07-22: **T-0041 — a study saves to a file and loads back**, on the
-  acceptance-sampling page. A file on the user's own disk, written and read by
+- 2026-07-22: **T-0041 — a study saves to a file and loads back**, on
+  `/acceptance-sampling`, `/gage-rr` and `/msa`. A file on the user's own disk, written and read by
   the browser: no server, nothing held between requests, so it reverses nothing
   in T-0026. **Only inputs are stored, never results** — a document carrying
   saved numbers could show figures this version would no longer produce with
