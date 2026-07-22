@@ -160,3 +160,16 @@ test("acceptance sampling", async ({ page }) => {
   await expect(panel.getByText("4 or fewer")).toBeVisible();
   await shoot(panel, "acceptance-sampling.png", { chart: true });
 });
+
+test("switching rules", async ({ page }) => {
+  await page.goto("/acceptance-sampling");
+  const panel = page.getByLabel("Switching rules");
+  await panel
+    .getByRole("button", { name: "Apply the switching rules" })
+    .click();
+  // The pre-filled series tightens at lot 6 and earns normal inspection back
+  // at lot 11 -- both switches must be on screen before the shutter opens.
+  await expect(panel.getByText("Normal → Tightened")).toBeVisible();
+  await expect(panel.getByText("Tightened → Normal")).toBeVisible();
+  await shoot(panel, "switching-rules.png");
+});

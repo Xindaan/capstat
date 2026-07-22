@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from capstat_api.schemas import GageRRMethod, SamplingModel, WithinMethod
+from capstat_api.schemas import (
+    GageRRMethod,
+    InspectionSeverity,
+    SamplingModel,
+    WithinMethod,
+)
 
 
 class _Request(BaseModel):
@@ -184,3 +189,40 @@ class LotInspectionRequest(_Request):
     plan: SamplingPlanIn
     defectives: int = Field(ge=0)
     model: SamplingModel = "binomial"
+
+
+class LotResultIn(_Request):
+    """One lot's outcome on original inspection.
+
+    ``accepted_at_tighter_aql`` answers the switching score's harder question
+    (ISO 2859-1 clause 9.3.3.2). Omit it and the lot is scored on the
+    conservative ``Ac <= 1`` rule, which is what a caller without the standard's
+    master table can honestly supply.
+    """
+
+    accepted: bool
+    accepted_at_tighter_aql: bool | None = None
+
+
+class SwitchingRulesIn(_Request):
+    """The thresholds. Defaults are ISO 2859-1:1999's."""
+
+    tighten_on_non_acceptable: int = Field(default=2, ge=1)
+    within_consecutive_lots: int = Field(default=5, ge=1)
+    relax_after_consecutive_acceptable: int = Field(default=5, ge=1)
+    discontinue_on_non_accepted: int = Field(default=5, ge=1)
+    reduce_at_switching_score: int = Field(default=30, ge=1)
+
+
+class SwitchingSchemeRequest(_Request):
+    """A series of lots, in the order they were presented.
+
+    ``start`` accepts ``"discontinued"`` only so that the core can reject it
+    with its own message: a series cannot begin in a state that is an outcome of
+    the rules.
+    """
+
+    lots: list[LotResultIn] = Field(min_length=1)
+    start: InspectionSeverity = "normal"
+    reduced_inspection_authorised: bool = False
+    rules: SwitchingRulesIn | None = None

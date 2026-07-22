@@ -401,3 +401,39 @@ class SamplingPlanReportOut(_CoreModel):
     aoql: AOQLimitOut | None
     ati_at_aql: float | None
     warnings: list[str]
+
+
+# ---------------------------------------------------------------------------
+# sampling_scheme.py
+# ---------------------------------------------------------------------------
+
+InspectionSeverity = Literal["normal", "tightened", "reduced", "discontinued"]
+
+
+class SwitchingRulesOut(_CoreModel):
+    tighten_on_non_acceptable: int
+    within_consecutive_lots: int
+    relax_after_consecutive_acceptable: int
+    discontinue_on_non_accepted: int
+    reduce_at_switching_score: int
+
+
+class SchemeStepOut(_CoreModel):
+    lot: int
+    accepted: bool
+    # The severity this lot was inspected under, and the one the next lot will
+    # be. They differ exactly on the lots where a switch took effect.
+    severity: InspectionSeverity
+    severity_after: InspectionSeverity
+    # None wherever the standard does not maintain the score -- anywhere but
+    # original normal inspection. Not zero: absent.
+    switching_score: int | None
+    # Derived property on the core dataclass; read via from_attributes.
+    switched: bool
+
+
+class SchemeHistoryOut(_CoreModel):
+    steps: list[SchemeStepOut]
+    final_severity: InspectionSeverity
+    rules: SwitchingRulesOut
+    warnings: list[str]

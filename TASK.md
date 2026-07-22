@@ -4,10 +4,11 @@
 
 <!-- max 3 -->
 
-- (Doing is clear. Acceptance sampling is end-to-end (T-0035 + T-0037), and
-  T-0036 is decided for ISO 2859-1 with increments 1 and 2 shipped -- the full
-  switching scheme lives in the core. What is left: 2b (the scheme over the API
-  and in the page, optional) and the two parked items T-0038 and T-0041.)
+- (Doing is clear. Acceptance sampling is end-to-end, and so is T-0036: the ISO
+  2859-1 switching scheme reaches the API and the page. What is left of the old
+  T-0018 split is increment 3 -- a code-letter lookup, which is only worth
+  revisiting if something real turns out to need it -- and the two parked items
+  T-0038 and T-0041.)
 
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -108,7 +109,10 @@
      reduced inspection. Validated by simulation *and* by reproducing the
      standard's own Annex A worked series completely -- every severity, every
      score, and the switch to reduced at the lot where the score reaches 30.
-     Not wired to the API or the page; that is 2b, and it is optional.
+     **2b done the same day:** a `/compute/acceptance-sampling/switching-rules`
+     route and a second panel on the page -- a lot series in, the severity each
+     lot was inspected under and the switch it caused out, with the switching
+     score shown as absent (not zero) wherever the standard does not keep it.
   3. *Code-letter lookup* -- only if 1 and 2 leave a real gap, and only from a
      source we may reproduce. Currently that means: not from ISO.
   Caveat that has not changed: the licensing reading above came from a research

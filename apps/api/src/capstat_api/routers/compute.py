@@ -10,8 +10,11 @@ from __future__ import annotations
 from capstat_core import (
     ControlChart,
     ControlLimits,
+    LotResult,
     SamplingPlan,
+    SwitchingRules,
     analyze_capability,
+    apply_switching_rules,
     bias,
     capability,
     cusum_chart,
@@ -52,6 +55,7 @@ from capstat_api.requests import (
     SamplingPlanIn,
     StabilityRequest,
     SubgroupRequest,
+    SwitchingSchemeRequest,
 )
 from capstat_api.schemas import (
     BiasReportOut,
@@ -68,6 +72,7 @@ from capstat_api.schemas import (
     RuleViolationOut,
     SamplingPlanOut,
     SamplingPlanReportOut,
+    SchemeHistoryOut,
     StabilityReportOut,
 )
 
@@ -282,3 +287,23 @@ def compute_acceptance_sampling_inspect(req: LotInspectionRequest) -> LotDecisio
     with core_errors():
         result = inspect_lot(_plan(req.plan), req.defectives, model=req.model)
     return LotDecisionOut.model_validate(result)
+
+
+@router.post("/acceptance-sampling/switching-rules", response_model=SchemeHistoryOut)
+def compute_acceptance_sampling_switching_rules(
+    req: SwitchingSchemeRequest,
+) -> SchemeHistoryOut:
+    with core_errors():
+        result = apply_switching_rules(
+            [
+                LotResult(
+                    accepted=lot.accepted,
+                    accepted_at_tighter_aql=lot.accepted_at_tighter_aql,
+                )
+                for lot in req.lots
+            ],
+            rules=SwitchingRules(**req.rules.model_dump()) if req.rules else None,
+            start=req.start,
+            reduced_inspection_authorised=req.reduced_inspection_authorised,
+        )
+    return SchemeHistoryOut.model_validate(result)

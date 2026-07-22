@@ -235,3 +235,37 @@ export function inspectLot(
     body: { plan, defectives, model },
   });
 }
+
+export type SchemeHistory = components["schemas"]["SchemeHistoryOut"];
+export type SchemeStep = components["schemas"]["SchemeStepOut"];
+export type InspectionSeverity = SchemeHistory["final_severity"];
+
+export interface LotOutcome {
+  accepted: boolean;
+  /**
+   * The switching score's harder question (ISO 2859-1 clause 9.3.3.2): would
+   * this lot still have been accepted one AQL step tighter? `null` means "not
+   * answered", and the lot is then scored on the conservative rule.
+   */
+  accepted_at_tighter_aql: boolean | null;
+}
+
+/**
+ * Run a series of lot outcomes through the ISO 2859-1 switching rules.
+ *
+ * `authorised` covers the two conditions of clause 9.3.3.1 that are not
+ * statistics — steady production and the responsible authority judging reduced
+ * inspection desirable. Left false, the scheme never relaxes.
+ */
+export function switchingRules(lots: LotOutcome[], authorised: boolean) {
+  return api.POST("/compute/acceptance-sampling/switching-rules", {
+    body: {
+      lots,
+      // openapi-typescript types defaulted fields as required, so pass the
+      // server defaults explicitly.
+      start: "normal",
+      reduced_inspection_authorised: authorised,
+      rules: null,
+    },
+  });
+}

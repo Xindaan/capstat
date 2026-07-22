@@ -417,8 +417,8 @@ flattened away. Endpoints: `/compute/descriptive`, `/compute/capability`,
 `/compute/capability/analyze`, `/compute/control-chart/{i-mr,xbar-r,xbar-s,ewma,cusum}`,
 `/compute/rules/{nelson,western-electric}`, `/compute/gage-rr`,
 `/compute/{bias,linearity,stability}`,
-`/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}`, and
-`/ingest` for files.
+`/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect,switching-rules}`,
+and `/ingest` for files.
 
 The OpenAPI schema at `apps/api/openapi.json` is the single source of truth for
 the generated TypeScript client (added with the web app) and is checked for
@@ -439,8 +439,9 @@ with Nelson run-rule flags. A separate `/gage-rr` page runs a full Gage R&R
 study from a data-entry grid (both the ANOVA and average-and-range methods), and
 `/msa` runs the bias, linearity and stability studies — each pre-filled with a
 worked example. `/acceptance-sampling` designs a lot-acceptance plan from your
-two risk points, draws its OC curve with both quality levels on it, and decides
-a lot from an observed defect count.
+two risk points, draws its OC curve with both quality levels on it, decides a
+lot from an observed defect count, and runs a series of lots through
+ISO 2859-1's switching rules.
 
 Every analysis page is also its own report: **Print / save as PDF** drops the
 navigation and the controls, keeps the results, and prints the charts as vector
@@ -510,6 +511,14 @@ saying what the AOQL does not bound.
 
 ![Acceptance sampling: n 144, accept on 4 or fewer, producer risk 1.53 %,
 consumer risk 14.87 %, with the OC curve](docs/images/acceptance-sampling.png)
+
+And the switching rules, which are what make ISO 2859-1 a *scheme* rather than a
+plan. A series of lots, the severity each one was inspected under, and the
+switch that severity caused — a plan applied forever, with no switching, does
+not give the protection the standard describes.
+
+![Switching rules: thirteen lots, tightening at lot 6 and returning to normal
+inspection at lot 11](docs/images/switching-rules.png)
 
 These are captured by a script, not by hand, so they cannot quietly go stale
 against a changed UI:

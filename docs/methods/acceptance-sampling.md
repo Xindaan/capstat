@@ -124,10 +124,10 @@ the definition instead of against a citation.
 ## In the app
 
 The `/acceptance-sampling` page designs a plan from your two risk points, draws
-the OC curve with both levels marked, and decides a lot from an observed defect
-count. Over HTTP it is
-`/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}` — one route
-per core entry point, as everywhere else in the API.
+the OC curve with both levels marked, decides a lot from an observed defect
+count, and runs a series of lots through the switching rules. Over HTTP it is
+`/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect,switching-rules}`
+— one route per core entry point, as everywhere else in the API.
 
 ## Switching: what makes ISO 2859-1 a scheme
 

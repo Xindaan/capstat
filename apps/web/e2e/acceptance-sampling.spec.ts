@@ -166,3 +166,199 @@ test("acceptance sampling prints its report without the controls", async ({
     page.locator('[aria-label="Acceptance sampling"] svg').first(),
   ).toBeVisible();
 });
+
+// Faithful-shaped SchemeHistoryOut for the switching-rules panel. The example
+// series tightens at lot 6 and earns normal inspection back at lot 12.
+const SCHEME = {
+  steps: [
+    {
+      lot: 1,
+      accepted: true,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 2,
+      switched: false,
+    },
+    {
+      lot: 2,
+      accepted: true,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 4,
+      switched: false,
+    },
+    {
+      lot: 3,
+      accepted: false,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 0,
+      switched: false,
+    },
+    {
+      lot: 4,
+      accepted: true,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 2,
+      switched: false,
+    },
+    {
+      lot: 5,
+      accepted: true,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 4,
+      switched: false,
+    },
+    {
+      lot: 6,
+      accepted: false,
+      severity: "normal",
+      severity_after: "tightened",
+      switching_score: 0,
+      switched: true,
+    },
+    {
+      lot: 7,
+      accepted: true,
+      severity: "tightened",
+      severity_after: "tightened",
+      switching_score: null,
+      switched: false,
+    },
+    {
+      lot: 8,
+      accepted: true,
+      severity: "tightened",
+      severity_after: "tightened",
+      switching_score: null,
+      switched: false,
+    },
+    {
+      lot: 9,
+      accepted: true,
+      severity: "tightened",
+      severity_after: "tightened",
+      switching_score: null,
+      switched: false,
+    },
+    {
+      lot: 10,
+      accepted: true,
+      severity: "tightened",
+      severity_after: "tightened",
+      switching_score: null,
+      switched: false,
+    },
+    {
+      lot: 11,
+      accepted: true,
+      severity: "tightened",
+      severity_after: "normal",
+      switching_score: null,
+      switched: true,
+    },
+    {
+      lot: 12,
+      accepted: true,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 2,
+      switched: false,
+    },
+    {
+      lot: 13,
+      accepted: true,
+      severity: "normal",
+      severity_after: "normal",
+      switching_score: 4,
+      switched: false,
+    },
+  ],
+  final_severity: "normal",
+  rules: {
+    tighten_on_non_acceptable: 2,
+    within_consecutive_lots: 5,
+    relax_after_consecutive_acceptable: 5,
+    discontinue_on_non_accepted: 5,
+    reduce_at_switching_score: 30,
+  },
+  warnings: [
+    "these outcomes are read as original inspection only. A lot resubmitted after screening counts towards none of the rules, and capstat cannot tell one from the other -- if resubmissions were included, the severities below are wrong.",
+  ],
+};
+
+test("switching rules: the pre-filled series tightens and recovers", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.route("**/compute/acceptance-sampling/switching-rules", (r) =>
+    r.fulfill(json(SCHEME)),
+  );
+  await page.goto("/acceptance-sampling");
+
+  const panel = page.getByLabel("Switching rules");
+  await panel
+    .getByRole("button", { name: "Apply the switching rules" })
+    .click();
+
+  await expect(panel.getByText("Ends on")).toBeVisible();
+  // The trigger lot is still shown under the severity it was inspected under,
+  // with the switch it caused beside it.
+  await expect(panel.getByText("Normal → Tightened")).toBeVisible();
+  await expect(panel.getByText("Tightened → Normal")).toBeVisible();
+  // The score is absent, not zero, wherever the standard does not keep it.
+  await expect(panel.getByText("—").first()).toBeVisible();
+  await expect(panel.getByText(/original inspection only/)).toBeVisible();
+});
+
+test("switching rules: what reaches the API is the parsed series", async ({
+  page,
+}) => {
+  const requested: unknown[] = [];
+  await mockApi(page);
+  await page.route(
+    "**/compute/acceptance-sampling/switching-rules",
+    async (r) => {
+      requested.push(r.request().postDataJSON());
+      await r.fulfill(json(SCHEME));
+    },
+  );
+  await page.goto("/acceptance-sampling");
+
+  const panel = page.getByLabel("Switching rules");
+  await panel.getByLabel("Lot outcomes").fill("A R A");
+  await panel
+    .getByRole("button", { name: "Apply the switching rules" })
+    .click();
+
+  await expect
+    .poll(() => (requested.at(-1) as { lots?: unknown[] })?.lots)
+    .toEqual([
+      { accepted: true, accepted_at_tighter_aql: null },
+      { accepted: false, accepted_at_tighter_aql: null },
+      { accepted: true, accepted_at_tighter_aql: null },
+    ]);
+  // Authorisation is off unless the box is ticked: the scheme never relaxes on
+  // its own, and that has to survive the wire.
+  expect(
+    (requested.at(-1) as { reduced_inspection_authorised?: boolean })
+      ?.reduced_inspection_authorised,
+  ).toBe(false);
+});
+
+test("switching rules: an unusable series disables the button and says why", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/acceptance-sampling");
+
+  const panel = page.getByLabel("Switching rules");
+  await panel.getByLabel("Lot outcomes").fill("A R X");
+
+  await expect(panel.getByText("Use A for an acceptable lot")).toBeVisible();
+  await expect(
+    panel.getByRole("button", { name: "Apply the switching rules" }),
+  ).toBeDisabled();
+});

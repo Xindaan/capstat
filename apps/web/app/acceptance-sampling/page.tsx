@@ -1,9 +1,10 @@
 import { AcceptanceSamplingPanel } from "@/components/acceptance-sampling-panel";
 import { PrintButton } from "@/components/print-button";
+import { SwitchingSchemePanel } from "@/components/switching-scheme-panel";
 
 export default function AcceptanceSamplingPage() {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-10 px-6 py-16">
       <header className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-3xl font-semibold tracking-tight">
@@ -31,6 +32,8 @@ export default function AcceptanceSamplingPage() {
         </p>
       </header>
       <AcceptanceSamplingPanel />
+      <hr className="border-foreground/10" />
+      <SwitchingSchemePanel />
     </main>
   );
 }

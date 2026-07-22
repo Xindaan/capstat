@@ -13,6 +13,7 @@ from typing import ClassVar
 
 from capstat_core import (
     SamplingPlan,
+    apply_switching_rules,
     bias,
     capability,
     cusum_chart,
@@ -497,3 +498,84 @@ def test_acceptance_sampling_rejects_a_percentage_where_a_fraction_belongs(
         json={"plan": SAMPLING_PLAN, "aql": 0.01, "ltpd": 15},
     )
     assert resp.status_code == 422
+
+
+# The series the standard's own worked example follows: two non-acceptable lots
+# four apart, then a long acceptable run.
+SWITCHING_LOTS = [{"accepted": a} for a in [True, True, False, True, True, False]]
+
+
+def test_switching_rules_match_core(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/acceptance-sampling/switching-rules", json={"lots": SWITCHING_LOTS}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    core = apply_switching_rules([lot["accepted"] for lot in SWITCHING_LOTS])
+    assert body["final_severity"] == core.final_severity
+    assert [s["severity"] for s in body["steps"]] == [s.severity for s in core.steps]
+    assert [s["severity_after"] for s in body["steps"]] == [
+        s.severity_after for s in core.steps
+    ]
+    assert [s["switching_score"] for s in body["steps"]] == [
+        s.switching_score for s in core.steps
+    ]
+    # switched is a derived property, not a dataclass field.
+    assert [s["switched"] for s in body["steps"]] == [s.switched for s in core.steps]
+    assert body["warnings"] == list(core.warnings)
+    assert body["rules"]["discontinue_on_non_accepted"] == 5
+
+
+def test_switching_score_is_null_where_the_standard_does_not_keep_it(
+    client: TestClient,
+) -> None:
+    # Lots 1-2 are normal and scored; everything after the switch is tightened,
+    # where the score is not maintained -- null, not zero.
+    resp = client.post(
+        "/compute/acceptance-sampling/switching-rules",
+        json={"lots": [{"accepted": False}, {"accepted": False}, {"accepted": True}]},
+    )
+    body = resp.json()
+    assert body["steps"][0]["switching_score"] == 0
+    assert body["steps"][2]["switching_score"] is None
+
+
+def test_switching_rules_never_relax_without_authorisation(
+    client: TestClient,
+) -> None:
+    lots = [{"accepted": True} for _ in range(20)]
+    unauthorised = client.post(
+        "/compute/acceptance-sampling/switching-rules", json={"lots": lots}
+    ).json()
+    assert unauthorised["final_severity"] == "normal"
+
+    authorised = client.post(
+        "/compute/acceptance-sampling/switching-rules",
+        json={"lots": lots, "reduced_inspection_authorised": True},
+    ).json()
+    assert authorised["final_severity"] == "reduced"
+
+
+def test_switching_rules_accept_custom_thresholds(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/acceptance-sampling/switching-rules",
+        json={
+            "lots": SWITCHING_LOTS,
+            "rules": {"tighten_on_non_acceptable": 3, "within_consecutive_lots": 4},
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["rules"]["tighten_on_non_acceptable"] == 3
+    # Two non-acceptable lots no longer suffice.
+    assert body["final_severity"] == "normal"
+
+
+def test_switching_rules_cannot_start_discontinued(client: TestClient) -> None:
+    # The schema allows the value so the core can reject it with its own words.
+    resp = client.post(
+        "/compute/acceptance-sampling/switching-rules",
+        json={"lots": SWITCHING_LOTS, "start": "discontinued"},
+    )
+    assert resp.status_code == 422
+    assert isinstance(resp.json()["detail"], str)

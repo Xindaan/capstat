@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compute/acceptance-sampling/switching-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute Acceptance Sampling Switching Rules */
+        post: operations["compute_acceptance_sampling_switching_rules_compute_acceptance_sampling_switching_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compute/bias": {
         parameters: {
             query?: never;
@@ -943,6 +960,21 @@ export interface components {
             model: "binomial" | "hypergeometric" | "poisson";
             plan: components["schemas"]["SamplingPlanIn"];
         };
+        /**
+         * LotResultIn
+         * @description One lot's outcome on original inspection.
+         *
+         *     ``accepted_at_tighter_aql`` answers the switching score's harder question
+         *     (ISO 2859-1 clause 9.3.3.2). Omit it and the lot is scored on the
+         *     conservative ``Ac <= 1`` rule, which is what a caller without the standard's
+         *     master table can honestly supply.
+         */
+        LotResultIn: {
+            /** Accepted */
+            accepted: boolean;
+            /** Accepted At Tighter Aql */
+            accepted_at_tighter_aql?: boolean | null;
+        };
         /** NormalityAssessmentOut */
         NormalityAssessmentOut: {
             /** Alpha */
@@ -1149,6 +1181,40 @@ export interface components {
             /** Warnings */
             warnings: string[];
         };
+        /** SchemeHistoryOut */
+        SchemeHistoryOut: {
+            /**
+             * Final Severity
+             * @enum {string}
+             */
+            final_severity: "normal" | "tightened" | "reduced" | "discontinued";
+            rules: components["schemas"]["SwitchingRulesOut"];
+            /** Steps */
+            steps: components["schemas"]["SchemeStepOut"][];
+            /** Warnings */
+            warnings: string[];
+        };
+        /** SchemeStepOut */
+        SchemeStepOut: {
+            /** Accepted */
+            accepted: boolean;
+            /** Lot */
+            lot: number;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "normal" | "tightened" | "reduced" | "discontinued";
+            /**
+             * Severity After
+             * @enum {string}
+             */
+            severity_after: "normal" | "tightened" | "reduced" | "discontinued";
+            /** Switched */
+            switched: boolean;
+            /** Switching Score */
+            switching_score: number | null;
+        };
         /** StabilityReportOut */
         StabilityReportOut: {
             chart: components["schemas"]["ChartPairOut"];
@@ -1169,6 +1235,74 @@ export interface components {
         SubgroupRequest: {
             /** Subgroups */
             subgroups: number[][];
+        };
+        /**
+         * SwitchingRulesIn
+         * @description The thresholds. Defaults are ISO 2859-1:1999's.
+         */
+        SwitchingRulesIn: {
+            /**
+             * Discontinue On Non Accepted
+             * @default 5
+             */
+            discontinue_on_non_accepted: number;
+            /**
+             * Reduce At Switching Score
+             * @default 30
+             */
+            reduce_at_switching_score: number;
+            /**
+             * Relax After Consecutive Acceptable
+             * @default 5
+             */
+            relax_after_consecutive_acceptable: number;
+            /**
+             * Tighten On Non Acceptable
+             * @default 2
+             */
+            tighten_on_non_acceptable: number;
+            /**
+             * Within Consecutive Lots
+             * @default 5
+             */
+            within_consecutive_lots: number;
+        };
+        /** SwitchingRulesOut */
+        SwitchingRulesOut: {
+            /** Discontinue On Non Accepted */
+            discontinue_on_non_accepted: number;
+            /** Reduce At Switching Score */
+            reduce_at_switching_score: number;
+            /** Relax After Consecutive Acceptable */
+            relax_after_consecutive_acceptable: number;
+            /** Tighten On Non Acceptable */
+            tighten_on_non_acceptable: number;
+            /** Within Consecutive Lots */
+            within_consecutive_lots: number;
+        };
+        /**
+         * SwitchingSchemeRequest
+         * @description A series of lots, in the order they were presented.
+         *
+         *     ``start`` accepts ``"discontinued"`` only so that the core can reject it
+         *     with its own message: a series cannot begin in a state that is an outcome of
+         *     the rules.
+         */
+        SwitchingSchemeRequest: {
+            /** Lots */
+            lots: components["schemas"]["LotResultIn"][];
+            /**
+             * Reduced Inspection Authorised
+             * @default false
+             */
+            reduced_inspection_authorised: boolean;
+            rules?: components["schemas"]["SwitchingRulesIn"] | null;
+            /**
+             * Start
+             * @default normal
+             * @enum {string}
+             */
+            start: "normal" | "tightened" | "reduced" | "discontinued";
         };
         /** ValidationError */
         ValidationError: {
@@ -1311,6 +1445,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OCCurveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compute_acceptance_sampling_switching_rules_compute_acceptance_sampling_switching_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchingSchemeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeHistoryOut"];
                 };
             };
             /** @description Validation Error */

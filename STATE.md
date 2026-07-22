@@ -17,15 +17,16 @@ M5 MSA, M6 release (report, deployment, docs, release).
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **491 core + 56 API tests, 100 % coverage on both packages**, mypy strict,
+- **517 core + 61 API tests, 100 % coverage on both packages**, mypy strict,
   ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-- **Acceptance sampling (T-0035 + T-0037) landed after v0.1.0 and is
-  end-to-end.** Single sampling plans by attributes: OC curve (binomial /
-  hypergeometric / Poisson), AOQ, AOQL, ATI, producer's and consumer's risk, the
-  inverse OC, the lot decision, and two-point plan design -- all from the
-  definition, no standard's table anywhere -- reachable through
-  `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}` and the
-  `/acceptance-sampling` page.
+- **Acceptance sampling (T-0035 + T-0036 + T-0037) landed after v0.1.0 and is
+  end-to-end**, ISO 2859-1's switching scheme included. Single sampling plans by
+  attributes: OC curve (binomial / hypergeometric / Poisson), AOQ, AOQL, ATI,
+  producer's and consumer's risk, the limiting quality, the lot decision, and
+  two-point plan design -- all from the definition, no standard's table
+  anywhere -- plus the switching scheme over a series of lots. Reachable through
+  `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect,switching-rules}`
+  and the `/acceptance-sampling` page.
 - **M4 (app) and M5 (MSA) are complete end-to-end.** The web app covers
   upload -> capability -> control charts (`/`), a Gage R&R study (`/gage-rr`),
   and bias / linearity / stability (`/msa`) -- every one of them typed against
@@ -95,11 +96,13 @@ both done -- acceptance sampling is end-to-end.** What is left:
   which needs an explicit go because its thresholds are read from the standard,
   (3) a code-letter lookup only if 1 and 2 leave a gap, and only from a source
   we may reproduce.
-  **Increments 1 and 2 are done.** Limiting quality end-to-end; the full
-  switching scheme in the core -- normal/tightened/reduced/discontinued, the
-  switching score, and the two inputs capstat refuses to guess (the tighter-AQL
-  question, and authorisation for reduced inspection). What is left: 2b, wiring
-  the scheme to the API and the page, which is optional.
+  **Increments 1 and 2 are done, end-to-end.** Limiting quality; the full
+  switching scheme -- normal/tightened/reduced/discontinued, the switching
+  score, and the two inputs capstat refuses to guess (the tighter-AQL question,
+  and authorisation for reduced inspection) -- in the core, over
+  `/compute/acceptance-sampling/switching-rules`, and on the page. Only
+  increment 3 remains, a code-letter lookup, and it is only worth revisiting if
+  something real turns out to need it.
 - **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
   persistence would both reverse T-0026. What survived is **T-0041** -- saving a
   study as a JSON file the user owns, which is a file format, not persistence,
@@ -132,6 +135,17 @@ postcss half of T-0023, which cannot move until Next raises its pinned floor.
 Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-22: **T-0036 increment 2b — the switching scheme reaches the app.**
+  A `/compute/acceptance-sampling/switching-rules` route and a second panel on
+  the page: paste the lot outcomes, get the severity each lot was inspected
+  under and the switch it caused. The switching score is shown as *absent*
+  rather than zero wherever the standard does not maintain it, which is the
+  distinction the whole column exists to make.
+  Verified against the real API in a browser, which is where the one defect
+  turned up: JSX had swallowed a space, rendering "Rfor not" in the panel's
+  intro. Prettier kept reformatting the fix away, so the fragile inline `<code>`
+  join was removed rather than nursed. 578 tests, both packages at 100 %.
 
 - 2026-07-22: **T-0036 increment 2 — the ISO 2859-1 switching scheme** in the
   core. normal / tightened / reduced / discontinued, the switching score, and

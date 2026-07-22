@@ -1895,6 +1895,32 @@
         "title": "LotInspectionRequest",
         "type": "object"
       },
+      "LotResultIn": {
+        "additionalProperties": false,
+        "description": "One lot's outcome on original inspection.\n\n``accepted_at_tighter_aql`` answers the switching score's harder question\n(ISO 2859-1 clause 9.3.3.2). Omit it and the lot is scored on the\nconservative ``Ac <= 1`` rule, which is what a caller without the standard's\nmaster table can honestly supply.",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "accepted_at_tighter_aql": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At Tighter Aql"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "title": "LotResultIn",
+        "type": "object"
+      },
       "NormalityAssessmentOut": {
         "properties": {
           "alpha": {
@@ -2496,6 +2522,102 @@
         "title": "SamplingPlanReportOut",
         "type": "object"
       },
+      "SchemeHistoryOut": {
+        "properties": {
+          "final_severity": {
+            "enum": [
+              "normal",
+              "tightened",
+              "reduced",
+              "discontinued"
+            ],
+            "title": "Final Severity",
+            "type": "string"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/SwitchingRulesOut"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/SchemeStepOut"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "final_severity",
+          "rules",
+          "warnings"
+        ],
+        "title": "SchemeHistoryOut",
+        "type": "object"
+      },
+      "SchemeStepOut": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "lot": {
+            "title": "Lot",
+            "type": "integer"
+          },
+          "severity": {
+            "enum": [
+              "normal",
+              "tightened",
+              "reduced",
+              "discontinued"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "severity_after": {
+            "enum": [
+              "normal",
+              "tightened",
+              "reduced",
+              "discontinued"
+            ],
+            "title": "Severity After",
+            "type": "string"
+          },
+          "switched": {
+            "title": "Switched",
+            "type": "boolean"
+          },
+          "switching_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Switching Score"
+          }
+        },
+        "required": [
+          "lot",
+          "accepted",
+          "severity",
+          "severity_after",
+          "switching_score",
+          "switched"
+        ],
+        "title": "SchemeStepOut",
+        "type": "object"
+      },
       "StabilityReportOut": {
         "properties": {
           "chart": {
@@ -2572,6 +2694,122 @@
           "subgroups"
         ],
         "title": "SubgroupRequest",
+        "type": "object"
+      },
+      "SwitchingRulesIn": {
+        "additionalProperties": false,
+        "description": "The thresholds. Defaults are ISO 2859-1:1999's.",
+        "properties": {
+          "discontinue_on_non_accepted": {
+            "default": 5,
+            "minimum": 1.0,
+            "title": "Discontinue On Non Accepted",
+            "type": "integer"
+          },
+          "reduce_at_switching_score": {
+            "default": 30,
+            "minimum": 1.0,
+            "title": "Reduce At Switching Score",
+            "type": "integer"
+          },
+          "relax_after_consecutive_acceptable": {
+            "default": 5,
+            "minimum": 1.0,
+            "title": "Relax After Consecutive Acceptable",
+            "type": "integer"
+          },
+          "tighten_on_non_acceptable": {
+            "default": 2,
+            "minimum": 1.0,
+            "title": "Tighten On Non Acceptable",
+            "type": "integer"
+          },
+          "within_consecutive_lots": {
+            "default": 5,
+            "minimum": 1.0,
+            "title": "Within Consecutive Lots",
+            "type": "integer"
+          }
+        },
+        "title": "SwitchingRulesIn",
+        "type": "object"
+      },
+      "SwitchingRulesOut": {
+        "properties": {
+          "discontinue_on_non_accepted": {
+            "title": "Discontinue On Non Accepted",
+            "type": "integer"
+          },
+          "reduce_at_switching_score": {
+            "title": "Reduce At Switching Score",
+            "type": "integer"
+          },
+          "relax_after_consecutive_acceptable": {
+            "title": "Relax After Consecutive Acceptable",
+            "type": "integer"
+          },
+          "tighten_on_non_acceptable": {
+            "title": "Tighten On Non Acceptable",
+            "type": "integer"
+          },
+          "within_consecutive_lots": {
+            "title": "Within Consecutive Lots",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tighten_on_non_acceptable",
+          "within_consecutive_lots",
+          "relax_after_consecutive_acceptable",
+          "discontinue_on_non_accepted",
+          "reduce_at_switching_score"
+        ],
+        "title": "SwitchingRulesOut",
+        "type": "object"
+      },
+      "SwitchingSchemeRequest": {
+        "additionalProperties": false,
+        "description": "A series of lots, in the order they were presented.\n\n``start`` accepts ``\"discontinued\"`` only so that the core can reject it\nwith its own message: a series cannot begin in a state that is an outcome of\nthe rules.",
+        "properties": {
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/LotResultIn"
+            },
+            "minItems": 1,
+            "title": "Lots",
+            "type": "array"
+          },
+          "reduced_inspection_authorised": {
+            "default": false,
+            "title": "Reduced Inspection Authorised",
+            "type": "boolean"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SwitchingRulesIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start": {
+            "default": "normal",
+            "enum": [
+              "normal",
+              "tightened",
+              "reduced",
+              "discontinued"
+            ],
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lots"
+        ],
+        "title": "SwitchingSchemeRequest",
         "type": "object"
       },
       "ValidationError": {
@@ -2782,6 +3020,47 @@
           }
         },
         "summary": "Compute Acceptance Sampling Oc Curve",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/acceptance-sampling/switching-rules": {
+      "post": {
+        "operationId": "compute_acceptance_sampling_switching_rules_compute_acceptance_sampling_switching_rules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchingSchemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemeHistoryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compute Acceptance Sampling Switching Rules",
         "tags": [
           "compute"
         ]
