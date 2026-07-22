@@ -5,10 +5,9 @@
 <!-- max 3 -->
 
 - (Doing is clear. Acceptance sampling is end-to-end (T-0035 + T-0037), and
-  T-0036 is decided for ISO 2859-1 with increments 1 and 2a shipped. What is
-  left: 2b (switching rules over the API and in the page, optional), reduced
-  inspection (blocked on evidence, not on appetite), and the two parked items
-  T-0038 and T-0041.)
+  T-0036 is decided for ISO 2859-1 with increments 1 and 2 shipped -- the full
+  switching scheme lives in the core. What is left: 2b (the scheme over the API
+  and in the page, optional) and the two parked items T-0038 and T-0041.)
 
 ## Backlog
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -104,11 +103,12 @@
      Pa = 0.10 from the plan's own OC curve and reported next to the LTPD the
      caller asked for, so a plan that does not protect where you believed it
      did says so. Core, API and page.
-  2. *The switching rules.* **Increment 2a done 2026-07-21, core only:**
-     normal <-> tightened as a state machine, validated by simulation.
-     Reduced inspection and the discontinuation threshold are deliberately
-     absent -- see the entry below for why. Not yet wired to the API or the
-     page; that is 2b, and it is optional.
+  2. *The switching rules.* **Done 2026-07-22, core only.** The full ISO
+     scheme: normal <-> tightened, discontinuation, the switching score, and
+     reduced inspection. Validated by simulation *and* by reproducing the
+     standard's own Annex A worked series completely -- every severity, every
+     score, and the switch to reduced at the lot where the score reaches 30.
+     Not wired to the API or the page; that is 2b, and it is optional.
   3. *Code-letter lookup* -- only if 1 and 2 leave a real gap, and only from a
      source we may reproduce. Currently that means: not from ISO.
   Caveat that has not changed: the licensing reading above came from a research
@@ -116,8 +116,7 @@
   Before any of this ships publicly, read 17 U.S.C. 105(a) and the ISO
   copyright notice yourself, or have someone who does this for a living do it.
   It is a reading of primary sources, not legal advice.
-  **Two findings from the switching-rule research pass, 2026-07-21, both worth
-  keeping:**
+  **Findings from the switching-rule research passes, worth keeping:**
   *(a) The copies of ISO 2859-1 and ANSI/ASQ Z1.4 reachable online are of
   uncertain provenance* -- the one the agents read carries IHS "Provided by IHS
   under license with ISO / Not for Resale" watermarks on a third-party site.
@@ -126,12 +125,19 @@
   repository, and neither URL goes on the sources page.** Thresholds are facts
   and are cited by clause, restated in capstat's own words. If the switching
   rules are ever relied on for conformity, check them against a licensed copy.
-  *(b) The reduced-inspection arm was never verified* -- that half of the
-  research died when the account hit its monthly spend limit, along with the
-  whole MIL-STD-105E comparison and the final synthesis. So reduced inspection
-  is not implemented on evidence, not on preference, and the discontinuation
-  threshold has no default because the sources that would have settled it (5
-  lots vs 10) were not reconciled.
+  *(b) The half that died at the monthly spend limit was re-run on 2026-07-22*
+  and settled both open questions. Reduced inspection and the switching score
+  are now implemented. The 5-vs-10 disagreement over the discontinuation
+  threshold turned out to be an **edition artefact, not a conflict**:
+  ANSI/ASQ Z1.4-2003 changed the rule from ten consecutive lots on tightened to
+  five lots *not accepted*, so older material states the old figure. ISO 9.4 and
+  Z1.4 8.4 agree on the current rule.
+  *(c) That research also caught a real bug in capstat.* The first
+  implementation counted lots *inspected* under tightened where clause 9.4
+  counts lots *not accepted*, cumulatively. Anyone setting the threshold to 5
+  believing they had implemented 9.4 would have got a materially different rule.
+  Fixed, and pinned by a test that runs forty lots through tightened inspection
+  with only four non-accepted among them.
 
   Split into sub-tasks, in order. Each is a gate for the next:
 

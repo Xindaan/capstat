@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-07-21
+Date: 2026-07-22
 
 ## Goal
 
@@ -95,11 +95,11 @@ both done -- acceptance sampling is end-to-end.** What is left:
   which needs an explicit go because its thresholds are read from the standard,
   (3) a code-letter lookup only if 1 and 2 leave a gap, and only from a source
   we may reproduce.
-  **Increments 1 and 2a are done** (limiting quality end-to-end; the
-  normal <-> tightened state machine in the core). What is left: 2b, wiring the
-  switching rules to the API and the page, which is optional -- and reduced
-  inspection, which stays unimplemented until there is evidence, not just
-  appetite.
+  **Increments 1 and 2 are done.** Limiting quality end-to-end; the full
+  switching scheme in the core -- normal/tightened/reduced/discontinued, the
+  switching score, and the two inputs capstat refuses to guess (the tighter-AQL
+  question, and authorisation for reduced inspection). What is left: 2b, wiring
+  the scheme to the API and the page, which is optional.
 - **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
   persistence would both reverse T-0026. What survived is **T-0041** -- saving a
   study as a JSON file the user owns, which is a file format, not persistence,
@@ -132,6 +132,31 @@ postcss half of T-0023, which cannot move until Next raises its pinned floor.
 Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-22: **T-0036 increment 2 — the ISO 2859-1 switching scheme** in the
+  core. normal / tightened / reduced / discontinued, the switching score, and
+  the two inputs capstat refuses to guess: whether a lot would still have been
+  accepted one AQL step tighter (only the master table knows), and whether
+  reduced inspection is authorised at all (steady production plus the
+  responsible authority — not statistics). Both default to the conservative
+  branch, so a scheme left alone never relaxes.
+  **Re-running the research that had died at the spend limit paid for itself
+  twice.** It found a real bug: the first version counted lots *inspected* under
+  tightened where clause 9.4 counts lots *not accepted*, cumulatively — a
+  materially different rule for anyone who set the threshold to 5 believing they
+  had implemented the standard. And it dissolved the 5-vs-10 disagreement over
+  that threshold, which was never a conflict: Z1.4-2003 changed the rule, so
+  older material simply states the superseded figure.
+  **The validation got much stronger than simulation.** The standard's own
+  Annex A works a series of lots all the way through, printing severity *and*
+  switching score per lot. capstat reproduces it completely — both transitions,
+  every score, and the switch to reduced at the lot where the score reaches 30.
+  That also confirmed the two things previously carried as interpretations: a
+  switch binds the lot after the one that triggered it, and the window slides.
+  The sequence is deliberately not committed: it is a table from a copyrighted
+  standard obtained from a copy of uncertain provenance, so what is recorded is
+  the outcome of the comparison. The cost is stated where it belongs — this one
+  check is not re-run by CI.
 
 - 2026-07-21: **T-0037 — acceptance sampling reaches the API and the app.** Four
   routes, one per core entry point, and an `/acceptance-sampling` page that

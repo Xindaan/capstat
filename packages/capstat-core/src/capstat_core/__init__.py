@@ -97,6 +97,7 @@ from capstat_core.rules import (
 )
 from capstat_core.sampling_scheme import (
     InspectionSeverity,
+    LotResult,
     SchemeHistory,
     SchemeStep,
     SwitchingRules,
@@ -140,6 +141,7 @@ __all__ = [
     "InspectionSeverity",
     "LinearityReport",
     "LotDecision",
+    "LotResult",
     "NormalityAssessment",
     "NormalityTestResult",
     "OCCurve",

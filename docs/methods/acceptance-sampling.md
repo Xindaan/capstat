@@ -137,8 +137,13 @@ protection actually comes from: a normal-inspection plan applied forever, with
 no switching, does not deliver what the standard describes, however faithfully
 the plan itself was looked up.
 
-`apply_switching_rules` runs a series of lot outcomes through the two
-transitions:
+```
+normal ----- 2 non-acceptable within 5 consecutive --------> tightened
+tightened -- 5 consecutive acceptable ---------------------> normal
+tightened -- 5 not accepted, cumulative -------------------> discontinued
+normal ----- switching score >= 30, and authorised --------> reduced
+reduced ---- one lot not accepted -------------------------> normal
+```
 
 ```python
 from capstat_core import apply_switching_rules
@@ -148,36 +153,48 @@ history.final_severity            # "tightened"
 [step.severity for step in history.steps]
 ```
 
-```
-normal ---- 2 non-acceptable within 5 consecutive ----> tightened
-tightened -- 5 consecutive acceptable ---------------> normal
-```
-
-Both count **original inspection only** — a lot resubmitted after screening
-counts towards neither rule. capstat cannot tell a resubmission from a first
-presentation, so the caller must pass original-inspection outcomes, and the
-report says so instead of assuming it was done.
+Every rule counts **original inspection only** — a lot resubmitted after
+screening counts towards none of them. capstat cannot tell a resubmission from a
+first presentation, so the caller must pass original-inspection outcomes, and
+the report says so instead of assuming it was done. The rules also apply per
+class of nonconformities: one series per class, not one series for everything.
 
 !!! note "A switch binds the *next* lot"
     The lot whose result triggers a switch was already inspected under the old
     severity; its sample size came from there. `SchemeStep` therefore carries
     both `severity` (what this lot was inspected under) and `severity_after`.
-    Recording the trigger lot under the new severity would misreport what was
-    actually done.
 
-### What is deliberately missing
+!!! warning "Discontinuation counts non-acceptances, not time"
+    Clause 9.4 stops inspection when **five lots have not been accepted** while
+    on tightened, counted cumulatively — intervening acceptances do not reset
+    it. That is not the same as five lots *inspected* under tightened, and an
+    early version of capstat got exactly that wrong. Resumption is not automatic
+    either: it needs supplier action and the authority's agreement, and it
+    returns to **tightened**, not normal.
 
-**Reduced inspection.** Qualifying for it cannot be decided from accept/reject
-outcomes alone: it needs either the standard's limit numbers, or a switching
-score whose main branch asks whether a lot *would* have been accepted under the
-plan for the next tighter AQL. Both are master-table questions, and capstat has
-no master table. A guess here would relax when the standard would not — the one
-direction of error that costs the consumer rather than the producer.
+### What capstat asks you for, rather than guessing
 
-**The discontinuation threshold.** The rule exists: inspection stops until the
-supplier improves. But published restatements of *when* disagree, so there is no
-default. Set `discontinue_after_tightened_lots` to the value your own authority
-applies, or leave it unset and the scheme will not discontinue.
+Two inputs are not statistics, and capstat will not invent them.
+
+**The switching score's harder branch.** For a plan with an acceptance number of
+2 or more, the score adds 3 only if the lot would *still* have been accepted one
+AQL step tighter — a question only the master table answers. Pass it per lot:
+
+```python
+from capstat_core import LotResult, apply_switching_rules
+
+lots = [LotResult(accepted=True, accepted_at_tighter_aql=True), ...]
+history = apply_switching_rules(lots, reduced_inspection_authorised=True)
+```
+
+Leave it out and the lot is scored on the `Ac <= 1` rule (+2 for an accepted
+lot). That reaches reduced inspection *later* than the standard would — the safe
+direction, and the report says it happened.
+
+**Authorisation for reduced inspection.** Clause 9.3.3.1 also requires steady
+production and the responsible authority judging reduced inspection desirable.
+`reduced_inspection_authorised` defaults to `False`: left alone, a scheme never
+relaxes.
 
 ### How it is validated
 
@@ -186,9 +203,16 @@ is validated by simulation, the way the run rules were: construct the lot
 sequences on which two plausible readings of a rule disagree, and assert the
 severity **exactly**. The sharpest pair differs only in that the two
 non-acceptable lots lie five apart rather than four; a cumulative reading
-switches on both, a windowed reading on neither but the first. Nothing
-downstream would have revealed which reading was implemented, because both
-produce a plausible-looking severity column.
+switches on both, a windowed reading on neither but the first.
+
+As a separate check, the implementation was run against the worked series in the
+standard's own Annex A, which prints the severity *and* the switching score for
+every lot. capstat reproduces it completely — both transitions, every score, and
+the switch to reduced inspection at the lot where the score reaches 30. That
+sequence is not committed here: it is a table from a copyrighted standard, and
+what capstat records is the outcome of the comparison, not ISO's data. The cost
+of that choice is stated plainly in the reference file — unlike every other
+reference in the project, this one check is not re-run by CI.
 
 ## If your specification names a standard
 

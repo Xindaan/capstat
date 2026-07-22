@@ -2,7 +2,7 @@
 #
 # This file has sources but no cases, and that is the point. Switching is a
 # *procedure*, not a quantity: there is no certified number to assert against,
-# the way the OC curve has one. What is taken from the standard is two
+# the way the OC curve has one. What is taken from the standard is a handful of
 # thresholds -- and thresholds are facts, so they are cited by clause and
 # restated in capstat's own words. No text from the standard is reproduced in
 # this repository, and no test asserts against a copy of it.
@@ -14,12 +14,14 @@
 # only difference is that the two non-acceptable lots lie five apart rather
 # than four, which is what separates a sliding window from a cumulative count.
 #
-# Deliberately absent, and therefore not sourced here:
-#   * reduced inspection -- qualifying for it needs the standard's limit
-#     numbers, or a switching score that asks whether a lot would have been
-#     accepted under the next tighter AQL. Both are master-table questions.
-#   * the discontinuation threshold -- published restatements disagree, so
-#     capstat has no default and asks the caller for their authority's value.
+# What the caller must supply, because capstat cannot know it:
+#   * whether a lot would still have been accepted one AQL step tighter -- the
+#     switching score's Ac >= 2 branch (9.3.3.2). Only the master table answers
+#     that. Unanswered, the lot is scored on the conservative Ac <= 1 rule, so
+#     reduced inspection is reached later than the standard would reach it.
+#   * whether reduced inspection is authorised at all: 9.3.3.1 also requires
+#     steady production and the responsible authority judging it desirable.
+#     Neither is a statistic, and the default is off.
 #
 # A note on how the thresholds were checked, because it bears on how much
 # weight they carry: they were confirmed against the wording of ISO 2859-1:1999
@@ -29,22 +31,46 @@
 # are consistent across every restatement found, but if capstat's switching
 # rules are ever relied on for conformity, verify them against a licensed copy
 # of the standard first.
+#
+# Cross-check against the standard's own worked sequence (2026-07-22). ISO
+# 2859-1:1999 Annex A works one series of lots all the way through and prints,
+# for every lot, both the severity and the switching score. capstat's state
+# machine reproduces that series **completely**: every severity, every score,
+# both transitions, and the final switch to reduced inspection at the lot where
+# the score reaches 30. That also settles the two points this file had recorded
+# as interpretations rather than quotations -- a switch binds the lot *after*
+# the one that triggered it, and the window is a sliding one (the example
+# tightens on non-acceptable lots four apart).
+# The sequence itself is deliberately NOT committed here. It is a table from a
+# copyrighted standard, obtained from a copy of uncertain provenance; what is
+# recorded is the outcome of the comparison, not ISO's data. Anyone holding a
+# licensed copy can repeat the check in a few lines against
+# ``apply_switching_rules``. The cost of that choice is stated plainly: this
+# particular check is not re-run by CI, unlike every other reference in this
+# directory.
+#
+# Edition note: the clause numbers above are those of the 1999 second edition.
+# A 2026 edition of ISO 2859-1 exists and was not read. If the switching
+# mechanism changed in it, capstat is implementing the 1999 rules.
 
 sources:
   iso_2859_1_switching:
     title: >
       ISO 2859-1:1999, Sampling procedures for inspection by attributes --
-      Part 1, clause 9.3.1 (normal to tightened) and clause 9.3.2 (tightened to
-      normal). Cited by clause; no text reproduced.
+      Part 1, clauses 9.1 (start of inspection), 9.2 (per class of
+      nonconformities), 9.3.1-9.3.4 (the transitions and the switching score)
+      and 9.4 (discontinuation). Cited by clause; no text reproduced.
     note: >
-      Two thresholds are taken from this standard and restated in capstat's own
-      words: tightened inspection begins as soon as two of five or fewer
-      consecutive lots are non-acceptable on original inspection, and normal
-      inspection is restored after five consecutive acceptable lots. Everything
-      else in capstat's implementation -- the window semantics at the boundary,
-      the fresh window on re-entering normal, and the fact that a switch binds
-      the lot after the one that triggered it -- is pinned by tests that label
-      it an interpretation rather than a quotation.
+      The thresholds taken from this standard, restated in capstat's own words:
+      tightened inspection begins as soon as two of five or fewer consecutive
+      lots are non-acceptable on original inspection; normal inspection is
+      restored after five consecutive acceptable ones; inspection is
+      discontinued when five lots have not been accepted, cumulatively, while on
+      tightened; and reduced inspection becomes possible at a switching score of
+      thirty, the score adding three or two per accepted lot depending on the
+      plan's acceptance number. What capstat reads into the rules rather than
+      out of them -- the window boundary and the fresh window on re-entering
+      normal -- is pinned by tests that label it an interpretation.
   ansi_asq_z1_4_2003:
     title: >
       ANSI/ASQ Z1.4-2003, the US equivalent standard, used only to cross-check
@@ -53,6 +79,22 @@ sources:
       Agreement on both numbers. Z1.4 and ISO 2859-1 are not identical
       documents, so this is corroboration of two figures, not evidence that the
       schemes coincide.
+  discontinuation_edition_note:
+    title: >
+      ANSI/ASQ Z1.4-2003, clause 8.4 -- the discontinuation rule, used to settle
+      a contradiction between secondary sources rather than as a source of
+      record.
+    note: >
+      Restatements of the discontinuation threshold disagree in the wild: some
+      say ten consecutive lots on tightened inspection, others five lots not
+      accepted. The disagreement turned out to be an edition artefact, not a
+      real conflict -- Z1.4-2003 changed the rule from the former to the latter,
+      so material predating that revision states the old figure. ISO 2859-1:1999
+      clause 9.4 and Z1.4-2003 clause 8.4 agree: five lots *not accepted*,
+      counted cumulatively over a sequence of consecutive lots on original
+      tightened inspection. Counting lots inspected rather than lots not
+      accepted is a different rule entirely, and an early version of capstat's
+      implementation made exactly that mistake.
   simulation:
     title: >
       Simulated lot sequences, constructed so that two plausible readings of a

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 from capstat_core import (
+    LotResult,
     SchemeHistory,
     SwitchingRules,
     apply_switching_rules,
@@ -56,6 +57,10 @@ def test_the_same_two_rejects_one_lot_further_apart_do_not_tighten() -> None:
     cumulative reading ("two rejects, ever") would switch here; the windowed
     reading does not. Nothing downstream would reveal which reading was
     implemented, because both produce a plausible-looking severity column.
+
+    The windowed reading is the one ISO 2859-1:1999 Annex A demonstrates: its
+    worked sequence tightens on non-acceptable lots four apart, which only the
+    "as soon as the second lands inside the window" reading produces.
     """
     history = apply_switching_rules([R, A, A, A, A, R, A])
     assert severities(history) == ["normal"] * 7
@@ -116,6 +121,13 @@ def test_a_switch_binds_the_next_lot_not_the_one_that_caused_it() -> None:
     The lot whose result triggers a switch was already inspected under the old
     severity -- its sample size came from there. Recording it under the new
     severity would misreport what was actually done.
+
+    This was implemented as an interpretation and has since been *confirmed*
+    against the worked sequence in ISO 2859-1:1999 Annex A, which shows the
+    rejected lot that triggers tightening still evaluated under normal, with
+    tightened inspection beginning on the following lot -- and likewise the
+    fifth acceptable lot still evaluated under tightened, with normal resuming
+    on the one after it.
     """
     history = apply_switching_rules([R, R, A])
     trigger = history.steps[1]
@@ -151,30 +163,114 @@ def test_returning_to_normal_starts_a_fresh_window() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_inspection_is_never_discontinued_by_default() -> None:
-    # Twenty consecutive non-acceptable lots, and the scheme still only tightens
-    # -- because capstat will not invent a threshold whose sources disagree.
-    history = apply_switching_rules([R] * 20)
+def test_discontinuation_counts_lots_not_accepted_not_lots_inspected() -> None:
+    """The distinction that a first version of this module got wrong.
+
+    Clause 9.4 counts *lots not accepted* while on tightened inspection, not
+    lots inspected under it. Here forty lots pass through tightened inspection
+    with only four non-accepted among them, and the scheme must not discontinue
+    -- a counter that measured time on tightened would have stopped inspection
+    long before.
+    """
+    # Tighten on lots 1-2, then a long stretch that never earns normal back
+    # (no run of five acceptable) and never reaches five non-accepted.
+    tail: list[bool] = []
+    for _ in range(4):
+        tail += [A, A, A, A, R]  # four acceptable, one not: run always broken
+    tail += [A] * 4
+    history = apply_switching_rules([R, R, *tail])
     assert history.final_severity == "tightened"
-    assert any("discontinuation" in w for w in history.warnings)
+    assert len(history.steps) > 20
+    assert all(step.severity != "discontinued" for step in history.steps)
 
 
-def test_discontinuation_fires_at_the_threshold_the_caller_sets() -> None:
-    rules = SwitchingRules(discontinue_after_tightened_lots=5)
-    history = apply_switching_rules([R] * 10, rules=rules)
-    # Lots 1-2 on normal, then five lots on tightened: the fifth discontinues.
-    assert severities(history)[:2] == ["normal", "normal"]
-    assert severities(history)[2:7] == ["tightened"] * 5
-    assert history.steps[6].severity_after == "discontinued"
+def test_discontinuation_is_cumulative_and_survives_acceptances() -> None:
+    # Five non-accepted lots on tightened, spread out so that acceptances sit
+    # between them. "Cumulative in a sequence" means those do not reset it.
+    history = apply_switching_rules([R, R, R, A, R, A, R, A, R, A, R])
     assert history.final_severity == "discontinued"
+    discontinued_at = next(
+        s.lot for s in history.switches if s.severity_after == "discontinued"
+    )
+    assert discontinued_at == 11
     assert any("discontinued" in w for w in history.warnings)
 
 
 def test_lots_after_discontinuation_stay_discontinued() -> None:
-    rules = SwitchingRules(discontinue_after_tightened_lots=3)
-    history = apply_switching_rules([R] * 8, rules=rules)
+    history = apply_switching_rules([R] * 12)
     assert history.steps[-1].severity == "discontinued"
     assert history.steps[-1].severity_after == "discontinued"
+    # Resumption is a human decision and returns to *tightened*, so the report
+    # says so rather than implying the series could simply carry on.
+    assert any("resumes on *tightened*" in w for w in history.warnings)
+
+
+# ---------------------------------------------------------------------------
+# The switching score, and reduced inspection
+# ---------------------------------------------------------------------------
+
+
+def test_reduced_inspection_needs_an_authorisation_capstat_cannot_give() -> None:
+    # Twenty accepted lots score 40 on the Ac <= 1 rule, well past 30 -- and the
+    # scheme still does not relax, because steady production and the authority's
+    # approval are not statistics.
+    unauthorised = apply_switching_rules([A] * 20)
+    assert unauthorised.final_severity == "normal"
+    assert any("not authorised" in w for w in unauthorised.warnings)
+
+    authorised = apply_switching_rules([A] * 20, reduced_inspection_authorised=True)
+    assert authorised.final_severity == "reduced"
+
+
+def test_the_score_adds_two_for_an_accepted_lot_and_resets_on_one_that_is_not() -> None:
+    history = apply_switching_rules([A, A, A, R, A])
+    assert [s.switching_score for s in history.steps] == [2, 4, 6, 0, 2]
+
+
+def test_the_score_adds_three_when_the_tighter_aql_question_is_answered() -> None:
+    """Clause 9.3.3.2's other branch -- the one that needs the master table.
+
+    A lot that says it would still have been accepted one AQL step tighter
+    scores three. capstat never infers this: a bare boolean outcome is scored on
+    the conservative rule instead.
+    """
+    lots = [LotResult(accepted=True, accepted_at_tighter_aql=True)] * 3
+    history = apply_switching_rules(lots)
+    assert [s.switching_score for s in history.steps] == [3, 6, 9]
+
+    # Accepted, but not at the tighter AQL: the score resets rather than adding.
+    mixed = apply_switching_rules(
+        [
+            LotResult(accepted=True, accepted_at_tighter_aql=True),
+            LotResult(accepted=True, accepted_at_tighter_aql=False),
+            LotResult(accepted=True, accepted_at_tighter_aql=True),
+        ]
+    )
+    assert [s.switching_score for s in mixed.steps] == [3, 0, 3]
+
+
+def test_the_score_is_not_maintained_outside_normal_inspection() -> None:
+    history = apply_switching_rules([R, R, A, A, A])
+    # Lots 1-2 are normal and scored; lots 3-5 are tightened and are not.
+    assert history.steps[0].switching_score == 0
+    assert history.steps[2].switching_score is None
+    assert history.steps[4].switching_score is None
+
+
+def test_reduced_inspection_ends_on_a_lot_that_is_not_accepted() -> None:
+    outcomes: list[bool] = [A] * 20 + [R, A]
+    history = apply_switching_rules(outcomes, reduced_inspection_authorised=True)
+    reduced_lots = [s.lot for s in history.steps if s.severity == "reduced"]
+    assert reduced_lots  # it did relax
+    # The non-accepted lot is judged under reduced and sends the next one back.
+    assert history.steps[20].severity == "reduced"
+    assert history.steps[20].severity_after == "normal"
+    assert history.final_severity == "normal"
+
+
+def test_scoring_every_lot_on_the_conservative_rule_is_said_out_loud() -> None:
+    history = apply_switching_rules([A] * 6)
+    assert any("Ac <= 1 rule" in w for w in history.warnings)
 
 
 # ---------------------------------------------------------------------------
@@ -203,8 +299,10 @@ def test_impossible_rule_combinations_are_rejected() -> None:
         SwitchingRules(tighten_on_non_acceptable=3, within_consecutive_lots=2)
     with pytest.raises(ValueError, match="relax_after"):
         SwitchingRules(relax_after_consecutive_acceptable=0)
-    with pytest.raises(ValueError, match="discontinue_after"):
-        SwitchingRules(discontinue_after_tightened_lots=0)
+    with pytest.raises(ValueError, match="discontinue_on_non_accepted"):
+        SwitchingRules(discontinue_on_non_accepted=0)
+    with pytest.raises(ValueError, match="reduce_at_switching_score"):
+        SwitchingRules(reduce_at_switching_score=0)
 
 
 def test_a_series_cannot_start_discontinued() -> None:
@@ -228,7 +326,7 @@ def test_an_empty_series_is_not_an_error() -> None:
 def test_the_report_says_what_it_cannot_know() -> None:
     history = apply_switching_rules([A, A, A])
     assert any("original inspection only" in w for w in history.warnings)
-    assert any("reduced inspection is not implemented" in w for w in history.warnings)
+    assert any("per class of nonconformities" in w for w in history.warnings)
     assert any("no switch occurred" in w for w in history.warnings)
 
 
