@@ -18,6 +18,16 @@
   then actually watch it), or drop the contact link and let questions arrive as
   issues. Deciding to run Discussions is a commitment to answering them, so the
   cheaper option is defensible.
+- T-0044 SECURITY.md promises a channel the repo does not offer (2026-07-23).
+  `SECURITY.md` names GitHub **private vulnerability reporting** as the
+  *preferred* way to report a flaw, but the feature is disabled on the repo
+  (`gh api repos/Xindaan/capstat/private-vulnerability-reporting` -> enabled:
+  false). The e-mail fallback in the same file works, so nobody is stranded --
+  but the preferred path for a tool that eats real production measurement data
+  is a dead end. Unlike T-0043 this one costs nothing to honour: enable it
+  (`gh api -X PUT repos/Xindaan/capstat/private-vulnerability-reporting`) rather
+  than weaken the document. Enabling adds no obligation beyond what SECURITY.md
+  already commits to.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together.
