@@ -49,8 +49,10 @@ M5 MSA, M6 release (report, deployment, docs, release).
 - **Gage R&R is wired end-to-end**: core (`gage_rr`/`gage_rr_range`) ->
   `/compute/gage-rr` (both methods, faithful serialisation) -> a `/gage-rr` web
   page with a data-entry grid and a variance/%/ndc report. Verified in-browser.
-- Repo live at github.com/Xindaan/capstat (**private**; flip with
-  `gh repo edit --visibility public` when ready).
+- Repo live and **public** at github.com/Xindaan/capstat (flipped 2026-07-23).
+  The kickoff brief's "professional, public, MIT-licensed open-source project"
+  is now literally true; the CI badge in the README resolves for anonymous
+  visitors (it did not while the repo was private).
 - **Hosting decided (2026-07-20): local only, no public demo.** The maintainer
   trusts running it locally over sending measurement data to a third party --
   the right call for a tool fed real production data. `docker compose up` is the
@@ -117,10 +119,16 @@ both done -- acceptance sampling is end-to-end.** What is left:
 **v0.1.0 is released** (tag `v0.1.0`, 2026-07-21). M1–M6 are complete: core,
 API, web app, MSA, report, docs, deployment artifacts, release automation.
 
-**Repo visibility** — still private, so the release is visible only to you.
-Flipping it is a separate, deliberate step: `gh repo edit --visibility public`.
-Decide this *before* T-0030: publishing an sdist puts the source on PyPI, which
-is a larger step than making the repo public, not a smaller one.
+**Repo visibility — decided and done (2026-07-23): public.** The gate this
+placed in front of T-0030 is therefore cleared: making the repo public was the
+smaller step, and it has been taken. T-0030 (publishing to PyPI) remains a
+separate, larger decision — see below.
+
+**New, and only visible now that the repo is public:** `.github/ISSUE_TEMPLATE/
+config.yml` links "Question or discussion" to `/discussions`, but Discussions is
+not enabled on the repo, so that link 404s for the first visitor who clicks
+"New issue". Either enable Discussions (`gh repo edit --enable-discussions`) or
+drop the contact link. Tracked as T-0043.
 
 **T-0030** is half set up: a PyPI account and a pending trusted publisher exist
 (`capstat-core` / `Xindaan` / `capstat` / `publish.yml` / env `pypi`), so no API

@@ -10,6 +10,14 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- T-0043 Dead "Question or discussion" link, exposed by the repo going public
+  (2026-07-23). `.github/ISSUE_TEMPLATE/config.yml` sends visitors to
+  `/discussions`, which returns **404**: Discussions is not enabled on the repo.
+  Harmless while the repo was private; now it is the first thing a visitor meets
+  after clicking "New issue". Either `gh repo edit --enable-discussions` (and
+  then actually watch it), or drop the contact link and let questions arrive as
+  issues. Deciding to run Discussions is a commitment to answering them, so the
+  cheaper option is defensible.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together.
@@ -676,7 +684,7 @@
     out-of-control points read as gage drift.
   445 core tests, 100% coverage, mypy strict + ruff clean. Core-only; the API +
   UI wiring is T-0025.
-- T-0012 web+API (2026-07-15) Gage R&R wired out of the core: `/compute/gage-rr`
+- T-0012b web+API (2026-07-15) Gage R&R wired out of the core: `/compute/gage-rr`
   (both methods, faithful `GageRRReportOut` with the derived %/ndc read via
   from_attributes; a nan-guard so degenerate input serialises as null, not a
   500) and a `/gage-rr` web page -- data-entry grid (parts x operators x trials,
