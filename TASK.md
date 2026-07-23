@@ -10,14 +10,6 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
-- T-0043 Dead "Question or discussion" link, exposed by the repo going public
-  (2026-07-23). `.github/ISSUE_TEMPLATE/config.yml` sends visitors to
-  `/discussions`, which returns **404**: Discussions is not enabled on the repo.
-  Harmless while the repo was private; now it is the first thing a visitor meets
-  after clicking "New issue". Either `gh repo edit --enable-discussions` (and
-  then actually watch it), or drop the contact link and let questions arrive as
-  issues. Deciding to run Discussions is a commitment to answering them, so the
-  cheaper option is defensible.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together.
@@ -250,6 +242,20 @@
 
 ## Done
 
+- T-0043 (2026-07-23) **Discussions enabled; the issue template's question link
+  works again.** `.github/ISSUE_TEMPLATE/config.yml` had offered "Question or
+  discussion" pointing at `/discussions`, which returned 404 -- invisible while
+  the repo was private, the first thing a visitor met after the public flip.
+  Decided in favour of enabling (not of dropping the link), because
+  `blank_issues_enabled: false` means the three issue templates are the only way
+  in, and none of them fits a plain usage question: without a question channel,
+  visitors would have been pushed to file understanding questions as bug reports.
+  Verified: `hasDiscussionsEnabled: true`, `/discussions` -> HTTP 200.
+  **Open follow-up:** GitHub created six default categories (Announcements,
+  General, Ideas, Polls, Q&A, Show and tell). "Ideas" duplicates the existing
+  `feature_request.yml` template, and Polls/Show and tell presuppose a community
+  that does not exist yet. Pruning to Q&A + Announcements would keep one funnel
+  per purpose; left as the maintainer's call.
 - T-0044 (2026-07-23) **SECURITY.md's preferred reporting channel now exists.**
   The file named GitHub private vulnerability reporting as the *preferred* way to
   report a flaw, but the feature was disabled on the repo -- harmless while the

@@ -130,11 +130,14 @@ document promising a channel the repo did not offer.
   vulnerability reporting as the *preferred* way to report a flaw while the
   feature was disabled. Now enabled and verified; the document was right, the
   repo simply had not been configured to keep its promise.
-- **T-0043 is open, and is a decision, not a fix.**
-  `.github/ISSUE_TEMPLATE/config.yml` links "Question or discussion" to
-  `/discussions`, which 404s. Enabling Discussions is a commitment to answering
-  them; dropping the link and letting questions arrive as issues is equally
-  defensible for a solo maintainer. Unlike T-0044, honouring this one is not free.
+- **T-0043 is fixed (2026-07-23): Discussions enabled.** The issue template's
+  "Question or discussion" link had 404'd. Enabling won over dropping the link
+  because `blank_issues_enabled: false` leaves only three templates, none of
+  which fits a plain usage question -- without a question channel, visitors get
+  pushed into filing understanding questions as bug reports. This one carries an
+  ongoing cost the other did not: an unanswered discussion is publicly visible.
+  Follow-up left open: prune the six default categories to Q&A + Announcements,
+  since "Ideas" duplicates the feature-request template.
 
 **T-0030** is half set up: a PyPI account and a pending trusted publisher exist
 (`capstat-core` / `Xindaan` / `capstat` / `publish.yml` / env `pypi`), so no API
