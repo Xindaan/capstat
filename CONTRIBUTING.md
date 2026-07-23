@@ -40,7 +40,19 @@ uv run mypy
 uv run pytest --cov=capstat_core
 ```
 
-All must pass; coverage on capstat-core must stay ≥ 95 %.
+And, if you touched `apps/web`:
+
+```bash
+npm run lint
+npm run format:check
+npm test
+npm run build
+```
+
+All must pass; coverage on capstat-core must stay ≥ 95 %. `npm run format`
+rewrites files in place; `format:check` only reports, which is what CI runs.
+The generated `lib/api-client/schema.d.ts` is deliberately left unformatted
+(see `apps/web/.prettierignore`) so that `npm run check:api` keeps working.
 
 ## Commits and pull requests
 

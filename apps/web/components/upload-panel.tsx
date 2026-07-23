@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { ingestFile, type IngestColumn, type IngestResponse } from "@/lib/api-client";
+import {
+  ingestFile,
+  type IngestColumn,
+  type IngestResponse,
+} from "@/lib/api-client";
 import { describeApiError } from "@/lib/errors";
 import { columnStats, looksLikeRowIndex } from "@/lib/stats";
 
@@ -265,8 +269,8 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
   if (column.values.length === 0) {
     return (
       <p className="text-sm text-foreground/60">
-        Column{" "}
-        <span className="font-mono">{column.name}</span> has no usable values.
+        Column <span className="font-mono">{column.name}</span> has no usable
+        values.
       </p>
     );
   }
@@ -286,10 +290,11 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
       </dl>
       {rowIndex ? (
         <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200/90">
-          These values run {numberFormat.format(min)}, {numberFormat.format(min + 1)},{" "}
-          {numberFormat.format(min + 2)} … — this looks like a row number, not a
-          measurement. Analysing it will produce indices that are arithmetically
-          correct and meaningless. Pick the column you actually measured.
+          These values run {numberFormat.format(min)},{" "}
+          {numberFormat.format(min + 1)}, {numberFormat.format(min + 2)} … —
+          this looks like a row number, not a measurement. Analysing it will
+          produce indices that are arithmetically correct and meaningless. Pick
+          the column you actually measured.
         </p>
       ) : (
         <p className="mt-3 text-xs text-foreground/50">

@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-07-22
+Date: 2026-07-23
 
 ## Goal
 
@@ -136,6 +136,24 @@ postcss half of T-0023, which cannot move until Next raises its pinned floor.
 Nothing is blocked on me.
 
 ## Last done
+
+- 2026-07-23: **T-0042 — Prettier now exists**, having been claimed by
+  `AGENTS.md` and `PLAN.md` as a green quality gate while no config,
+  dependency, script or hook was in the repo. Turned up by auditing the tree
+  against the original kickoff brief. Config, ignore file, `format` /
+  `format:check`, a CI step and prettier + eslint pre-commit hooks; 6 files
+  reformatted, because the maintainer's editor had been doing this all along
+  with Prettier's defaults and no version pinned anywhere.
+  **The generated `lib/api-client/schema.d.ts` had to be excluded**: it is
+  guarded by `npm run check:api` via `git diff --exit-code`, so formatting it
+  would have made the committed file differ from a fresh generation and broken
+  a contract gate — a formatting change quietly disabling a correctness check.
+  Both directions verified.
+  **Isomorphy check on the class "a control file claims a gate that does not
+  exist":** every other gate in AGENTS.md and PLAN.md was checked against the
+  real config, and the coverage gate was additionally *run* to confirm it fails
+  rather than merely being configured. All genuine; Prettier was the only lie.
+  `CONTRIBUTING.md` also gained the web gates, which it had never listed.
 
 - 2026-07-22: **T-0041 — a study saves to a file and loads back**, on
   `/acceptance-sampling`, `/gage-rr` and `/msa`. A file on the user's own disk, written and read by

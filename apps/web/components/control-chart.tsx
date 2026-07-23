@@ -73,14 +73,24 @@ export function ControlChart({
     const sigma = (upper - center) / 3;
     const categories = points.map((_, i) => String(i + 1));
 
-    const line = (value: number, color: string, name: string, dashed = false) => ({
+    const line = (
+      value: number,
+      color: string,
+      name: string,
+      dashed = false,
+    ) => ({
       yAxis: value,
       lineStyle: {
         color,
         type: dashed ? ("dashed" as const) : ("solid" as const),
         width: dashed ? 1.5 : 1,
       },
-      label: { formatter: name, color, position: "insideEndTop" as const, fontSize: 11 },
+      label: {
+        formatter: name,
+        color,
+        position: "insideEndTop" as const,
+        fontSize: 11,
+      },
     });
 
     const zoneLine = (value: number) => ({

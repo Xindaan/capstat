@@ -39,3 +39,28 @@ repos:
         files: ^apps/api/
         pass_filenames: false
         require_serial: true
+
+      # The two Node hooks below run the binaries from apps/web/node_modules,
+      # so `npm ci` in apps/web has to have run once. They fail loudly rather
+      # than silently skipping if it has not.
+      - id: prettier
+        name: prettier
+        # --ignore-path is not optional: pre-commit runs from the repo root,
+        # where prettier would not find apps/web/.prettierignore on its own,
+        # and would then reformat the generated lib/api-client/schema.d.ts --
+        # which breaks `npm run check:api`.
+        entry: apps/web/node_modules/.bin/prettier --write --ignore-path apps/web/.prettierignore
+        language: system
+        files: ^apps/web/.*\.(ts|tsx|css|json|mjs|md)$
+        require_serial: true
+      - id: eslint
+        name: eslint
+        # eslint's flat config is discovered from the working directory, not
+        # from the linted file, so this has to cd into apps/web -- which in
+        # turn makes the repo-relative filenames pre-commit passes useless.
+        # Hence the whole app is linted whenever any of its files changes.
+        entry: bash -c 'cd apps/web && exec npx eslint'
+        language: system
+        files: ^apps/web/
+        pass_filenames: false
+        require_serial: true

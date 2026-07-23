@@ -1,0 +1,11 @@
+# Build output and dependencies.
+.next/
+node_modules/
+playwright-report/
+test-results/
+
+# Generated from ../api/openapi.json by `npm run generate:api`. `npm run
+# check:api` regenerates it and fails on any diff, so formatting it here would
+# break that drift check: the committed file would no longer match a fresh
+# generation. Whatever openapi-typescript emits is what has to be on disk.
+lib/api-client/schema.d.ts

@@ -242,6 +242,56 @@
 
 ## Done
 
+- T-0042 (2026-07-23) **Prettier, a gate the control files had been claiming
+  for months without it existing.** Found by auditing the repo against the
+  original kickoff brief, which listed Prettier twice: frontend tooling and
+  pre-commit. Neither was there -- no config, no dependency, no script, no
+  hook. `npm run lint` was bare eslint, so TS/TSX formatting was checked
+  nowhere. Meanwhile `AGENTS.md` listed prettier under "Quality gates (CI must
+  stay green)" and `PLAN.md` under both the frontend stack and the pre-commit
+  hooks. The formatting that did exist came from the maintainer's editor
+  running Prettier with defaults -- which is why only 6 files needed rewriting,
+  and also why STATE.md has an entry about "Prettier kept reformatting the fix
+  away". An unversioned tool was silently shaping the tree.
+  Now real: `apps/web/.prettierrc.json` (Prettier 3 defaults pinned
+  explicitly, so a future major cannot silently reformat the tree),
+  `.prettierignore`, `format` / `format:check` scripts, a CI step in the web
+  job, and prettier + eslint pre-commit hooks. 578 Python tests, 47 vitest,
+  eslint and both drift gates green.
+  Three things worth keeping:
+  **(1) The generated TS client had to be excluded, or the fix would have
+  broken a different gate.** `lib/api-client/schema.d.ts` is emitted by
+  openapi-typescript and guarded by `npm run check:api`, which regenerates it
+  and runs `git diff --exit-code`. Prettier's first pass flagged it. Had it
+  been reformatted, the committed file would no longer match a fresh
+  generation and the drift check would fail on every run -- a formatting
+  change silently disabling a contract gate. Verified both directions: without
+  `--ignore-path` the file is flagged, with it the check passes.
+  **(2) `printWidth` stays at Prettier's 80, not ruff's 88.** 88 would have
+  matched the Python side and reformatted 20+ files; 80 matches what is
+  already on disk and touched 6. Cross-language symmetry is not worth that
+  much churn in a diff nobody can review line by line.
+  **(3) The pre-commit hooks needed two different workarounds, both load-
+  bearing.** pre-commit runs from the repo root, where Prettier would not find
+  `apps/web/.prettierignore` -- hence the explicit `--ignore-path`, without
+  which the hook reintroduces problem (1) on every commit. eslint's flat
+  config is discovered from the working directory rather than from the linted
+  file, so its hook has to `cd` into `apps/web`, which makes the repo-relative
+  filenames pre-commit passes useless -- hence `pass_filenames: false` and
+  linting the whole app. Both are commented in place; they look like
+  overcomplication otherwise.
+  **Isomorphy check** (the class: control files asserting a gate that does not
+  exist). Every other gate claimed in AGENTS.md and PLAN.md was verified
+  against the actual config, and the coverage gate additionally by running a
+  deliberate partial suite to confirm it fails rather than merely being
+  configured (`FAIL Required test coverage of 95.0% not reached`). ruff
+  lint+format, mypy --strict, coverage >= 95, tsc via `next build`, vitest,
+  Playwright and the two drift gates are all genuinely enforced. Prettier was
+  the only false claim.
+  Also fixed in passing: `CONTRIBUTING.md` "Before you push" listed only the
+  Python gates, so a web-only contributor was told to run none of the gates
+  their change would actually hit.
+
 - T-0037 (2026-07-21) **Acceptance sampling reaches the app.** Four routes --
   `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect}`, one per
   core entry point -- plus an `/acceptance-sampling` page that designs a plan

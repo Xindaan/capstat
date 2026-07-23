@@ -104,86 +104,94 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
     ].filter((v): v is NonNullable<typeof v> => v != null);
 
     return {
-        animation: false,
-        // top leaves room for the y-axis name, which ECharts draws *above* the
-        // grid: at 24 it was clipped by the top of the canvas.
-        grid: { left: 8, right: 16, top: 36, bottom: 24, containLabel: true },
-        tooltip: {
-          trigger: "axis",
-          backgroundColor: t.tooltipBg,
-          borderWidth: 0,
-          textStyle: { color: t.tooltipText, fontSize: 12 },
-        },
-        xAxis: {
-          type: "value",
-          min: domain.lo,
-          max: domain.hi,
-          axisLine: { lineStyle: { color: t.axis } },
-          axisLabel: { color: t.axis },
-          splitLine: { show: false },
-        },
-        yAxis: {
-          type: "value",
-          name: "density",
-          nameTextStyle: { color: t.axis, align: "left" },
-          axisLabel: { color: t.axis },
-          splitLine: { lineStyle: { color: t.grid } },
-        },
-        series: [
-          {
-            type: "custom",
-            name: "Histogram",
-            dimensions: ["x0", "x1", "density"],
-            encode: { x: [0, 1], y: 2, tooltip: [2] },
-            data: bins.bars,
-            renderItem: (
-              _params: CustomSeriesRenderItemParams,
-              api: CustomSeriesRenderItemAPI,
-            ) => {
-              const x0 = api.value(0) as number;
-              const x1 = api.value(1) as number;
-              const y = api.value(2) as number;
-              const start = api.coord([x0, y]);
-              const base = api.coord([x1, 0]);
-              return {
-                type: "rect",
-                shape: {
-                  x: start[0] + 0.5,
-                  y: start[1],
-                  width: base[0] - start[0] - 1,
-                  height: base[1] - start[1],
-                },
-                // Literal fill rather than the deprecated api.style().
-                style: { fill: t.bar },
-              };
-            },
-            itemStyle: { color: t.bar },
-            // The spec limits ride on the histogram series so they render even
-            // when there is no fitted curve (the non-normal paths).
-            markLine: {
-              symbol: "none",
-              silent: true,
-              data: markLines,
-            },
+      animation: false,
+      // top leaves room for the y-axis name, which ECharts draws *above* the
+      // grid: at 24 it was clipped by the top of the canvas.
+      grid: { left: 8, right: 16, top: 36, bottom: 24, containLabel: true },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: t.tooltipBg,
+        borderWidth: 0,
+        textStyle: { color: t.tooltipText, fontSize: 12 },
+      },
+      xAxis: {
+        type: "value",
+        min: domain.lo,
+        max: domain.hi,
+        axisLine: { lineStyle: { color: t.axis } },
+        axisLabel: { color: t.axis },
+        splitLine: { show: false },
+      },
+      yAxis: {
+        type: "value",
+        name: "density",
+        nameTextStyle: { color: t.axis, align: "left" },
+        axisLabel: { color: t.axis },
+        splitLine: { lineStyle: { color: t.grid } },
+      },
+      series: [
+        {
+          type: "custom",
+          name: "Histogram",
+          dimensions: ["x0", "x1", "density"],
+          encode: { x: [0, 1], y: 2, tooltip: [2] },
+          data: bins.bars,
+          renderItem: (
+            _params: CustomSeriesRenderItemParams,
+            api: CustomSeriesRenderItemAPI,
+          ) => {
+            const x0 = api.value(0) as number;
+            const x1 = api.value(1) as number;
+            const y = api.value(2) as number;
+            const start = api.coord([x0, y]);
+            const base = api.coord([x1, 0]);
+            return {
+              type: "rect",
+              shape: {
+                x: start[0] + 0.5,
+                y: start[1],
+                width: base[0] - start[0] - 1,
+                height: base[1] - start[1],
+              },
+              // Literal fill rather than the deprecated api.style().
+              style: { fill: t.bar },
+            };
           },
-          ...(pdfLine
-            ? [
-                {
-                  type: "line" as const,
-                  name: "Normal fit",
-                  data: pdfLine,
-                  showSymbol: false,
-                  smooth: true,
-                  lineStyle: { color: t.pdf, width: 2 },
-                  z: 3,
-                },
-              ]
-            : []),
-        ],
+          itemStyle: { color: t.bar },
+          // The spec limits ride on the histogram series so they render even
+          // when there is no fitted curve (the non-normal paths).
+          markLine: {
+            symbol: "none",
+            silent: true,
+            data: markLines,
+          },
+        },
+        ...(pdfLine
+          ? [
+              {
+                type: "line" as const,
+                name: "Normal fit",
+                data: pdfLine,
+                showSymbol: false,
+                smooth: true,
+                lineStyle: { color: t.pdf, width: 2 },
+                z: 3,
+              },
+            ]
+          : []),
+      ],
     };
   };
 
-  const ref = useEchart(buildOption, [bins, pdfLine, domain, lsl, usl, target, dark]);
+  const ref = useEchart(buildOption, [
+    bins,
+    pdfLine,
+    domain,
+    lsl,
+    usl,
+    target,
+    dark,
+  ]);
 
   return <div ref={ref} className="h-72 w-full" />;
 }

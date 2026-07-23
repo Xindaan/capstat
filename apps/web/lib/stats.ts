@@ -107,9 +107,11 @@ export function histogram(values: number[]): Bins {
     const bin = Math.min(raw, k - 1);
     counts[bin] += 1;
   }
-  const bars = counts.map(
-    (c, i): [number, number, number] => [edges[i], edges[i + 1], c / (n * width)],
-  );
+  const bars = counts.map((c, i): [number, number, number] => [
+    edges[i],
+    edges[i + 1],
+    c / (n * width),
+  ]);
   return { edges, bars };
 }
 
@@ -131,7 +133,9 @@ export function capabilityDomain(
   const specs = specLimits.filter((v): v is number => v != null);
   const edgeLo = edges[0];
   const edgeHi = edges[edges.length - 1];
-  const fitSpan = fit ? [fit.mean - 4 * fit.sigma, fit.mean + 4 * fit.sigma] : [];
+  const fitSpan = fit
+    ? [fit.mean - 4 * fit.sigma, fit.mean + 4 * fit.sigma]
+    : [];
   const lo = Math.min(edgeLo, ...specs, ...fitSpan);
   const hi = Math.max(edgeHi, ...specs, ...fitSpan);
   const pad = (hi - lo) * 0.03 || 1;
