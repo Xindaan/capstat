@@ -124,11 +124,17 @@ placed in front of T-0030 is therefore cleared: making the repo public was the
 smaller step, and it has been taken. T-0030 (publishing to PyPI) remains a
 separate, larger decision — see below.
 
-**New, and only visible now that the repo is public:** `.github/ISSUE_TEMPLATE/
-config.yml` links "Question or discussion" to `/discussions`, but Discussions is
-not enabled on the repo, so that link 404s for the first visitor who clicks
-"New issue". Either enable Discussions (`gh repo edit --enable-discussions`) or
-drop the contact link. Tracked as T-0043.
+**Two dead paths the public flip exposed** -- both the same class of fault: a
+document promising a channel the repo did not offer.
+- **T-0044 is fixed (2026-07-23).** SECURITY.md named GitHub private
+  vulnerability reporting as the *preferred* way to report a flaw while the
+  feature was disabled. Now enabled and verified; the document was right, the
+  repo simply had not been configured to keep its promise.
+- **T-0043 is open, and is a decision, not a fix.**
+  `.github/ISSUE_TEMPLATE/config.yml` links "Question or discussion" to
+  `/discussions`, which 404s. Enabling Discussions is a commitment to answering
+  them; dropping the link and letting questions arrive as issues is equally
+  defensible for a solo maintainer. Unlike T-0044, honouring this one is not free.
 
 **T-0030** is half set up: a PyPI account and a pending trusted publisher exist
 (`capstat-core` / `Xindaan` / `capstat` / `publish.yml` / env `pypi`), so no API
