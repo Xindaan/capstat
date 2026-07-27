@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.2.0](https://github.com/Xindaan/capstat/compare/v0.1.0...v0.2.0) (2026-07-27)
+
+
+### Features
+
+* **api,web:** acceptance sampling end to end (T-0037) ([73588ed](https://github.com/Xindaan/capstat/commit/73588ede19b0e06c7c484c3b592e066fb61a4cb9))
+* **api,web:** the switching scheme reaches the app (T-0036, increment 2b) ([b4dd6cc](https://github.com/Xindaan/capstat/commit/b4dd6cc421edb84249d8c6172765313941af2c03))
+* **community:** enable Discussions so the question link resolves (T-0043) ([3ed373f](https://github.com/Xindaan/capstat/commit/3ed373fa4a352aca8f8204f0910fa443dce8a38e))
+* **core:** acceptance sampling, computed rather than looked up (T-0035) ([5a5402d](https://github.com/Xindaan/capstat/commit/5a5402dc61c950bbb85a585f98b28c5ae8dde468))
+* **core:** complete the ISO 2859-1 switching scheme, and fix a rule I had wrong ([ef9daae](https://github.com/Xindaan/capstat/commit/ef9daae02cc843ad9956b40e3aa98de1d22a5b2e))
+* **core:** ISO 2859-1 switching rules, the half we can stand behind (T-0036) ([1c5c673](https://github.com/Xindaan/capstat/commit/1c5c673949ae5d5a42a07ecd030b8daca1eb3ecf))
+* **sampling:** report ISO 2859-1's limiting quality (T-0036, increment 1) ([b37e987](https://github.com/Xindaan/capstat/commit/b37e987f3c341d12c45d29d3158fd76b41899482))
+* **web:** choose which run rules apply; clear the dependency backlog ([ff17086](https://github.com/Xindaan/capstat/commit/ff170866e4732b7cc140011e594d12f6cdb74f5d))
+* **web:** finish the study file, and stop the e2e suite racing the dev server ([9979da3](https://github.com/Xindaan/capstat/commit/9979da3bf9d026ce5b88af7c443f002eb54e7ab6))
+* **web:** save and reload a study as a file you own (T-0041, partly) ([676da13](https://github.com/Xindaan/capstat/commit/676da13db0f8d0c801b44340ba8f6b7416deacf4))
+
+
+### Bug fixes
+
+* **security:** enable private vulnerability reporting (T-0044) ([c921f54](https://github.com/Xindaan/capstat/commit/c921f54644759adce9ac274ab3b2376daf67b7a0))
+
+
+### Documentation
+
+* **sampling:** name the bring-your-own-plan path; fix a racing e2e assertion ([e9b103b](https://github.com/Xindaan/capstat/commit/e9b103b5f20f8a10d2430fc5451e65984cb49f69))
+* show the app, with numbers the library actually computed (T-0031) ([7a920aa](https://github.com/Xindaan/capstat/commit/7a920aaf6314c3504dadeb89eee0e7a4b34387b6))
+* **state:** record the public flip, and capture what it exposed ([20d4ecc](https://github.com/Xindaan/capstat/commit/20d4eccbb7bd4a31641751af8944741269205c2b))
+* **task:** capture T-0044 (SECURITY.md names a reporting channel the repo has disabled) ([737c289](https://github.com/Xindaan/capstat/commit/737c2898b6c56cd0471d8b3cc974ad42eb7ae2f4))
+* **task:** T-0030 -- record the publish reasoning; visibility gate cleared ([40d0fca](https://github.com/Xindaan/capstat/commit/40d0fcad622e70378d630abd7adb4e464714a1a1))
+
 ## 0.1.0 (2026-07-21)
 
 
