@@ -56,6 +56,36 @@
   *larger* step than making the repo public. Settle the visibility question
   first. Also needs a GitHub environment named `pypi` (Settings -> Environments)
   before any publish run works; worth a manual-approval rule when it is created.
+  **2026-07-23 -- the sequencing gate is cleared: the repo is public.** So the
+  larger-step-first ordering is satisfied, and T-0030 is now genuinely
+  decidable rather than blocked.
+  **On whether publishing is presumptuous (the maintainer asked).** It is not.
+  PyPI has no gatekeeper -- no review, no quality bar; the median package on it
+  has zero tests. Publishing is renting shelf space, not claiming importance.
+  Measured against what is actually there, capstat-core sits well above the
+  floor (517 tests at 100 % coverage, mypy strict, `py.typed`, and reference
+  data in-tree with source + certified value + justified tolerance per method).
+  The classifiers say `Development Status :: 3 - Alpha` and the README says
+  "early development", so nothing over-claims. The real cost is not reputation
+  but *commitment*: once someone pins `capstat-core`, a breaking change hurts,
+  and the version + name are permanent. So the test is "can I stand behind it",
+  not "is it good enough" -- and the answer is yes, because the statistical
+  judgements are the maintainer's own field.
+  **Recommendation recorded: publish when there is a reason, not for
+  completeness.** The most likely reason is writing about capstat publicly
+  (LinkedIn), where `pip install capstat-core` for a reader beats "clone and
+  install from the checkout". Absent that pull, waiting costs nothing: both
+  names were still free (HTTP 404, re-checked 2026-07-23) and the collision risk
+  on so specific a term is low. What is NOT a good reason to hold back: that it
+  *feels* presumptuous -- that is the same reflex that leaves the quality world
+  with only expensive proprietary tools.
+  **Mechanics verified 2026-07-23:** `uv build --package capstat-core` produces
+  a clean `capstat_core-0.1.0` wheel + sdist; version is release-please-managed
+  (0.1.0). Publishing would mean adding `publish.yml` (trusted-publisher OIDC,
+  environment `pypi`, no token), then either a manual `workflow_dispatch` run to
+  push the existing 0.1.0, or letting the next release-please release trigger
+  it. Adding that workflow is still the point of no return, and still the
+  maintainer's explicit call.
 - ~~T-0018 Roadmap (explicitly NOT v0.1)~~ -- split 2026-07-21 into T-0035..
   T-0041. It bundled four unrelated themes behind one ID, which made it
   un-schedulable: one of them is a statistical method this library exists to
