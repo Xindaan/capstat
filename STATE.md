@@ -121,8 +121,17 @@ API, web app, MSA, report, docs, deployment artifacts, release automation.
 
 **Repo visibility — decided and done (2026-07-23): public.** The gate this
 placed in front of T-0030 is therefore cleared: making the repo public was the
-smaller step, and it has been taken. T-0030 (publishing to PyPI) remains a
-separate, larger decision — see below.
+smaller step, and it has been taken.
+
+**T-0030 (PyPI) — staged, not fired (2026-07-23).** `publish.yml` now exists but
+is `workflow_dispatch`-only (no push/release/tag trigger), uploads over trusted
+publishing (no token), and stops at the `pypi` environment, which requires
+**Xindaan** to approve before the upload. So publishing is now a two-click
+deliberate act (Actions -> Run workflow -> approve), not a decision embedded in
+some future release. Recommendation stands: do it when there is a reason (e.g.
+writing about capstat publicly), not for completeness. The pending trusted
+publisher on PyPI is unverified from here; the first real run confirms it, and
+fails harmlessly (uploading nothing) if it is misconfigured.
 
 **Two dead paths the public flip exposed** -- both the same class of fault: a
 document promising a channel the repo did not offer.

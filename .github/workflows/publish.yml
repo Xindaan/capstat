@@ -1,0 +1,55 @@
+name: publish
+
+# Manual only. This workflow has NO push/release/tag trigger, so merging it
+# changes nothing: nothing is published until someone deliberately runs it from
+# the Actions tab. Even then it stops at the `pypi` environment's required
+# reviewer before the upload -- a second, human gate.
+#
+# It uploads over PyPI trusted publishing (OIDC), so no API token is created,
+# stored, or rotated. The trusted publisher on PyPI is configured for this exact
+# repo, this workflow filename (publish.yml), and this environment (pypi); all
+# three must match or the upload is refused rather than misdirected.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: build and publish capstat-core to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/capstat-core/
+    permissions:
+      id-token: write # required for trusted publishing; nothing else
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build capstat-core (sdist + wheel)
+        run: |
+          rm -rf dist
+          uv build --package capstat-core
+
+      # A wrong version is the one mistake trusted publishing cannot catch, and
+      # PyPI uploads are permanent. Fail loudly if dist/ does not hold exactly
+      # the version release-please wrote into the package.
+      - name: Verify the built version matches the package
+        run: |
+          version="$(uv run --package capstat-core python -c 'import capstat_core; print(capstat_core.__version__)')"
+          echo "package version: ${version}"
+          test -f "dist/capstat_core-${version}.tar.gz" \
+            || { echo "::error::no sdist for ${version} in dist/"; ls -la dist; exit 1; }
+          test -f "dist/capstat_core-${version}-py3-none-any.whl" \
+            || { echo "::error::no wheel for ${version} in dist/"; ls -la dist; exit 1; }
+
+      - name: Publish to PyPI (trusted publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist

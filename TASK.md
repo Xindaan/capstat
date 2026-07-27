@@ -86,6 +86,20 @@
   push the existing 0.1.0, or letting the next release-please release trigger
   it. Adding that workflow is still the point of no return, and still the
   maintainer's explicit call.
+  **2026-07-23 -- staged, deliberately not fired (maintainer's choice).**
+  `publish.yml` now exists but has NO push/release/tag trigger: it is
+  `workflow_dispatch` only, so merging it publishes nothing. It uploads over
+  trusted publishing (no token) and stops at the `pypi` environment, which was
+  created with **Xindaan as a required reviewer** -- so even a manual run halts
+  for a human approval before the upload. Two gates (dispatch, then approve)
+  stand between here and a permanent 0.1.0 on PyPI. The workflow also verifies
+  the built version against `capstat_core.__version__` before uploading, because
+  a wrong version is the one mistake trusted publishing cannot catch and PyPI
+  uploads cannot be undone. **To actually publish:** Actions tab -> "publish" ->
+  Run workflow, then approve the `pypi` deployment. Do it when there is a reason
+  (writing about capstat publicly), not for completeness. The pending trusted
+  publisher on PyPI is still unverified from here; the first real run confirms
+  it (and fails harmlessly, uploading nothing, if it is misconfigured).
 - ~~T-0018 Roadmap (explicitly NOT v0.1)~~ -- split 2026-07-21 into T-0035..
   T-0041. It bundled four unrelated themes behind one ID, which made it
   un-schedulable: one of them is a statistical method this library exists to
