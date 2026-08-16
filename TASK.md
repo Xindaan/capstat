@@ -10,6 +10,29 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- T-0050 `apps/web/AGENTS.md` and `apps/web/CLAUDE.md` are written by Next.js and
+  left **untracked on purpose** (decided 2026-08-16). Not committed, not
+  gitignored, not deleted -- deliberately parked, to be settled later.
+  **They will keep coming back.** Next 16.3 writes them from `next dev` whenever
+  it detects an AI coding agent (`determineAgent()` in
+  `node_modules/next/dist/telemetry/agent-name.js`), and `npm run test:e2e`
+  starts `next dev` through Playwright's `webServer`. So any agent session that
+  runs the e2e suite recreates them. They do **not** appear in CI or for
+  contributors working without an agent, which is one of the arguments against
+  committing them: the file set would depend on who was typing.
+  **The practical risk while parked:** a `git add -A` or `git commit -a` sweeps
+  them in unnoticed. §9 of `~/src/CLAUDE.md` already forbids both in favour of an
+  explicit pathspec, which is what has kept them out so far -- but the rule now
+  has a standing tripwire behind it.
+  The content is a generic Next.js notice ("this is not the Next.js you know,
+  read `node_modules/next/dist/docs/`") plus, in CLAUDE.md, a single `@AGENTS.md`
+  include. Claude Code loads it when work happens under `apps/web`, so it does
+  reach an agent's context -- observed directly on 2026-08-16.
+  When revisiting, the options are: gitignore (keeps `git status` clean, but then
+  nobody can extend the file without lifting the rule), commit (accepts a
+  tool-authored instruction into the repo, alongside the root `AGENTS.md` that
+  `CLAUDE.md` calls "the single source for project conventions"), or lift the
+  useful sentence into the root `AGENTS.md` as the maintainer's own wording.
 - T-0049 e2e flake: `acceptance-sampling.spec.ts:318` ("switching rules: what
   reaches the API is the parsed series"). Seen 2026-08-16 on PR #10's rebased
   run -- failed on the first attempt *and* on CI's automatic retry, then passed

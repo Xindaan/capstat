@@ -116,6 +116,13 @@ both done -- acceptance sampling is end-to-end.** What is left:
 
 ## Open decisions (unchanged)
 
+**Next.js writes `apps/web/AGENTS.md` + `CLAUDE.md`; parked untracked
+(2026-08-16, T-0050).** Not committed, not gitignored — deliberately left as is
+until decided. They reappear whenever an agent session runs the e2e suite
+(Playwright starts `next dev`, which writes them on detecting an agent), so the
+standing risk is a `git add -A` sweeping them in. Explicit pathspecs on commit,
+per §9 of `~/src/CLAUDE.md`, are what keep them out.
+
 **v0.1.0 is released** (tag `v0.1.0`, 2026-07-21). M1–M6 are complete: core,
 API, web app, MSA, report, docs, deployment artifacts, release automation.
 
