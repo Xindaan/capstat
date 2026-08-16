@@ -68,6 +68,20 @@ target-version = "py311"
 line-length = 88
 extend-exclude = ["apps/web"]
 
+# Ruff 0.16 began formatting Python code blocks inside Markdown. For prose that
+# is a regression, not an improvement: the snippets in README.md and docs/ align
+# their trailing comments into columns so a reader can scan value against
+# explanation, and the formatter collapses that to a single space. Worse, it
+# reads a wrapped comment as a new statement, so
+#     mad(measurements)                 # ~0.2965 -- a sigma estimate, scaled for
+#                                       # normal data, vs. std_dev's 5.2717
+# loses its indentation and the continuation turns into a top-level comment.
+# The documentation is written for people, and these blocks are illustrations
+# rather than code that has to compile -- so the formatter does not own them.
+# Linting still covers them; only formatting is excluded.
+[tool.ruff.format]
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = [
     "E", "F", "W",   # pycodestyle + pyflakes
