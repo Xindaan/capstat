@@ -185,6 +185,26 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-08-16: **T-0048 — the dependency backlog is empty: nine PRs merged,
+  `v0.2.1` tagged.** Release PR last, so it carried everything. Nothing went to
+  PyPI; 0.2.1 has no library code in it and publish.yml is dispatch-only.
+  **`main` went red in the middle, through my own doing.** Merging the ruff
+  0.15 -> 0.16 bump broke CI: 0.16 started formatting Python blocks inside
+  Markdown, and three docs disagreed. I had checked an hour earlier, on another
+  PR, whether a green tick still described the current `main` — and found it was
+  four weeks stale. On the ruff PR I did not check. **Dependabot checks age
+  exactly like release-please ones**; the memory said so for one and I did not
+  generalise it.
+  Fixed with `[tool.ruff.format] exclude = ["*.md"]` rather than by accepting the
+  reformatting, which would have flattened the aligned comment columns in the
+  README examples and turned a wrapped comment into an unrelated statement.
+  Format-scoped, so linting still covers those blocks.
+  **The uvicorn PR looked guilty and was not.** Its failing Playwright spec was
+  the ruff step first, then one flaky assertion — green on re-run. Merging on the
+  red tick would have been right by accident; rejecting it would have been wrong.
+  Only re-running it distinguished the two. Flake filed as **T-0049**, the second
+  of its shape.
+
 - 2026-08-16: **T-0046 — 16 open Dependabot alerts to zero.** Dependabot PR #15
   did 14 of them (`next` 16.3.1 carries four high fixes: a Server-Actions DoS, a
   middleware bypass, two SSRFs). Its description promised a patch bump,

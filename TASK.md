@@ -10,6 +10,23 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- T-0049 e2e flake: `acceptance-sampling.spec.ts:318` ("switching rules: what
+  reaches the API is the parsed series"). Seen 2026-08-16 on PR #10's rebased
+  run -- failed on the first attempt *and* on CI's automatic retry, then passed
+  on a full re-run of the job. So it is not a one-in-a-hundred blip, but it is
+  also not deterministic; something about that job's load made it reproducible
+  twice in a row.
+  The assertion is `expect.poll(() => requested.at(-1)?.lots).toEqual([...])`
+  with a 5s timeout, i.e. it waits for an intercepted request to arrive. The
+  failure mode is the request not having landed in time, not the payload being
+  wrong -- which points at the wait, not at the app.
+  This is the **second** e2e flake of the same shape (see T-0038's note on
+  `smoke.spec.ts` run-rules, which raced Next compiling a route under parallel
+  load). Two instances make it a pattern worth fixing at the source rather than
+  per-test: prefer waiting on an observable condition over polling a captured
+  array, or raise the timeout where a cold compile can precede the request.
+  Acceptance: the spec passes 10 consecutive runs under `--repeat-each`, or the
+  wait is restructured so a slow compile cannot decide the outcome.
 - T-0047 **changed 2026-08-16, but not yet proven.** `publish.yml` now names
   `actions/checkout@v7` and `astral-sh/setup-uv@v7`, matching `ci.yml`, with the
   setup-uv reasoning referenced rather than restated. The risk is low because
@@ -301,6 +318,39 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0048 (2026-08-16) **The dependency backlog cleared: nine open PRs merged,
+  release 0.2.1 cut.** #14 fastapi, #13 ruff, #12 pre-commit, #10 uvicorn, #8
+  mkdocstrings, #7 setup-buildx, #5 build-push, #6 release-please-action, and the
+  release PR #16 last, so it carried everything. `v0.2.1` is tagged; nothing was
+  published to PyPI (publish.yml is dispatch-only, and 0.2.1 contains no library
+  code).
+  **I broke `main` in the middle of this, and the cause is worth keeping.**
+  Merging #13 (ruff 0.15.21 -> 0.16.0) turned CI red. 0.16 began formatting
+  Python code blocks *inside Markdown*, and three documents disagreed with it --
+  README.md, docs/getting-started.md, docs/methods/acceptance-sampling.md. Not
+  one Python file was affected.
+  The failure was avoidable and I had already avoided it once that hour: on #6 I
+  checked whether the green run still described the current `main` and found the
+  checks were four weeks old. On #13 I did not check. The tick was real; what it
+  had been green against was not this tree. **A Dependabot PR's checks age
+  exactly like a release PR's** -- the memory `release-pr-checks-are-held` says
+  so for release PRs, and I failed to generalise it.
+  **The fix was not to accept the reformatting.** Those snippets align trailing
+  comments into columns so a reader can scan value against explanation, and 0.16
+  collapses that to one space; worse, it reads a wrapped comment as a new
+  statement, turning a continuation line into an unrelated top-level comment. So
+  `[tool.ruff.format] exclude = ["*.md"]` -- format-scoped, not a blanket
+  `extend-exclude`, so linting still covers those blocks. Prose is written for
+  people; the formatter does not own it.
+  **#10 was innocent, and only a re-run established that.** Its rebased run
+  failed one Playwright spec, which looks damning for a uvicorn bump. It was the
+  same ruff step for the first failure, and after the fix a single flaky
+  assertion for the second -- green on re-run. Merging on the red tick would have
+  been right by accident; rejecting the PR would have been wrong. Neither
+  reading was available without re-running it. Flake filed as **T-0049**.
+  Also of note: the release PR's checks were held at `action_required` for the
+  fourth time today. That trap is now routine to handle and cost nothing.
 
 - T-0046 (2026-08-16) **16 open Dependabot alerts to zero, and `npm audit` clean
   with it.** All of them were in `apps/web`; `capstat-core` was never affected,
