@@ -10,29 +10,8 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
-- T-0050 `apps/web/AGENTS.md` and `apps/web/CLAUDE.md` are written by Next.js and
-  left **untracked on purpose** (decided 2026-08-16). Not committed, not
-  gitignored, not deleted -- deliberately parked, to be settled later.
-  **They will keep coming back.** Next 16.3 writes them from `next dev` whenever
-  it detects an AI coding agent (`determineAgent()` in
-  `node_modules/next/dist/telemetry/agent-name.js`), and `npm run test:e2e`
-  starts `next dev` through Playwright's `webServer`. So any agent session that
-  runs the e2e suite recreates them. They do **not** appear in CI or for
-  contributors working without an agent, which is one of the arguments against
-  committing them: the file set would depend on who was typing.
-  **The practical risk while parked:** a `git add -A` or `git commit -a` sweeps
-  them in unnoticed. §9 of `~/src/CLAUDE.md` already forbids both in favour of an
-  explicit pathspec, which is what has kept them out so far -- but the rule now
-  has a standing tripwire behind it.
-  The content is a generic Next.js notice ("this is not the Next.js you know,
-  read `node_modules/next/dist/docs/`") plus, in CLAUDE.md, a single `@AGENTS.md`
-  include. Claude Code loads it when work happens under `apps/web`, so it does
-  reach an agent's context -- observed directly on 2026-08-16.
-  When revisiting, the options are: gitignore (keeps `git status` clean, but then
-  nobody can extend the file without lifting the rule), commit (accepts a
-  tool-authored instruction into the repo, alongside the root `AGENTS.md` that
-  `CLAUDE.md` calls "the single source for project conventions"), or lift the
-  useful sentence into the root `AGENTS.md` as the maintainer's own wording.
+- ~~T-0050 Next-generated agent files~~ -- **done 2026-08-16**: gitignored,
+  and the useful part rewritten into the root `AGENTS.md`. See `## Done`.
 - T-0049 e2e flake: `acceptance-sampling.spec.ts:318` ("switching rules: what
   reaches the API is the parsed series"). Seen 2026-08-16 on PR #10's rebased
   run -- failed on the first attempt *and* on CI's automatic retry, then passed
@@ -341,6 +320,36 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0050 (2026-08-16) **The Next-generated agent files are gitignored, and the
+  part of them worth keeping was rewritten in our own words.** Next 16.3 writes
+  `apps/web/AGENTS.md` and `apps/web/CLAUDE.md` from `next dev` when it detects
+  an AI coding agent (`determineAgent()`, `dist/telemetry/agent-name.js`), and
+  Playwright's `webServer` runs `next dev` -- so any agent session running the
+  e2e suite recreates them.
+  **Why not commit them.** They appear only in agent sessions, never in CI and
+  never for a contributor working without one, so tracking them would make the
+  file set depend on who was typing. Their text points at
+  `node_modules/next/dist/docs/`, which is meaningless when read on GitHub. And
+  the block is rewritten by upsert on Next upgrades, but only if someone happens
+  to run `next dev` with an agent attached -- so a committed copy would drift
+  silently. Against all that, the root `CLAUDE.md` calls `AGENTS.md` "the single
+  source for project conventions", and a second, tool-authored one sits badly
+  beside that claim.
+  **Why not just ignore them either.** The advice itself is correct: Next 16 does
+  diverge from training data, and `AGENTS.md` said nothing about it. So the
+  substance now lives in the root `AGENTS.md` under Hard rules, in our wording,
+  pointing at the same docs directory and naming the gitignored files so nobody
+  has to re-derive where they came from.
+  **The instruction inside the file was not the reason for either decision.** It
+  says committing it "keeps the tree clean" -- an argument from the tool for its
+  own inclusion, which `.gitignore` satisfies just as well without taking foreign
+  text into the repo. Whether the content belongs here was decided on its merits.
+  Isomorphy check on the class -- tools writing unowned files into the tree: the
+  only `AGENTS.md`/`CLAUDE.md` pairs in the repo are the root one (maintained)
+  and this one (now ignored); nothing else is untracked. The generated
+  `lib/api-client/schema.d.ts` is the deliberate opposite case -- tracked *and*
+  guarded by `npm run check:api`, because there the artifact is a contract.
 
 - T-0048 (2026-08-16) **The dependency backlog cleared: nine open PRs merged,
   release 0.2.1 cut.** #14 fastapi, #13 ruff, #12 pre-commit, #10 uvicorn, #8

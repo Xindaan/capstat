@@ -116,12 +116,13 @@ both done -- acceptance sampling is end-to-end.** What is left:
 
 ## Open decisions (unchanged)
 
-**Next.js writes `apps/web/AGENTS.md` + `CLAUDE.md`; parked untracked
-(2026-08-16, T-0050).** Not committed, not gitignored — deliberately left as is
-until decided. They reappear whenever an agent session runs the e2e suite
-(Playwright starts `next dev`, which writes them on detecting an agent), so the
-standing risk is a `git add -A` sweeping them in. Explicit pathspecs on commit,
-per §9 of `~/src/CLAUDE.md`, are what keep them out.
+**Next.js writes `apps/web/AGENTS.md` + `CLAUDE.md` — settled 2026-08-16
+(T-0050, done).** Both are gitignored, and the substance was rewritten into the
+root `AGENTS.md` under Hard rules in our own words: Next 16 diverges from
+training data, read `apps/web/node_modules/next/dist/docs/` before writing
+frontend code. They reappear on every agent session that runs the e2e suite
+(Playwright starts `next dev`), which is exactly why they are ignored rather
+than tracked — the file set would otherwise depend on who was typing.
 
 **v0.1.0 is released** (tag `v0.1.0`, 2026-07-21). M1–M6 are complete: core,
 API, web app, MSA, report, docs, deployment artifacts, release automation.
@@ -191,6 +192,20 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-08-16: **T-0050 — the Next-generated agent files are gitignored, their
+  substance kept.** `apps/web/AGENTS.md` and `apps/web/CLAUDE.md` are written by
+  `next dev` whenever it detects an agent, so they show up only in agent
+  sessions — never in CI, never for a contributor without one. Tracking them
+  would make the repo's file set depend on who was typing, and their text points
+  into `node_modules`, which reads as nonsense on GitHub.
+  But the advice was right and `AGENTS.md` had nothing on it, so it now carries
+  a Hard-rules bullet in our own wording: Next 16 diverges from training data,
+  read the guide under `apps/web/node_modules/next/dist/docs/` first. It also
+  names the ignored files, so nobody has to re-derive where they came from.
+  The instruction inside the file — that committing it "keeps the tree clean" —
+  was not what decided this either way; `.gitignore` achieves the same without
+  taking foreign text into the repo.
 
 - 2026-08-16: **T-0048 — the dependency backlog is empty: nine PRs merged,
   `v0.2.1` tagged.** Release PR last, so it carried everything. Nothing went to

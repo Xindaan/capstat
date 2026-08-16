@@ -25,6 +25,14 @@ on this repository.
   reference-validated test does not ship.
 - `capstat-core` stays free of web dependencies (numpy + scipy only).
 - Do not build anything PLAN.md marks out of scope for v0.1.
+- **`apps/web` runs Next.js 16, which diverges from most training data** —
+  App Router APIs, conventions and file layout have all moved. Before writing
+  frontend code, read the relevant guide under
+  `apps/web/node_modules/next/dist/docs/` (it ships inside the package, and is
+  not visible from the repo root) and heed the deprecation notices. Next
+  itself drops an `AGENTS.md` and a `CLAUDE.md` into `apps/web` whenever it
+  detects an agent; those are gitignored (T-0050) and unmaintained — this
+  bullet is the version that is kept current.
 
 ## Workflow
 

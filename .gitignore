@@ -28,6 +28,14 @@ dist/
 *.tsbuildinfo
 next-env.d.ts
 
+# Written by `next dev` when it detects an AI coding agent, so they appear only
+# in agent sessions -- never in CI, never for a contributor working without one.
+# Tracking them would make the file set depend on who was typing. The maintained
+# version of that guidance is the Next.js bullet in AGENTS.md, in our own words.
+# See T-0050.
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+
 # Docs build
 site/
 
