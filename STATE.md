@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-07-23
+Date: 2026-08-16
 
 ## Goal
 
@@ -123,15 +123,20 @@ API, web app, MSA, report, docs, deployment artifacts, release automation.
 placed in front of T-0030 is therefore cleared: making the repo public was the
 smaller step, and it has been taken.
 
-**T-0030 (PyPI) — staged, not fired (2026-07-23).** `publish.yml` now exists but
-is `workflow_dispatch`-only (no push/release/tag trigger), uploads over trusted
-publishing (no token), and stops at the `pypi` environment, which requires
-**Xindaan** to approve before the upload. So publishing is now a two-click
-deliberate act (Actions -> Run workflow -> approve), not a decision embedded in
-some future release. Recommendation stands: do it when there is a reason (e.g.
-writing about capstat publicly), not for completeness. The pending trusted
-publisher on PyPI is unverified from here; the first real run confirms it, and
-fails harmlessly (uploading nothing) if it is misconfigured.
+**T-0030 (PyPI) — done (2026-08-16): `capstat-core` 0.2.0 is published.**
+`pip install capstat-core` works. The trusted publisher turned out to be
+configured correctly (it was unverified from here until the first real run), so
+the OIDC path held and no API token exists anywhere. Both gates behaved as
+designed: `workflow_dispatch` to start, then the `pypi` environment held the
+whole job at `status=waiting` until **Xindaan** approved.
+Worth remembering, because it nearly went wrong: publishing on the day the
+PyPI expiry mail arrived would have shipped a permanent **0.1.0 carrying
+0.2.0's code**. `publish.yml` checks out `main`, but the version comes from
+`pyproject.toml`, which only moves on a release -- and `main` was 20 commits
+past the `v0.1.0` tag. The workflow's own version check does not see this: it
+compares the build against `capstat_core.__version__`, both from the same tree,
+so they agree while both are wrong. Merging the waiting release-please PR (#4,
+0.2.0) first is what made the publish correct. Filed as **T-0045**.
 
 **Two dead paths the public flip exposed** -- both the same class of fault: a
 document promising a channel the repo did not offer.
@@ -148,12 +153,11 @@ document promising a channel the repo did not offer.
   Follow-up left open: prune the six default categories to Q&A + Announcements,
   since "Ideas" duplicates the feature-request template.
 
-**T-0030** is half set up: a PyPI account and a pending trusted publisher exist
-(`capstat-core` / `Xindaan` / `capstat` / `publish.yml` / env `pypi`), so no API
-token will ever be needed. It reserves **nothing** — PyPI has no reserve-without-
-upload mechanism, and a name is only yours once a release exists. `publish.yml`
-is deliberately absent: with it in the repo, the next release would upload
-unasked. Adding it *is* the decision to publish.
+**T-0030 is no longer open — resolved 2026-08-16, see Status.** `capstat-core`
+0.2.0 is published and the name is now actually held; until that upload it was
+held by nothing, since PyPI has no reserve-without-upload mechanism. What
+remains from this thread is **T-0045**: `publish.yml` builds `main` rather than
+the release tag, which is only safe in the moments when the two agree.
 
 Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 (mkdocs now capped below 2.x; revisit when 2.0 ships), the rest of the
@@ -162,6 +166,24 @@ postcss half of T-0023, which cannot move until Next raises its pinned floor.
 Nothing is blocked on me.
 
 ## Last done
+
+- 2026-08-16: **T-0030 — `capstat-core` 0.2.0 published to PyPI.** Prompted by
+  PyPI's mail that the pending trusted publisher expires in 5 days if unused.
+  The deadline was to publish *something*, not to publish anything: `main` had
+  drifted 20 commits past the `v0.1.0` tag, so an immediate run would have put a
+  permanent **0.1.0 containing 0.2.0's code** on PyPI, and a yanked version can
+  never be re-uploaded. Merged the waiting release-please PR (#4 → 0.2.0) first,
+  then published from the tagged state.
+  **The workflow's own version guard would not have caught it** — it compares
+  the build against `capstat_core.__version__`, both read from the same tree, so
+  they agree while both are wrong for the tag. Follow-up: **T-0045**.
+  Verified independently rather than trusting the green run: PyPI reports 0.2.0,
+  MIT, `>=3.11`, deps exactly numpy+scipy, `0.2.0` as the only release; then a
+  clean-venv install from the network, an import, and a computation checked by
+  hand (`Pa(0.1) = 0.81` for n=2, c=0). The acceptance-sampling symbols are
+  present, which is what proves the artifact is 0.2.0's code and not 0.1.0's.
+  Also corrected the README, which said "capstat is not on PyPI" and opened
+  Usage with an M1-era sentence — same error class as T-0042.
 
 - 2026-07-23: **T-0042 — Prettier now exists**, having been claimed by
   `AGENTS.md` and `PLAN.md` as a green quality gate while no config,

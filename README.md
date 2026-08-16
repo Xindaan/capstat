@@ -12,10 +12,11 @@ quality-engineering software. Its differentiator is verifiable correctness:
 every statistical result is validated against published reference values
 (NIST StRD, Montgomery, AIAG manuals, ISO 22514).
 
-> **Status:** v0.1.0. All three pieces are built and tested — the statistics
+> **Status:** v0.2.0. All three pieces are built and tested — the statistics
 > library, the HTTP API, and the web app (capability, control charts, Gage R&R,
-> bias/linearity/stability, acceptance sampling). capstat is not on PyPI, so
-> install from the checkout. There is **no hosted demo, by design**: you run it on your own
+> bias/linearity/stability, acceptance sampling). The core library is on PyPI as
+> [`capstat-core`](https://pypi.org/project/capstat-core/); the API and web app
+> run from the checkout. There is **no hosted demo, by design**: you run it on your own
 > machine, and your measurements never leave it. See [TASK.md](TASK.md) for
 > what is next.
 
@@ -38,7 +39,14 @@ uv sync                 # create the environment and install all workspace membe
 uv run pytest           # run the test suite
 ```
 
-Install the standalone core library from source:
+The statistics library is also usable on its own, without the API or the web
+app. It depends on nothing but numpy and scipy:
+
+```bash
+pip install capstat-core        # or: uv pip install capstat-core
+```
+
+To track unreleased changes instead, install it from a checkout:
 
 ```bash
 uv pip install ./packages/capstat-core
@@ -46,8 +54,10 @@ uv pip install ./packages/capstat-core
 
 ## Usage
 
-The public API is populated milestone by milestone. Available today:
-descriptive statistics and robust (outlier-resistant) estimators.
+The sections below walk the library from descriptive statistics through
+normality, capability, control charts, run rules, Gage R&R and acceptance
+sampling. Starting with the descriptive and robust (outlier-resistant)
+estimators:
 
 ```python
 from capstat_core import describe, mad, median, trimmed_mean

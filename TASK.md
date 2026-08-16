@@ -10,6 +10,22 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- T-0045 `publish.yml` builds `main`, not the release tag. `actions/checkout@v4`
+  is called with no `ref`, so a `workflow_dispatch` run packages whatever `main`
+  currently holds, while the version string it stamps comes from
+  `pyproject.toml` -- which only moves when release-please cuts a release. The
+  two agree only immediately after a release merge. During T-0030 (2026-08-16)
+  they had drifted 20 commits apart, and publishing then would have put a
+  permanent `0.1.0` on PyPI carrying 0.2.0's code.
+  The workflow's existing check does **not** cover this: it compares `dist/`
+  against `capstat_core.__version__`, and both come from the same working tree,
+  so they agree even when both are wrong for the tag being released.
+  Fix: check out the tag explicitly (`ref: ${{ inputs.tag }}` with a required
+  `workflow_dispatch` input, or default to the latest `v*` tag) and fail if the
+  built version does not equal the tag name with the `v` stripped -- that is the
+  comparison against an *independent* source the current guard lacks.
+  Acceptance: dispatching from a `main` that is ahead of the newest tag either
+  publishes the tag's content or refuses, never `main`'s.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together.
@@ -29,9 +45,12 @@
 - ~~T-0015b Public demo deployment~~ -- dropped. T-0026 decided against public
   hosting (local only). The Docker artifacts stay for self-hosting; there is
   just nothing to deploy.
-- T-0030 Decide whether capstat-core goes to PyPI. Releases stay GitHub-only
-  until then, and the docs say so rather than implying a `pip install` that
-  would fail.
+- ~~T-0030 Decide whether capstat-core goes to PyPI~~ -- **decided and done
+  2026-08-16: published as `capstat-core` 0.2.0.** The decision history below is
+  kept because it records why, and what I got wrong on the way; the outcome and
+  the one trap that nearly fired are in `## Done`.
+  Original entry: releases stay GitHub-only until then, and the docs say so
+  rather than implying a `pip install` that would fail.
   **2026-07-21, partially set up.** The maintainer created the PyPI account
   (`xindaan`) and added a **pending trusted publisher** by hand: project
   `capstat-core`, owner `Xindaan`, repo `capstat`, workflow `publish.yml`,
@@ -285,6 +304,48 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0030 (2026-08-16) **capstat-core 0.2.0 is on PyPI.** Triggered by PyPI
+  mailing that the pending trusted publisher would expire in 5 days if unused --
+  which is a deadline to publish *something*, not a licence to publish anything.
+  `pip install capstat-core` now works; the OIDC trust path held, so no API
+  token was ever created, stored or rotated.
+  **The trap, one step from firing.** The instruction was "publish now". Had I
+  done that, PyPI would hold a permanent artifact called **0.1.0 containing the
+  code of 0.2.0**: the tag `v0.1.0` pointed at `9e2d97f`, `main` stood 20 commits
+  further along, 6 of them touching `capstat-core` and 5 of those `feat:`.
+  `publish.yml` runs `actions/checkout@v4` with no `ref`, so it builds `main`,
+  while the version string comes from `pyproject.toml`, which only moves when
+  release-please releases. The mismatch would have been uncorrectable: a yanked
+  version can never be re-uploaded.
+  **The workflow's own guard does not catch this**, despite its comment naming a
+  wrong version as "the one mistake trusted publishing cannot catch". It compares
+  `dist/` against `capstat_core.__version__` -- both said 0.1.0, so the check
+  passes while being wrong. It verifies *consistency*, not *correctness*. The fix
+  was already sitting there: release-please PR #4, open and mergeable, bumping to
+  0.2.0 exactly as ten `feat:` commits require.
+  **Both traps from the release-flow memory fired again, as documented.**
+  `gh pr checks 4` reported "no checks reported" -- not missing CI but a run held
+  at `action_required`, needing `gh api -X POST .../approve`. And before merging,
+  the run's `head_sha` was compared against the live PR head (`c20a34c` both):
+  release-please rebuilds the PR whenever `main` moves, so a green tick can
+  belong to a superseded head. Neither cost anything this time *because* they
+  were written down last release.
+  **Verified after the fact, not assumed:** PyPI's JSON API reports 0.2.0, MIT,
+  `>=3.11`, dependencies exactly `numpy>=1.26` + `scipy>=1.11` (the core's
+  web-freedom survives into the published artifact), and `0.2.0` as the only
+  release -- 0.1.0 was never burned. Then a real install from the network into a
+  clean venv, an import, and a computation: `Pa(0.1) = 0.81` for n=2, c=0, which
+  is `(1-0.1)^2` by hand, plus lot decisions accepting 0 and rejecting 1
+  defective. The 13 acceptance-sampling symbols are present, which is what proves
+  the artifact carries 0.2.0's code rather than 0.1.0's.
+  **Also fixed, same error class as T-0042** (documentation asserting a state
+  that does not exist): the README said "capstat is not on PyPI", offered only a
+  from-source install, and opened Usage with "Available today: descriptive
+  statistics and robust estimators" -- an M1 sentence still standing above nine
+  sections that run through to acceptance sampling.
+  Follow-up filed as T-0045: `publish.yml` should build the release tag, not
+  `main`. Today they coincide; the gap reopens the moment `main` moves ahead.
 
 - T-0043 (2026-07-23) **Discussions enabled; the issue template's question link
   works again.** `.github/ISSUE_TEMPLATE/config.yml` had offered "Question or

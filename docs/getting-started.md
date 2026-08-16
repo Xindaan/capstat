@@ -12,14 +12,19 @@ uv sync            # environment + every workspace member
 uv run pytest      # confirm the reference suite passes
 ```
 
-!!! warning "Not on PyPI yet"
-    `capstat-core` is not published to any package index, so there is no
-    `pip install capstat-core` today — that needs a PyPI account and a
-    trusted-publisher setup which has not been decided. To use the library
-    alone, install it from the checkout:
+!!! tip "Just the statistics library?"
+    The clone above gets you the API and the web app as well. If you only want
+    the statistics, [`capstat-core`](https://pypi.org/project/capstat-core/) is
+    on PyPI and depends on nothing but numpy and scipy:
 
     ```bash
-    pip install ./packages/capstat-core     # numpy + scipy, nothing else
+    pip install capstat-core
+    ```
+
+    To follow unreleased changes instead, install it from a checkout:
+
+    ```bash
+    pip install ./packages/capstat-core
     ```
 
 ## A first capability study
