@@ -10,20 +10,15 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
-- T-0047 `publish.yml` runs older actions than `ci.yml`: `actions/checkout@v4`
-  and `astral-sh/setup-uv@v6`, against `@v7` for both in CI -- where setup-uv
-  carries a comment explaining why it stops at v7 (v8 dropped the workflow that
-  maintains the moving major tag, so there is no `v8` ref to resolve). The
-  divergence is only that publish.yml was written later and copied from an older
-  example.
-  Left out of T-0045 on purpose: that change was a correctness fix, and this is
-  the one workflow whose runs cannot be rehearsed -- every execution either
-  publishes or fails in front of a human. It deserves a change of its own rather
-  than a drive-by.
-  Acceptance: both workflows name the same majors, with the setup-uv reasoning
-  stated once and referenced rather than duplicated. Verify by dispatching the
-  next real release through it (T-0030's flow), not by assuming a version bump
-  is inert.
+- T-0047 **changed 2026-08-16, but not yet proven.** `publish.yml` now names
+  `actions/checkout@v7` and `astral-sh/setup-uv@v7`, matching `ci.yml`, with the
+  setup-uv reasoning referenced rather than restated. The risk is low because
+  `ci.yml` runs exactly these majors on every push and has been green all day --
+  but that is an argument, not evidence for *this* workflow.
+  **Stays open until a real release goes through it**, because publish.yml is
+  the one workflow whose runs cannot be rehearsed: every execution either
+  publishes to PyPI or fails in front of a human. Close this when the next
+  release is dispatched successfully (T-0030's flow), not before.
 - ~~T-0046 npm advisories have escalated well past what T-0023 left open~~ --
   **done 2026-08-16**, see `## Done`. 16 open alerts to zero.
 - ~~T-0045 `publish.yml` builds `main`, not the release tag~~ -- **done

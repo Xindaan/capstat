@@ -160,7 +160,10 @@ held by nothing, since PyPI has no reserve-without-upload mechanism.
 required `tag` input and checks that tag out, so the version can no longer come
 from a different commit than the code, and the verify step compares against the
 tag name instead of against a sibling file in the same tree. What is left from
-this thread is cosmetic — **T-0047**, the older action majors in that workflow.
+this thread is **T-0047**: the action majors in that workflow were raised to
+match `ci.yml` on 2026-08-16, but it stays open deliberately — publish.yml
+cannot be rehearsed, so it is only proven once a real release is dispatched
+through it.
 
 **The npm advisories are cleared — T-0046, done 2026-08-16.** From 16 open
 Dependabot alerts (9 high) to **zero**, with `npm audit` clean alongside. What

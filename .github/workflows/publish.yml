@@ -39,12 +39,14 @@ jobs:
     steps:
       # The tag, not the branch. A tag that does not exist fails here, which is
       # the intended outcome: a typo must not silently fall back to a default.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        # v7, not v8 -- see the note in ci.yml: v8 dropped the workflow that
+        # maintains the moving major tag, so there is no `v8` ref to resolve.
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
 
