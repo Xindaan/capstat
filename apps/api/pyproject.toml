@@ -9,7 +9,7 @@ authors = [{ name = "André Leopold" }]
 
 dependencies = [
     "capstat-core",
-    "fastapi>=0.115",
+    "fastapi>=0.141.1",
     "uvicorn[standard]>=0.30",
     # Ingestion only. Deliberately confined to this package: capstat-core
     # stays numpy+scipy only (PLAN.md non-negotiable).
