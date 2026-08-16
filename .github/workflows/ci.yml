@@ -84,7 +84,7 @@ jobs:
       # artifacts cannot rot: a Dockerfile that stopped building would otherwise
       # only be discovered at deploy time.
       - name: Build API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
@@ -93,7 +93,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build web image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/web/Dockerfile
