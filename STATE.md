@@ -162,22 +162,41 @@ from a different commit than the code, and the verify step compares against the
 tag name instead of against a sibling file in the same tree. What is left from
 this thread is cosmetic — **T-0047**, the older action majors in that workflow.
 
-**The npm advisories are no longer a parked remainder — T-0046 (2026-08-16).**
-What T-0023 left open was the postcss pair, held back because Next pinned it to
-an exact version. Measured today there are **16 open Dependabot alerts, 9 of them
-high**, all in `apps/web`: `next` (9), `postcss` (4), plus `sharp`, `nanoid`,
-`js-yaml`. Next is now the largest source, not postcss, so the old "cannot move
-until Next raises its floor" framing no longer describes it. Dependabot PR #15
-is open and is the place to start.
-**`capstat-core` is not affected** — numpy and scipy only, so the 0.2.0 artifact
-on PyPI carries none of this. It is the local web app, which is the only place
-it runs anyway (T-0026).
+**The npm advisories are cleared — T-0046, done 2026-08-16.** From 16 open
+Dependabot alerts (9 high) to **zero**, with `npm audit` clean alongside. What
+T-0023 had parked as "the postcss pair, blocked until Next raises its floor" was
+long overtaken; `next` had become the largest source by far.
+Dependabot PR #15 took it from 16 to 2 (`next` 16.3.1 alone carries fixes for
+four high advisories). The last two were transitive and unoffered: `nanoid`
+(runtime, via postcss) and `js-yaml` (dev) now have explicit overrides. Then a
+third source disagreed — `npm audit` still flagged a high `brace-expansion` DoS
+that Dependabot did not list at all, dev-only, cleared with `npm audit fix`.
+**Checking one advisory source is not enough**; they do not report the same set.
+**`capstat-core` was never affected** — numpy and scipy only, so the 0.2.0
+artifact on PyPI carries none of this. It is the local web app, which is the
+only place it runs anyway (T-0026).
 
 Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 (mkdocs now capped below 2.x; revisit when 2.0 ships) and the rest of the
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-08-16: **T-0046 — 16 open Dependabot alerts to zero.** Dependabot PR #15
+  did 14 of them (`next` 16.3.1 carries four high fixes: a Server-Actions DoS, a
+  middleware bypass, two SSRFs). Its description promised a patch bump,
+  `16.2.10 -> 16.2.11`; the diff actually set `16.3.1`, a minor — read the diff,
+  not the summary. Safe, but that was established by running the suite.
+  The last two were transitive and Dependabot had offered nothing for them:
+  `nanoid` (runtime, via postcss, pulled in through both Tailwind and Next) and
+  `js-yaml` (dev). The js-yaml override already permitted the fixed version —
+  only the lockfile had never moved.
+  **The two advisory sources disagreed:** with Dependabot at zero, `npm audit`
+  still reported a high `brace-expansion` DoS across eight dev-only paths.
+  Cleared with `npm audit fix`. Checking one source and stopping would have left
+  it. Also caught in passing: `eslint-config-next` still pinned to 16.2.10 while
+  `next` had moved to 16.3.1 — linting against a different Next than the build.
+  Verified: lint, format:check, 47 vitest, drift check, build, 23 Playwright.
 
 - 2026-08-16: **T-0045 — `publish.yml` publishes a tag, not a branch.** The gap
   T-0030 uncovered, closed the same day. A required `tag` input, checkout with

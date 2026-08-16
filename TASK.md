@@ -24,22 +24,8 @@
   stated once and referenced rather than duplicated. Verify by dispatching the
   next real release through it (T-0030's flow), not by assuming a version bump
   is inert.
-- T-0046 npm advisories have escalated well past what T-0023 left open. Measured
-  2026-08-16 via `gh api repos/:owner/:repo/dependabot/alerts`: **16 open, 9 high
-  and 7 moderate**, all in `apps/web/package-lock.json` -- `next` (9), `postcss`
-  (4), and one each for `sharp`, `nanoid`, `js-yaml`. T-0023 closed two highs in
-  July and deliberately parked the postcss pair because Next pinned it to an
-  exact version; that framing no longer covers the situation, and `next` itself
-  is now the largest single source.
-  **Not a capstat-core problem:** nothing here touches
-  `packages/capstat-core`, whose only dependencies are numpy and scipy. The
-  package published to PyPI on 2026-08-16 is unaffected. This is the local web
-  app, which per T-0026 is the only place it runs.
-  Dependabot PR **#15** ("Bump the npm_and_yarn group ... 3 updates") is open and
-  touches exactly `apps/web/package.json` + lockfile; start by checking how many
-  of the 16 it actually clears, and whether it moves Next across a major (the web
-  suite and the Playwright specs are the gate). Re-measure with the command above
-  afterwards rather than trusting the PR description.
+- ~~T-0046 npm advisories have escalated well past what T-0023 left open~~ --
+  **done 2026-08-16**, see `## Done`. 16 open alerts to zero.
 - ~~T-0045 `publish.yml` builds `main`, not the release tag~~ -- **done
   2026-08-16**, see `## Done`.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
@@ -320,6 +306,36 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0046 (2026-08-16) **16 open Dependabot alerts to zero, and `npm audit` clean
+  with it.** All of them were in `apps/web`; `capstat-core` was never affected,
+  since it depends on numpy and scipy alone.
+  **Dependabot PR #15 did the bulk: 16 down to 2.** It closed `next` (9),
+  `postcss` (4) and `sharp` (1) at once, because `next` 16.3.1 carries fixes for
+  four high advisories (a DoS in Server Actions, a middleware/proxy bypass, and
+  two SSRFs) plus five moderate ones.
+  **Its description was wrong about the one thing that mattered.** The body
+  promised `next 16.2.10 -> 16.2.11`, a patch; the diff set **16.3.1**, a minor.
+  Read the diff, not the summary -- the whole reason T-0046 said "re-measure
+  rather than trust the PR description". The minor turned out to be safe, but
+  that was established by running the suite, not by reading.
+  **The remaining two needed work Dependabot had not offered.** Both were
+  transitive: `nanoid` 3.3.16 (runtime, via postcss, pulled in twice -- through
+  Tailwind and through Next) and `js-yaml` 4.3.0 (dev, via eslint and
+  openapi-typescript). An override already existed for js-yaml at `^4.3.0`, which
+  permits 4.3.1 -- only the lockfile had never moved. Now `^4.3.1`, plus a new
+  `nanoid` override at `^3.3.18`.
+  **`npm audit` and Dependabot did not agree**, which is worth remembering:
+  after those two were fixed, Dependabot showed zero while `npm audit` still
+  reported a high-severity `brace-expansion` DoS across eight paths, every one of
+  them dev-only. `npm audit fix` (no `--force`, so semver-compatible only)
+  cleared it in 8 packages. Checking one source and declaring victory would have
+  left it standing.
+  **Also fixed, unprompted by any alert:** `eslint-config-next` was still pinned
+  to `16.2.10` while `next` had moved to `16.3.1`. Dependabot bumped one and not
+  the other, which means linting against a different Next than the build uses.
+  Verified: lint, `format:check`, 47 vitest, the OpenAPI drift check, `next
+  build`, and 23 Playwright specs -- all green, and `npm audit` reports 0.
 
 - T-0045 (2026-08-16) **`publish.yml` publishes a tag, not a branch.** Written
   the same day the gap nearly cost a permanent mislabelled release (see T-0030).
