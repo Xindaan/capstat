@@ -9,8 +9,20 @@ name: publish
 # stored, or rotated. The trusted publisher on PyPI is configured for this exact
 # repo, this workflow filename (publish.yml), and this environment (pypi); all
 # three must match or the upload is refused rather than misdirected.
+#
+# It publishes a TAG, never a branch. Until 2026-08-16 this checked out whatever
+# `main` held while the version string came from pyproject.toml -- which only
+# moves when release-please cuts a release. Whenever main ran ahead of the newest
+# tag those two disagreed, and on 2026-08-16 they had drifted 20 commits apart:
+# running it then would have published a permanent `0.1.0` containing 0.2.0's
+# code. PyPI never lets a version number be reused, not even after a yank.
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish, e.g. v0.2.0 (must already exist)"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,7 +37,11 @@ jobs:
     permissions:
       id-token: write # required for trusted publishing; nothing else
     steps:
+      # The tag, not the branch. A tag that does not exist fails here, which is
+      # the intended outcome: a typo must not silently fall back to a default.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -38,16 +54,28 @@ jobs:
           uv build --package capstat-core
 
       # A wrong version is the one mistake trusted publishing cannot catch, and
-      # PyPI uploads are permanent. Fail loudly if dist/ does not hold exactly
-      # the version release-please wrote into the package.
-      - name: Verify the built version matches the package
+      # PyPI uploads are permanent. The anchor is the TAG NAME: it comes from
+      # outside the checked-out tree, so it can disagree with the package. The
+      # older form of this step compared dist/ against capstat_core.__version__
+      # -- both read from the same tree, so they agreed even when both were wrong
+      # for the release being cut. That checked consistency, not correctness.
+      #
+      # `tag` goes through env rather than into the script body: interpolating a
+      # workflow input directly into `run:` lets its contents be executed.
+      - name: Verify the built version matches the tag
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
+          expected="${TAG#v}"
           version="$(uv run --package capstat-core python -c 'import capstat_core; print(capstat_core.__version__)')"
+          echo "tag: ${TAG} -> expected version: ${expected}"
           echo "package version: ${version}"
-          test -f "dist/capstat_core-${version}.tar.gz" \
-            || { echo "::error::no sdist for ${version} in dist/"; ls -la dist; exit 1; }
-          test -f "dist/capstat_core-${version}-py3-none-any.whl" \
-            || { echo "::error::no wheel for ${version} in dist/"; ls -la dist; exit 1; }
+          test "${version}" = "${expected}" \
+            || { echo "::error::tag ${TAG} expects ${expected}, package says ${version}"; exit 1; }
+          test -f "dist/capstat_core-${expected}.tar.gz" \
+            || { echo "::error::no sdist for ${expected} in dist/"; ls -la dist; exit 1; }
+          test -f "dist/capstat_core-${expected}-py3-none-any.whl" \
+            || { echo "::error::no wheel for ${expected} in dist/"; ls -la dist; exit 1; }
 
       - name: Publish to PyPI (trusted publishing)
         uses: pypa/gh-action-pypi-publish@release/v1

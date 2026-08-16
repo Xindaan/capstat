@@ -155,9 +155,12 @@ document promising a channel the repo did not offer.
 
 **T-0030 is no longer open — resolved 2026-08-16, see Status.** `capstat-core`
 0.2.0 is published and the name is now actually held; until that upload it was
-held by nothing, since PyPI has no reserve-without-upload mechanism. What
-remains from this thread is **T-0045**: `publish.yml` builds `main` rather than
-the release tag, which is only safe in the moments when the two agree.
+held by nothing, since PyPI has no reserve-without-upload mechanism.
+**T-0045 closed the gap it exposed the same day:** `publish.yml` now takes a
+required `tag` input and checks that tag out, so the version can no longer come
+from a different commit than the code, and the verify step compares against the
+tag name instead of against a sibling file in the same tree. What is left from
+this thread is cosmetic — **T-0047**, the older action majors in that workflow.
 
 **The npm advisories are no longer a parked remainder — T-0046 (2026-08-16).**
 What T-0023 left open was the postcss pair, held back because Next pinned it to
@@ -175,6 +178,18 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-08-16: **T-0045 — `publish.yml` publishes a tag, not a branch.** The gap
+  T-0030 uncovered, closed the same day. A required `tag` input, checkout with
+  `ref: ${{ inputs.tag }}`, and a verify step comparing the built version to the
+  tag name with `v` stripped. Checking out the tag is the real fix — the version
+  can no longer come from a different commit than the code; the comparison is
+  the second line, against a tag set inconsistently. The input goes through
+  `env:` rather than into `run:`, where a workflow input would be executed.
+  Verified by lifting the comparison out and running four cases (the workflow
+  itself cannot be rehearsed without publishing): this morning's `v0.1.0` vs
+  package 0.2.0 exits 1, a correct release passes, an old tag with its own old
+  code passes, a mistyped tag exits 1.
 
 - 2026-08-16: **T-0030 — `capstat-core` 0.2.0 published to PyPI.** Prompted by
   PyPI's mail that the pending trusted publisher expires in 5 days if unused.

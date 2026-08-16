@@ -10,6 +10,20 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- T-0047 `publish.yml` runs older actions than `ci.yml`: `actions/checkout@v4`
+  and `astral-sh/setup-uv@v6`, against `@v7` for both in CI -- where setup-uv
+  carries a comment explaining why it stops at v7 (v8 dropped the workflow that
+  maintains the moving major tag, so there is no `v8` ref to resolve). The
+  divergence is only that publish.yml was written later and copied from an older
+  example.
+  Left out of T-0045 on purpose: that change was a correctness fix, and this is
+  the one workflow whose runs cannot be rehearsed -- every execution either
+  publishes or fails in front of a human. It deserves a change of its own rather
+  than a drive-by.
+  Acceptance: both workflows name the same majors, with the setup-uv reasoning
+  stated once and referenced rather than duplicated. Verify by dispatching the
+  next real release through it (T-0030's flow), not by assuming a version bump
+  is inert.
 - T-0046 npm advisories have escalated well past what T-0023 left open. Measured
   2026-08-16 via `gh api repos/:owner/:repo/dependabot/alerts`: **16 open, 9 high
   and 7 moderate**, all in `apps/web/package-lock.json` -- `next` (9), `postcss`
@@ -26,22 +40,8 @@
   of the 16 it actually clears, and whether it moves Next across a major (the web
   suite and the Playwright specs are the gate). Re-measure with the command above
   afterwards rather than trusting the PR description.
-- T-0045 `publish.yml` builds `main`, not the release tag. `actions/checkout@v4`
-  is called with no `ref`, so a `workflow_dispatch` run packages whatever `main`
-  currently holds, while the version string it stamps comes from
-  `pyproject.toml` -- which only moves when release-please cuts a release. The
-  two agree only immediately after a release merge. During T-0030 (2026-08-16)
-  they had drifted 20 commits apart, and publishing then would have put a
-  permanent `0.1.0` on PyPI carrying 0.2.0's code.
-  The workflow's existing check does **not** cover this: it compares `dist/`
-  against `capstat_core.__version__`, and both come from the same working tree,
-  so they agree even when both are wrong for the tag being released.
-  Fix: check out the tag explicitly (`ref: ${{ inputs.tag }}` with a required
-  `workflow_dispatch` input, or default to the latest `v*` tag) and fail if the
-  built version does not equal the tag name with the `v` stripped -- that is the
-  comparison against an *independent* source the current guard lacks.
-  Acceptance: dispatching from a `main` that is ahead of the newest tag either
-  publishes the tag's content or refuses, never `main`'s.
+- ~~T-0045 `publish.yml` builds `main`, not the release tag~~ -- **done
+  2026-08-16**, see `## Done`.
 - T-0029 Docs stack risk: mkdocs-material warns that MkDocs 2.0 removes the
   plugin system entirely, with "no migration path" and the theming rewritten --
   which would break mkdocstrings and the Material theme together.
@@ -320,6 +320,33 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0045 (2026-08-16) **`publish.yml` publishes a tag, not a branch.** Written
+  the same day the gap nearly cost a permanent mislabelled release (see T-0030).
+  `workflow_dispatch` now takes a required `tag` input, checkout uses
+  `ref: ${{ inputs.tag }}`, and the verify step compares the built version
+  against the **tag name with `v` stripped**.
+  **Two independent defences, and the first one is the real fix.** Checking out
+  the tag makes the drift structurally impossible: the version can no longer come
+  from a different commit than the code. The comparison is the second line, for a
+  tag that was set inconsistently in the first place. The old step had neither --
+  it read `dist/` and `capstat_core.__version__`, both out of the same tree, so
+  it agreed with itself while being wrong for the release being cut.
+  **The tag input goes through `env:`, not into the script body.** A
+  `workflow_dispatch` input interpolated directly into `run:` is executed as
+  shell; `env: TAG: ${{ inputs.tag }}` is not. Same reason the input is required
+  with no default: a typo must fail the checkout rather than quietly fall back
+  to something publishable.
+  Verified by extracting the comparison and running it against four cases, since
+  the workflow itself cannot be exercised without publishing: the 2026-08-16
+  situation (`v0.1.0` vs package 0.2.0) exits 1; a correct release passes; an old
+  tag with its own old code passes, which is right, because checking out the tag
+  is what makes that combination consistent; a mistyped tag exits 1.
+  Not touched deliberately: `publish.yml` still pins `actions/checkout@v4` and
+  `astral-sh/setup-uv@v6` while `ci.yml` runs `@v7` on both, the latter with a
+  comment explaining why it stops there. Bumping them is right, but this is the
+  one workflow that cannot be tested before it matters, so it wants its own
+  change rather than a drive-by inside a correctness fix. Filed as T-0047.
 
 - T-0030 (2026-08-16) **capstat-core 0.2.0 is on PyPI.** Triggered by PyPI
   mailing that the pending trusted publisher would expire in 5 days if unused --
