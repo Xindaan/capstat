@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.2.1](https://github.com/Xindaan/capstat/compare/v0.2.0...v0.2.1) (2026-08-16)
+
+
+### Bug fixes
+
+* **ci:** publish a tag, not whatever main happens to hold (T-0045) ([eb31d4f](https://github.com/Xindaan/capstat/commit/eb31d4fd952eb39d063eea179386abc35916d8bb))
+* **lint:** keep ruff 0.16 out of the Markdown, and main green again ([63c0051](https://github.com/Xindaan/capstat/commit/63c005133b3788fc59a9027275b30b04733a17fa))
+* **web:** clear the last two advisories, and the audit brace-expansion (T-0046) ([fe579ba](https://github.com/Xindaan/capstat/commit/fe579ba5ac9080d61dfff2f936fbfeba724c727a))
+
+
+### Documentation
+
+* record the PyPI publication, and fix what it made stale ([77e1036](https://github.com/Xindaan/capstat/commit/77e1036850da44aa6ac5aeedc8d1f804a110cc8f))
+* **task:** capture T-0046 -- the npm advisories outgrew T-0023's framing ([45eff03](https://github.com/Xindaan/capstat/commit/45eff03b1f8dd19f84395fc5034cb6121d7b03bf))
+
 ## [0.2.0](https://github.com/Xindaan/capstat/compare/v0.1.0...v0.2.0) (2026-07-27)
 
 
