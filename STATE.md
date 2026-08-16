@@ -159,11 +159,20 @@ held by nothing, since PyPI has no reserve-without-upload mechanism. What
 remains from this thread is **T-0045**: `publish.yml` builds `main` rather than
 the release tag, which is only safe in the moments when the two agree.
 
+**The npm advisories are no longer a parked remainder — T-0046 (2026-08-16).**
+What T-0023 left open was the postcss pair, held back because Next pinned it to
+an exact version. Measured today there are **16 open Dependabot alerts, 9 of them
+high**, all in `apps/web`: `next` (9), `postcss` (4), plus `sharp`, `nanoid`,
+`js-yaml`. Next is now the largest source, not postcss, so the old "cannot move
+until Next raises its floor" framing no longer describes it. Dependabot PR #15
+is open and is the place to start.
+**`capstat-core` is not affected** — numpy and scipy only, so the 0.2.0 artifact
+on PyPI carries none of this. It is the local web app, which is the only place
+it runs anyway (T-0026).
+
 Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
-(mkdocs now capped below 2.x; revisit when 2.0 ships), the rest of the
-T-0035..T-0041 split of the old T-0018 roadmap (see Next actions), and the
-postcss half of T-0023, which cannot move until Next raises its pinned floor.
-Nothing is blocked on me.
+(mkdocs now capped below 2.x; revisit when 2.0 ships) and the rest of the
+T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 

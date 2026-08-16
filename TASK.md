@@ -10,6 +10,22 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- T-0046 npm advisories have escalated well past what T-0023 left open. Measured
+  2026-08-16 via `gh api repos/:owner/:repo/dependabot/alerts`: **16 open, 9 high
+  and 7 moderate**, all in `apps/web/package-lock.json` -- `next` (9), `postcss`
+  (4), and one each for `sharp`, `nanoid`, `js-yaml`. T-0023 closed two highs in
+  July and deliberately parked the postcss pair because Next pinned it to an
+  exact version; that framing no longer covers the situation, and `next` itself
+  is now the largest single source.
+  **Not a capstat-core problem:** nothing here touches
+  `packages/capstat-core`, whose only dependencies are numpy and scipy. The
+  package published to PyPI on 2026-08-16 is unaffected. This is the local web
+  app, which per T-0026 is the only place it runs.
+  Dependabot PR **#15** ("Bump the npm_and_yarn group ... 3 updates") is open and
+  touches exactly `apps/web/package.json` + lockfile; start by checking how many
+  of the 16 it actually clears, and whether it moves Next across a major (the web
+  suite and the Playwright specs are the gate). Re-measure with the command above
+  afterwards rather than trusting the PR description.
 - T-0045 `publish.yml` builds `main`, not the release tag. `actions/checkout@v4`
   is called with no `ref`, so a `workflow_dispatch` run packages whatever `main`
   currently holds, while the version string it stamps comes from
