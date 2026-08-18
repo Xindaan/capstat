@@ -34,7 +34,7 @@ dev = [
     # Test-only: parses the reference-value YAML. Deliberately NOT a core
     # dependency -- capstat-core ships with numpy + scipy and nothing else.
     "pyyaml>=6",
-    "types-pyyaml>=6",
+    "types-pyyaml>=6.0.12.20260815",
     # Test-only: FastAPI's TestClient rides on httpx. starlette 1.3 deprecates
     # the httpx backend in favour of httpx2; both are listed while the
     # transition is in flight -- TestClient picks httpx2 when it is importable.
