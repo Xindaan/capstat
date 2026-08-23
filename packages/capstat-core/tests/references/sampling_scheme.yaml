@@ -67,10 +67,16 @@ sources:
       restored after five consecutive acceptable ones; inspection is
       discontinued when five lots have not been accepted, cumulatively, while on
       tightened; and reduced inspection becomes possible at a switching score of
-      thirty, the score adding three or two per accepted lot depending on the
-      plan's acceptance number. What capstat reads into the rules rather than
-      out of them -- the window boundary and the fresh window on re-entering
-      normal -- is pinned by tests that label it an interpretation.
+      thirty. The score is kept two ways depending on the plan's acceptance
+      number, and the difference matters: for Ac >= 2 an accepted lot adds three
+      only if it would still have been accepted one AQL step tighter, and
+      **resets the score to zero otherwise**; for Ac <= 1 an accepted lot adds
+      two. So an accepted lot does not always raise the score -- reading it as
+      "three or two per accepted lot", which an earlier wording of this note
+      invited, makes capstat's reset look like a defect when it is the clause.
+      What capstat reads into the rules rather than out of them -- the window
+      boundary and the fresh window on re-entering normal -- is pinned by tests
+      that label it an interpretation.
   ansi_asq_z1_4_2003:
     title: >
       ANSI/ASQ Z1.4-2003, the US equivalent standard, used only to cross-check
