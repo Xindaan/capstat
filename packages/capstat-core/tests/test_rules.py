@@ -334,3 +334,42 @@ def test_a_short_series_simply_fires_nothing() -> None:
     """Fewer points than a rule's window is not an error; the pattern just cannot
     have occurred."""
     assert nelson_rules(chart([0.5, 0.5, 0.5]), [2, 3, 4, 7, 8]) == ()
+
+
+# ---------------------------------------------------------------------------
+# A pattern that completes early still fires (T-0051)
+# ---------------------------------------------------------------------------
+
+
+def test_a_k_of_m_pattern_fires_when_it_completes_not_when_the_window_ends() -> None:
+    """Two points beyond 2 sigma complete Nelson rule 5 at the *second* of them.
+
+    The rule was previously gated on the last point of the three-point window
+    qualifying, which meant a pattern followed by quiet points produced no
+    signal at all -- not late, not at all. That is a missing alarm on a chart
+    whose whole purpose is not to miss them.
+    """
+    violations = nelson_rules(chart([2.5, 2.5, 0.1, 0.1, 0.1]), [5])
+    assert [(v.point, v.window) for v in violations] == [(1, (0, 1))]
+
+    western = western_electric_rules(chart([2.5, 2.5, 0.1, 0.1, 0.1]), [2])
+    assert [(v.point, v.window) for v in western] == [(1, (0, 1))]
+
+
+def test_the_four_of_five_rule_also_fires_on_a_pattern_that_completes_early() -> None:
+    """The same gate sat on Nelson 6 / Western Electric 3, and the same fix
+    lifts it: four of the first five beyond 1 sigma, then quiet."""
+    values = [1.5, 1.5, 1.5, 1.5, 0.1, 0.1, 0.1]
+    assert [(v.point, v.window) for v in nelson_rules(chart(values), [6])] == [
+        (3, (0, 1, 2, 3))
+    ]
+
+
+def test_an_overlapping_pattern_is_reported_once_not_once_per_window() -> None:
+    """Three consecutive points beyond 2 sigma sit in two three-point windows,
+    and both complete at point 2. One point completing one rule is one
+    violation; reporting it twice would be duplication, not information."""
+    violations = nelson_rules(chart([2.5, 2.5, 2.5, 0.1]), [5])
+    assert len(violations) == 1
+    assert violations[0].point == 2
+    assert violations[0].window == (0, 1, 2)
