@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { biasStudy, type BiasReport } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
 import { parseNumberList } from "@/lib/stats";
+import { ErrorAlert } from "./error-alert";
+import { callApi } from "@/lib/call-api";
 
 const EXAMPLE = "36.1, 35.9, 36.0, 36.05, 35.95, 36.2, 35.85, 36.0, 36.1, 35.9";
 
@@ -51,19 +52,15 @@ export function BiasPanel({
   const compute = async () => {
     if (!valid) return;
     setStatus({ kind: "computing" });
-    try {
-      const { data, error } = await biasStudy(values, ref);
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "Bias could not be computed."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", result: data });
-    } catch {
-      setStatus({ kind: "error", message: "Could not reach the API." });
+    const outcome = await callApi(
+      () => biasStudy(values, ref),
+      "Bias could not be computed.",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", result: outcome.data });
   };
 
   const result = status.kind === "done" ? status.result : null;
@@ -80,7 +77,7 @@ export function BiasPanel({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-foreground/50">
+          <span className="text-xs uppercase tracking-wide text-muted">
             Readings
           </span>
           <textarea
@@ -91,7 +88,7 @@ export function BiasPanel({
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-foreground/50">
+          <span className="text-xs uppercase tracking-wide text-muted">
             Reference
           </span>
           <input
@@ -120,14 +117,7 @@ export function BiasPanel({
         )}
       </div>
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {result && (
         <div className="flex flex-col gap-3">
@@ -154,7 +144,7 @@ export function BiasPanel({
             <Stat label="Repeatability" value={fmt(result.repeatability)} />
             <Stat label="p-value" value={fmt(result.p_value, 4)} />
           </div>
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-muted">
             95% interval for the bias: [{fmt(result.ci_lower)},{" "}
             {fmt(result.ci_upper)}] —{" "}
             {result.bias_significant
@@ -187,9 +177,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
-      <div className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       <div
         className={[
           "font-mono tabular-nums",

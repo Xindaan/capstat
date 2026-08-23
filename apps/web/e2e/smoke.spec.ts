@@ -94,6 +94,7 @@ async function mockApi(
   page: Page,
   capability: unknown = CAPABILITY,
   ingest: unknown = INGEST,
+  chart: unknown = CHART,
 ) {
   const json = (body: unknown) => ({
     status: 200,
@@ -104,7 +105,7 @@ async function mockApi(
   await page.route("**/compute/capability/analyze", (r) =>
     r.fulfill(json(capability)),
   );
-  await page.route("**/control-chart/i-mr", (r) => r.fulfill(json(CHART)));
+  await page.route("**/control-chart/i-mr", (r) => r.fulfill(json(chart)));
   await page.route("**/rules/nelson", (r) => r.fulfill(json([])));
   await page.route("**/rules/catalogue", (r) =>
     r.fulfill(json({ nelson: NELSON_CATALOGUE, western_electric: {} })),
@@ -283,4 +284,81 @@ test("the applied run rules are selectable, and the report names them", async ({
     page.getByText("No Nelson run-rule violations (rules 1–4)"),
   ).toBeVisible();
   await expect.poll(() => requested.at(-1)).toEqual([1, 2, 3, 4]);
+});
+
+test("a failed run-rule request is reported, not rendered as a clean chart", async ({
+  page,
+}) => {
+  // The worst wrong answer this app can give. "No violations" is a claim about
+  // the process; if the rules never ran, there is no claim to make, and saying
+  // one anyway is indistinguishable from a genuinely stable chart (T-0052).
+  await mockApi(page);
+  await page.route("**/rules/nelson", (r) =>
+    r.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "the rules engine fell over" }),
+    }),
+  );
+
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+
+  await expect(
+    page.getByText(/The run rules could not be applied/),
+  ).toBeVisible();
+  await expect(page.getByText(/the rules engine fell over/)).toBeVisible();
+  // The chart itself still computed, so it stays on screen -- only the rule
+  // verdict is withdrawn.
+  await expect(page.getByLabel("Control chart")).toBeVisible();
+  await expect(page.getByText(/No Nelson run-rule violations/)).toHaveCount(0);
+});
+
+test("the charts carry an accessible name that says what they show", async ({
+  page,
+}) => {
+  // A screen reader got nothing for the central claim of the page: three bare
+  // divs (T-0060). The name is built from the same props the chart draws, so it
+  // cannot drift from the picture.
+  await mockApi(page);
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+
+  await expect(
+    page.getByRole("img", { name: /Individuals chart, 30 points, in control/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: /Moving range chart/ }),
+  ).toBeVisible();
+});
+
+test("an out-of-control chart names the points, not just the state", async ({
+  page,
+}) => {
+  // "Out of control" without the where is barely more use than silence.
+  await mockApi(page, undefined, undefined, {
+    ...CHART,
+    in_control: false,
+    location: { ...CHART.location, violations: [2, 5], in_control: false },
+  });
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+
+  await expect(
+    page.getByRole("img", {
+      name: /Individuals chart, 30 points, out of control at points 3, 6/,
+    }),
+  ).toBeVisible();
 });

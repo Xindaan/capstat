@@ -8,6 +8,7 @@ import {
   serialiseStudyFile,
   studyFileName,
 } from "@/lib/study-file";
+import { ErrorAlert } from "./error-alert";
 
 export interface StudyFileControlsProps<TInputs> {
   /** The route this study belongs to; a file from another page is refused. */
@@ -15,6 +16,17 @@ export interface StudyFileControlsProps<TInputs> {
   /** The current inputs. Results are never passed here, and never saved. */
   inputs: TInputs;
   onLoad: (inputs: TInputs) => void;
+  /**
+   * Turn a loaded document's `inputs` into this page's typed inputs, or throw
+   * to refuse the file.
+   *
+   * Required, deliberately. `parseStudyFile` still accepts documents without a
+   * reader because it is a general parser, but every page that mounts these
+   * controls loads a file a user can hand-edit -- and an unchecked one used to
+   * crash the page it was loaded into (T-0055). Making it a prop rather than an
+   * option means a new page cannot forget it: it will not compile.
+   */
+  readInputs: (inputs: Record<string, unknown>) => TInputs;
 }
 
 /**
@@ -28,6 +40,7 @@ export function StudyFileControls<TInputs>({
   page,
   inputs,
   onLoad,
+  readInputs,
 }: StudyFileControlsProps<TInputs>) {
   const inputId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -56,7 +69,7 @@ export function StudyFileControls<TInputs>({
       setError("That file could not be read.");
       return;
     }
-    const result = parseStudyFile<TInputs>(text, page);
+    const result = parseStudyFile<TInputs>(text, page, readInputs);
     if (!result.ok) {
       setError(result.reason);
       return;
@@ -81,7 +94,7 @@ export function StudyFileControls<TInputs>({
         >
           Load study
         </button>
-        <span className="text-xs text-foreground/40">
+        <span className="text-xs text-muted">
           A file on your disk — nothing is uploaded, and only your inputs are
           stored. The numbers are recomputed on load.
         </span>
@@ -100,14 +113,7 @@ export function StudyFileControls<TInputs>({
           }}
         />
       </div>
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {error}
-        </div>
-      )}
+      {error && <ErrorAlert message={error} />}
     </div>
   );
 }

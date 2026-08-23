@@ -2,8 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { gageRR, type GageRRMethod, type GageRRReport } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
+import {
+  gageRR,
+  type GageRRMethod,
+  type GageRRReport,
+  type GageRRVerdict,
+} from "@/lib/api-client";
+import { ErrorAlert } from "./error-alert";
+import { callApi } from "@/lib/call-api";
 
 // The SPC/AIAG worked example (5 parts x 3 operators x 3 trials), so the page
 // computes something real on first load.
@@ -47,12 +53,36 @@ function fmt(value: number | null | undefined, digits = 4): string {
   return value == null || Number.isNaN(value) ? "—" : value.toFixed(digits);
 }
 
-/** AIAG verdict colouring for %Study Variation of Gage R&R. */
-function grrTone(pct: number | null): string {
-  if (pct == null || Number.isNaN(pct)) return "text-foreground/40";
-  if (pct < 10) return "text-emerald-600 dark:text-emerald-400";
-  if (pct <= 30) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
+/**
+ * Colour for the AIAG verdict the API states.
+ *
+ * The bands used to be written here as 10 and 30 as well as in the core, so a
+ * threshold changed in one place would leave the card coloured by the other --
+ * a traffic light contradicting the printed warning beside it (T-0058). This
+ * function now knows the three words and none of the numbers.
+ *
+ * `null` is "not judged" -- a gage with no variation of its own -- and is
+ * deliberately not green: nothing was established.
+ */
+function verdictTone(verdict: GageRRVerdict | null): string {
+  switch (verdict) {
+    case "good":
+      return "text-emerald-600 dark:text-emerald-400";
+    case "marginal":
+      return "text-amber-600 dark:text-amber-400";
+    case "unacceptable":
+      return "text-red-600 dark:text-red-400";
+    default:
+      return "text-muted";
+  }
+}
+
+/** Same rule for ndc: the API says whether it is adequate, this picks a colour. */
+function adequacyTone(adequate: boolean | null): string {
+  if (adequate == null) return "text-muted";
+  return adequate
+    ? "text-emerald-600 dark:text-emerald-400"
+    : "text-red-600 dark:text-red-400";
 }
 
 /** Resize a parts x operators x trials grid, keeping any overlapping values. */
@@ -156,19 +186,15 @@ export function GageRRPanel({
   const compute = async () => {
     if (parsed == null || tolInvalid) return;
     setStatus({ kind: "computing" });
-    try {
-      const { data, error } = await gageRR(parsed, { method, tolerance: tol });
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "Gage R&R could not be computed."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", result: data });
-    } catch {
-      setStatus({ kind: "error", message: "Could not reach the API." });
+    const outcome = await callApi(
+      () => gageRR(parsed, { method, tolerance: tol }),
+      "Gage R&R could not be computed.",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", result: outcome.data });
   };
 
   const result = status.kind === "done" ? status.result : null;
@@ -195,7 +221,7 @@ export function GageRRPanel({
           onChange={(v) => resize(parts, operators, v)}
         />
         <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-foreground/50">
+          <span className="text-xs uppercase tracking-wide text-muted">
             Method
           </span>
           <select
@@ -208,7 +234,7 @@ export function GageRRPanel({
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs uppercase tracking-wide text-foreground/50">
+          <span className="text-xs uppercase tracking-wide text-muted">
             Tolerance
           </span>
           <input
@@ -241,14 +267,7 @@ export function GageRRPanel({
         )}
       </div>
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {result && <Report result={result} />}
     </section>
@@ -268,7 +287,7 @@ function DimField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-wide text-foreground/50">
+      <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
       <input
@@ -299,9 +318,7 @@ function DataGrid({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-foreground/15">
-            <th className="p-2 text-left font-medium text-foreground/50">
-              Part
-            </th>
+            <th className="p-2 text-left font-medium text-muted">Part</th>
             {Array.from({ length: operators }, (_, o) => (
               <th
                 key={o}
@@ -316,7 +333,7 @@ function DataGrid({
         <tbody>
           {grid.map((part, p) => (
             <tr key={p} className="border-t border-foreground/10">
-              <td className="p-2 text-foreground/50">{p + 1}</td>
+              <td className="p-2 text-muted">{p + 1}</td>
               {part.map((op, o) =>
                 op.map((cell, t) => (
                   <td
@@ -394,17 +411,13 @@ function Report({ result }: { result: GageRRReport }) {
           label="% Study Var (GRR)"
           value={fmt(result.pct_study_var_gage_rr, 1)}
           suffix="%"
-          tone={grrTone(result.pct_study_var_gage_rr)}
+          tone={verdictTone(result.verdict)}
           emphasize
         />
         <Card
           label="ndc"
           value={result.ndc == null ? "—" : String(result.ndc)}
-          tone={
-            result.ndc != null && result.ndc < 5
-              ? "text-red-600 dark:text-red-400"
-              : "text-emerald-600 dark:text-emerald-400"
-          }
+          tone={adequacyTone(result.ndc_adequate)}
           emphasize
         />
         <Card
@@ -421,7 +434,7 @@ function Report({ result }: { result: GageRRReport }) {
       <div className="overflow-x-auto rounded-lg border border-foreground/15">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-foreground/15 text-foreground/50">
+            <tr className="border-b border-foreground/15 text-muted">
               <th className="p-2 text-left font-medium">Source</th>
               <th className="p-2 text-right font-medium">Variance</th>
               <th className="p-2 text-right font-medium">% Contribution</th>
@@ -452,7 +465,7 @@ function Report({ result }: { result: GageRRReport }) {
       </div>
 
       {result.method === "anova" && (
-        <p className="text-xs text-foreground/50">
+        <p className="text-xs text-muted">
           {result.interaction_included
             ? `Part-operator interaction retained (p = ${fmt(result.interaction_pvalue, 3)}).`
             : `Part-operator interaction pooled into repeatability (p = ${fmt(result.interaction_pvalue, 3)} > 0.25).`}
@@ -485,9 +498,7 @@ function Card({
 }) {
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
-      <div className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       <div
         className={[
           "font-mono tabular-nums",

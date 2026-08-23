@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { stabilityStudy, type StabilityReport } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
 import { parseNumberList } from "@/lib/stats";
 import { ControlChart } from "./control-chart";
+import { ErrorAlert } from "./error-alert";
+import { callApi } from "@/lib/call-api";
 
 // A master measured over time, with one late excursion — the gage drifting,
 // not the part.
@@ -49,19 +50,15 @@ export function StabilityPanel({
   const compute = async () => {
     if (!valid) return;
     setStatus({ kind: "computing" });
-    try {
-      const { data, error } = await stabilityStudy(values);
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "Stability could not be computed."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", result: data });
-    } catch {
-      setStatus({ kind: "error", message: "Could not reach the API." });
+    const outcome = await callApi(
+      () => stabilityStudy(values),
+      "Stability could not be computed.",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", result: outcome.data });
   };
 
   const result = status.kind === "done" ? status.result : null;
@@ -77,7 +74,7 @@ export function StabilityPanel({
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-wide text-foreground/50">
+        <span className="text-xs uppercase tracking-wide text-muted">
           Readings, in time order
         </span>
         <textarea
@@ -116,14 +113,7 @@ export function StabilityPanel({
         )}
       </div>
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {result && (
         <div className="flex flex-col gap-3">

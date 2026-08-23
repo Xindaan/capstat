@@ -193,5 +193,18 @@ export function CapabilityHistogram({ values, lsl, usl, target, fit }: Props) {
     dark,
   ]);
 
-  return <div ref={ref} className="h-72 w-full" />;
+  // See control-chart.tsx: the name is derived from what is drawn (T-0060).
+  const limits = [
+    lsl == null ? null : `LSL ${lsl}`,
+    usl == null ? null : `USL ${usl}`,
+    target == null ? null : `target ${target}`,
+  ].filter(Boolean);
+  const label =
+    `Capability histogram of ${values.length} measurements` +
+    (limits.length ? `, ${limits.join(", ")}` : ", no specification limits") +
+    (fit ? ", with the fitted normal curve" : "");
+
+  return (
+    <div ref={ref} role="img" aria-label={label} className="h-72 w-full" />
+  );
 }

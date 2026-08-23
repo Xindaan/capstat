@@ -7,8 +7,9 @@ import {
   type IngestColumn,
   type IngestResponse,
 } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
+import { callApi } from "@/lib/call-api";
 import { columnStats, looksLikeRowIndex } from "@/lib/stats";
+import { ErrorAlert } from "./error-alert";
 
 type Status =
   | { kind: "idle" }
@@ -37,29 +38,28 @@ export function UploadPanel({
   const upload = useCallback(async (file: File) => {
     setSelected(null);
     setStatus({ kind: "uploading", filename: file.name });
-    try {
-      const { data, error } = await ingestFile(file);
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "The file could not be ingested."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", filename: file.name, result: data });
-      // Preselect a column so the panel is immediately useful -- but skip the
-      // row index a spreadsheet usually starts with. Landing on it analyses the
-      // row numbers, and nothing downstream objects, because 1, 2, 3 ... is
-      // perfectly good numeric data.
-      const measured = data.columns.find((c) => !looksLikeRowIndex(c.values));
-      setSelected((measured ?? data.columns[0])?.name ?? null);
-    } catch {
-      setStatus({
-        kind: "error",
-        message:
-          "Could not reach the API. Is it running on the configured URL?",
-      });
+    const outcome = await callApi(
+      () => ingestFile(file),
+      "The file could not be ingested.",
+      // This panel is a user's first contact with the API, so it is the one
+      // place worth saying where to look. It used to be a private copy of the
+      // whole error path; now only the sentence differs.
+      "Could not reach the API. Is it running on the configured URL?",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", filename: file.name, result: outcome.data });
+    // Preselect a column so the panel is immediately useful -- but skip the
+    // row index a spreadsheet usually starts with. Landing on it analyses the
+    // row numbers, and nothing downstream objects, because 1, 2, 3 ... is
+    // perfectly good numeric data. (This sits outside the request now: it used
+    // to be inside the try, so a fault here reported the API as unreachable.)
+    const measured = outcome.data.columns.find(
+      (c) => !looksLikeRowIndex(c.values),
+    );
+    setSelected((measured ?? outcome.data.columns[0])?.name ?? null);
   }, []);
 
   const onFiles = useCallback(
@@ -131,20 +131,13 @@ export function UploadPanel({
             ? `Ingesting ${status.filename}…`
             : "Drop a CSV or Excel file, or click to browse"}
         </span>
-        <span className="text-sm text-foreground/50">
+        <span className="text-sm text-muted">
           .csv, .xlsx or .xlsm — parsed locally by your API, nothing is stored
         </span>
       </label>
 
       {/* Error */}
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {/* Result */}
       {result && (
@@ -162,7 +155,7 @@ export function UploadPanel({
             <button
               type="button"
               onClick={reset}
-              className="text-sm text-foreground/50 underline underline-offset-4 hover:text-foreground"
+              className="text-sm text-muted underline underline-offset-4 hover:text-foreground"
             >
               Upload another file
             </button>
@@ -253,7 +246,7 @@ function ColumnOption({
         />
         <span className="truncate font-mono text-sm">{column.name}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-2 text-xs text-foreground/50">
+      <span className="flex shrink-0 items-center gap-2 text-xs text-muted">
         <span>{column.values.length} values</span>
         {column.dropped_missing > 0 && (
           <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-700 dark:text-amber-300">
@@ -280,7 +273,7 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
     <div className="rounded-lg border border-foreground/15 p-4">
       <p className="mb-3 text-sm font-medium">
         <span className="font-mono">{column.name}</span>{" "}
-        <span className="text-foreground/50">— selected</span>
+        <span className="text-muted">— selected</span>
       </p>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
         <Stat label="n" value={String(column.values.length)} />
@@ -297,7 +290,7 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
           the column you actually measured.
         </p>
       ) : (
-        <p className="mt-3 text-xs text-foreground/50">
+        <p className="mt-3 text-xs text-muted">
           Ready for the capability report and the control charts below.
         </p>
       )}
@@ -308,9 +301,7 @@ function ColumnSummary({ column }: { column: IngestColumn }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">
-      <dt className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </dt>
+      <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
       <dd className="font-mono tabular-nums">{value}</dd>
     </div>
   );

@@ -147,5 +147,32 @@ export function OcCurveChart({
     dark,
   ]);
 
-  return <div ref={ref} className="h-64 w-full" />;
+  // See control-chart.tsx: the name is derived from what is drawn (T-0060).
+  // The two acceptance probabilities are read off the curve rather than
+  // recomputed, so the sentence quotes the same points the picture plots.
+  const nearest = (p: number): number | null => {
+    if (fractionDefective.length === 0) return null;
+    let best = 0;
+    for (let i = 1; i < fractionDefective.length; i += 1) {
+      if (
+        Math.abs(fractionDefective[i] - p) <
+        Math.abs(fractionDefective[best] - p)
+      ) {
+        best = i;
+      }
+    }
+    return probabilityAccept[best];
+  };
+  const say = (p: number): string => {
+    const pa = nearest(p);
+    return pa == null ? "not plotted" : `about ${(pa * 100).toFixed(0)} %`;
+  };
+  const label =
+    `Operating characteristic curve: acceptance probability against percent ` +
+    `defective. At the AQL (${pct(aql).toFixed(2)} %) the plan accepts ` +
+    `${say(aql)} of lots; at the LTPD (${pct(ltpd).toFixed(2)} %), ${say(ltpd)}.`;
+
+  return (
+    <div ref={ref} role="img" aria-label={label} className="h-64 w-full" />
+  );
 }

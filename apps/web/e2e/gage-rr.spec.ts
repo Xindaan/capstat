@@ -30,6 +30,8 @@ const REPORT = {
   pct_study_var_part: 94.37,
   pct_tolerance_gage_rr: null,
   ndc: 4,
+  verdict: "unacceptable",
+  ndc_adequate: false,
   warnings: [
     "gage R&R is 33.1% of study variation (> 30%): the measurement system is unacceptable",
   ],
@@ -125,4 +127,122 @@ test("a gage r&r study saves and loads back", async ({ page }) => {
   });
 
   await expect(page.getByLabel("Tolerance")).toHaveValue("0.5");
+});
+
+test("a damaged study file is refused by name, not rendered into a crash", async ({
+  page,
+}) => {
+  // Before T-0055 the `inputs` object was cast unchecked, so `"grid": 1`
+  // reached `grid.map` and took the page down with an unhandled TypeError. A
+  // file the user hand-edited must not be able to do that.
+  const crashes: string[] = [];
+  page.on("pageerror", (error) => crashes.push(error.message));
+
+  await gotoReady(page, "/gage-rr");
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "broken.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "capstat-study",
+        schema_version: 1,
+        page: "gage-rr",
+        inputs: { parts: 3, grid: 1 },
+      }),
+    ),
+  });
+
+  await expect(page.getByText(/study file is damaged/i)).toBeVisible();
+  await expect(page.getByText(/"grid" should be a list/)).toBeVisible();
+  // Nothing was half-restored: the example study is still on screen and usable.
+  await expect(page.getByRole("button", { name: "Compute" })).toBeEnabled();
+  expect(crashes).toEqual([]);
+});
+
+test("a fault deep inside a grid names the cell, not the grid", async ({
+  page,
+}) => {
+  await gotoReady(page, "/gage-rr");
+  await page.getByLabel("Load study file").setInputFiles({
+    name: "broken.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: "capstat-study",
+        schema_version: 1,
+        page: "gage-rr",
+        inputs: {
+          parts: 1,
+          operators: 1,
+          trials: 2,
+          grid: [[["1", 2]]],
+        },
+      }),
+    ),
+  });
+
+  await expect(page.getByText(/"grid\.0\.0\.1" should be text/)).toBeVisible();
+});
+
+test("the card colours follow the verdict the API states, not a local threshold", async ({
+  page,
+}) => {
+  // The discriminating case for T-0058. The percentage says "good" on the old
+  // 10/30 rule; the verdict says "unacceptable". If the panel still owned the
+  // thresholds it would paint this green, and the card would then contradict
+  // the warning printed underneath it -- the exact discrepancy the change
+  // exists to make impossible.
+  await page.route("**/compute/gage-rr", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...REPORT,
+        pct_study_var_gage_rr: 5.0,
+        ndc: 40,
+        verdict: "unacceptable",
+        ndc_adequate: false,
+      }),
+    }),
+  );
+
+  await gotoReady(page, "/gage-rr");
+  await page.getByRole("button", { name: "Compute" }).click();
+
+  const grr = page.getByText("% Study Var (GRR)").locator("..");
+  await expect(grr.locator(".text-red-600")).toBeVisible();
+  await expect(grr.locator(".text-emerald-600")).toHaveCount(0);
+
+  const ndc = page.getByText("ndc", { exact: true }).locator("..");
+  await expect(ndc.locator(".text-red-600")).toBeVisible();
+});
+
+test("a gage with nothing to judge is not painted green", async ({ page }) => {
+  // `null` is "not judged" -- a gage whose own variance is zero. The old ndc
+  // colouring fell through to emerald there, which reads as a clean bill of
+  // health for a study that established nothing.
+  await page.route("**/compute/gage-rr", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...REPORT,
+        pct_study_var_gage_rr: null,
+        ndc: null,
+        verdict: null,
+        ndc_adequate: null,
+      }),
+    }),
+  );
+
+  await gotoReady(page, "/gage-rr");
+  await page.getByRole("button", { name: "Compute" }).click();
+
+  const ndc = page.getByText("ndc", { exact: true }).locator("..");
+  await expect(ndc.locator(".text-emerald-600")).toHaveCount(0);
+  await expect(ndc.locator(".text-red-600")).toHaveCount(0);
+  // The value reads as absent rather than as a verdict. (Both the label and
+  // the value carry text-muted, hence the count rather than a visibility
+  // assertion on a locator that legitimately matches twice.)
+  await expect(ndc.getByText("—")).toBeVisible();
 });

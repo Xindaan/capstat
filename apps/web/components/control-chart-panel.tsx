@@ -10,9 +10,10 @@ import {
   type IngestColumn,
   type RuleViolation,
 } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
+import { callApi } from "@/lib/call-api";
 import { describeRuleSelection } from "@/lib/rules";
 import { ControlChart } from "./control-chart";
+import { ErrorAlert } from "./error-alert";
 
 type State =
   | { kind: "loading" }
@@ -35,10 +36,22 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
   // Violations are stored with the chart they were computed from. Without that
   // tie, switching column would briefly paint the previous column's flags onto
   // the new chart -- points marked out of control that are not.
+  // `status` is the rule run's own outcome, kept apart from the chart's. An
+  // empty violation list means "the rules ran and found nothing" and nothing
+  // else -- a failed or unfinished run must never be able to produce one.
   const [ruleState, setRuleState] = useState<{
     chart: ChartPair | null;
+    rules: number[] | null;
     violations: RuleViolation[];
-  }>({ chart: null, violations: [] });
+    status: "done" | "error";
+    message: string;
+  }>({
+    chart: null,
+    rules: null,
+    violations: [],
+    status: "done",
+    message: "",
+  });
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
 
   // The chart depends only on the data: changing which rules are applied must
@@ -46,25 +59,16 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const { data, error } = await imrChart(column.values);
-        if (cancelled) return;
-        if (error || !data) {
-          setState({
-            kind: "error",
-            message: describeApiError(
-              error,
-              "The control chart could not be computed.",
-            ),
-          });
-          return;
-        }
-        setState({ kind: "done", chart: data });
-      } catch {
-        if (!cancelled) {
-          setState({ kind: "error", message: "Could not reach the API." });
-        }
+      const outcome = await callApi(
+        () => imrChart(column.values),
+        "The control chart could not be computed.",
+      );
+      if (cancelled) return;
+      if (!outcome.ok) {
+        setState({ kind: "error", message: outcome.message });
+        return;
       }
+      setState({ kind: "done", chart: outcome.data });
     })();
     return () => {
       cancelled = true;
@@ -79,18 +83,60 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
     let cancelled = false;
     (async () => {
       const loc = chart.location;
-      const res = await nelsonRules(loc.points, loc.limits, selected);
-      if (!cancelled) setRuleState({ chart, violations: res.data ?? [] });
+      const outcome = await callApi(
+        () => nelsonRules(loc.points, loc.limits, selected),
+        "The run rules could not be computed.",
+      );
+      if (cancelled) return;
+      if (!outcome.ok) {
+        setRuleState({
+          chart,
+          rules: selected,
+          violations: [],
+          status: "error",
+          message: outcome.message,
+        });
+        return;
+      }
+      setRuleState({
+        chart,
+        rules: selected,
+        violations: outcome.data,
+        status: "done",
+        message: "",
+      });
     })().catch(() => {
-      if (!cancelled) setRuleState({ chart, violations: [] });
+      // `callApi` is total -- it turns a rejection into an outcome -- so this
+      // can only fire on a fault in the state update above. Saying "could not
+      // reach the API" here would be false; what is true is that the rules
+      // produced nothing to trust, which is the part the reader needs.
+      if (!cancelled) {
+        setRuleState({
+          chart,
+          rules: selected,
+          violations: [],
+          status: "error",
+          message: "The run rules could not be applied.",
+        });
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [chart, selected]);
 
-  // Only trust violations that belong to the chart on screen.
-  const rules = ruleState.chart === chart ? ruleState.violations : [];
+  // Only trust a rule run that belongs to *this* chart and *this* rule
+  // selection. Anything else is a run still in flight, and while one is in
+  // flight the panel is not entitled to say anything about violations -- an
+  // empty list here would read as "no violations" when it means "not yet".
+  // Both comparisons are by reference, which is what the effect keys on too.
+  const settled =
+    ruleState.chart === chart && ruleState.rules === selected
+      ? ruleState
+      : null;
+  const rules = settled?.status === "done" ? settled.violations : [];
+  const ruleStatus = settled?.status ?? "running";
+  const ruleMessage = settled?.message ?? "";
 
   useEffect(() => {
     let cancelled = false;
@@ -127,17 +173,10 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
       </div>
 
       {state.kind === "loading" && (
-        <p className="text-sm text-foreground/50">Computing control limits…</p>
+        <p className="text-sm text-muted">Computing control limits…</p>
       )}
 
-      {state.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {state.message}
-        </div>
-      )}
+      {state.kind === "error" && <ErrorAlert message={state.message} />}
 
       {state.kind === "done" && (
         <div className="flex flex-col gap-4">
@@ -177,7 +216,12 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
             descriptions={descriptions}
             onChange={setSelected}
           />
-          <RuleList rules={rules} selected={selected} />
+          <RuleList
+            rules={rules}
+            selected={selected}
+            status={ruleStatus}
+            message={ruleMessage}
+          />
         </div>
       )}
     </section>
@@ -238,12 +282,12 @@ function RuleSelector({
           type="button"
           onClick={() => onChange(DEFAULT_RULES)}
           disabled={isDefault}
-          className="text-xs text-foreground/50 underline underline-offset-4 hover:text-foreground disabled:no-underline disabled:opacity-40"
+          className="text-xs text-muted underline underline-offset-4 hover:text-foreground disabled:no-underline disabled:opacity-40"
         >
           Reset to 1–4
         </button>
         {selected.length === 0 && (
-          <span className="text-xs text-foreground/50">
+          <span className="text-xs text-muted">
             No rules selected — only the 3-sigma limit violations above are
             flagged.
           </span>
@@ -262,22 +306,42 @@ function RuleSelector({
 function RuleList({
   rules,
   selected,
+  status,
+  message,
 }: {
   rules: RuleViolation[];
   selected: number[];
+  status: "running" | "done" | "error";
+  message: string;
 }) {
   const applied = describeRuleSelection(selected);
   if (selected.length === 0) {
     return (
-      <p className="text-sm text-foreground/50">
+      <p className="text-sm text-muted">
         No run rules are applied. Only the 3-sigma limit violations on the
         charts above are flagged.
       </p>
     );
   }
+  if (status === "error") {
+    // "No violations" would be a statement about the process. Nothing was
+    // measured, so there is nothing to state.
+    return (
+      <ErrorAlert
+        message={`The run rules could not be applied, so this chart says nothing about rules ${applied}. ${message}`}
+      />
+    );
+  }
+  if (status === "running") {
+    return (
+      <p className="text-sm text-muted">
+        Applying run rules (rules {applied})…
+      </p>
+    );
+  }
   if (rules.length === 0) {
     return (
-      <p className="text-sm text-foreground/50">
+      <p className="text-sm text-muted">
         No Nelson run-rule violations (rules {applied}) on the individuals
         chart.
       </p>

@@ -490,3 +490,49 @@ test("a study from a newer capstat is refused rather than half-read", async ({
   await expect(controls.getByRole("alert")).toContainText("newer capstat");
   await expect(page.getByLabel("AQL %")).toHaveValue("1");
 });
+
+test("the OC curve carries an accessible name quoting the two risk points", async ({
+  page,
+}) => {
+  // The curve *is* the argument on this page -- how steeply the plan falls
+  // between the two quality levels. A bare div said none of it (T-0060).
+  await mockApi(page);
+  await gotoReady(page, "/acceptance-sampling");
+  await page.getByRole("button", { name: "Judge this plan" }).click();
+
+  const chart = page.getByRole("img", {
+    name: /Operating characteristic curve/,
+  });
+  await expect(chart).toBeVisible();
+  await expect(chart).toHaveAccessibleName(/At the AQL \(1\.00 %\)/);
+  await expect(chart).toHaveAccessibleName(/at the LTPD \(5\.00 %\)/);
+});
+
+test("deciding a lot judges the plan on screen, not whatever is left in the fields", async ({
+  page,
+}) => {
+  // T-0061. The button was enabled on the defectives field alone, while the
+  // handler read a plan rebuilt from the live inputs -- so clearing "Sample
+  // size n" after judging left an enabled button that did nothing at all: no
+  // request, no message, no reason. The decision belongs to the plan the report
+  // describes, which is the one the user is looking at.
+  const requested: unknown[] = [];
+  await mockApi(page);
+  await page.route("**/acceptance-sampling/inspect", async (r) => {
+    requested.push(r.request().postDataJSON());
+    await r.fulfill(json(DECISION));
+  });
+
+  await gotoReady(page, "/acceptance-sampling");
+  await page.getByRole("button", { name: "Judge this plan" }).click();
+  await expect(page.getByText("Decide a lot")).toBeVisible();
+
+  await page.getByLabel("Sample size n").fill("");
+  await page.getByLabel("Defectives found in the sample").fill("2");
+  await page.getByRole("button", { name: "Decide the lot" }).click();
+
+  await expect(page.getByText("Accept", { exact: true })).toBeVisible();
+  await expect
+    .poll(() => (requested.at(-1) as { plan?: { sample_size?: number } })?.plan)
+    .toMatchObject({ sample_size: PLAN.sample_size });
+});
