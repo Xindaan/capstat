@@ -280,6 +280,11 @@ gets reported twice under two names. Each `RuleViolation` carries the point that
 completed the pattern *and* the whole window, so a plot can highlight the run and
 not just its last point.
 
+A `k`-of-`m` rule (Nelson 5 and 6, Western Electric 2 and 3) fires on the point
+that **completes** the pattern, including when that point falls at the very start
+of a series — a process already out of control when the chart begins signals on
+its second or fourth point rather than not at all.
+
 **The two standards disagree, and that is useful.** Western Electric rule 4 fires
 on **eight** consecutive points on one side; Nelson's rule 2 needs **nine**. A run
 of exactly eight fires one and not the other — which is exactly the sequence that
@@ -313,11 +318,21 @@ from capstat_core import gage_rr
 
 # data[part, operator, trial]
 report = gage_rr(measurements)
-print(report.pct_study_var_gage_rr)   # 33.1  -> unacceptable (> 30%)
-print(report.ndc)                     # 4     -> < 5, can't tell parts apart
+print(report.verdict)                 # "unacceptable"
+print(report.pct_study_var_gage_rr)   # 33.1  -> the number behind it
+print(report.ndc, report.ndc_adequate)  # 4 False -> can't tell parts apart
 for w in report.warnings:
     print(w)
 ```
+
+**The AIAG band is stated, not left to be re-derived.** `verdict` is
+`"good"` / `"marginal"` / `"unacceptable"`, and `ndc_adequate` says whether the
+gage separates the parts; the boundaries live in `GRR_GOOD_AT_OR_BELOW`,
+`GRR_MARGINAL_AT_OR_BELOW` and `NDC_MINIMUM`. That matters because the same
+judgement is also printed in `warnings` and coloured in the web app — three
+places that must never disagree, and they used to hold three copies of the
+thresholds. Both are `None` when there is nothing to judge (a gage with no
+variance of its own), which is deliberately **not** the same as `"good"`.
 
 Two things that quietly bias other tools are handled explicitly. When the
 part-by-operator **interaction is not significant** (AIAG's generous
@@ -459,13 +474,24 @@ and read by the browser, with nothing uploaded. Only your inputs are stored,
 never the results. The numbers are recomputed from the validated core on load,
 so a saved study can never show figures this version of capstat would not
 produce, and a file from a newer capstat is refused with a message saying so
-rather than half-read. `/` has no such button on purpose: its input is a CSV,
+rather than half-read. A hand-edited file whose fields are the wrong shape is
+refused the same way, naming the field (`"grid.0.0.1" should be text`): a study
+restored from half a file would look exactly like a whole one. A field the file
+simply *lacks* is still fine — that is how a study written before a section
+existed still loads. `/` has no such button on purpose: its input is a CSV,
 and re-uploading the file beats restoring it from JSON.
 
 Every analysis page is also its own report: **Print / save as PDF** drops the
 navigation and the controls, keeps the results, and prints the charts as vector
 (ECharts renders SVG, not canvas), so a study goes to a PDF that still looks
 right at any zoom.
+
+Charts carry an accessible name describing what they show — "Individuals chart,
+30 points, out of control at points 31, 44" — built from the same values the
+chart draws, so the sentence cannot describe a different picture. Text that
+carries meaning meets WCAG 2.1 AA contrast in both light and dark themes; the
+`--muted` token in `app/globals.css` records its measured ratio, and a test
+recomputes it rather than trusting the comment.
 
 Run it against a local API:
 
@@ -580,6 +606,14 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
   [official instructions](https://docs.astral.sh/uv/getting-started/installation/).
 - **Wrong Python version** — uv manages an isolated interpreter; you do not
   need a system Python 3.11+. Run everything through `uv run`.
+- **An upload is rejected with 413** — `/ingest` caps a file at 10 MB. The body
+  is read in chunks and refused at the first one that crosses the limit, so an
+  oversized upload is turned away before it is resident, not after.
+- **The API process dies on a very large series** — the `/compute/*` endpoints
+  currently accept a request body of any size, and JSON numbers cost roughly
+  13–20× their wire size once parsed (2,000,000 values ≈ 265 MB). If you are
+  feeding capstat far more points than a study needs, that is why; a size limit
+  is an open question (TASK.md T-0063).
 
 ## Development
 
