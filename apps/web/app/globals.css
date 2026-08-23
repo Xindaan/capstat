@@ -3,17 +3,26 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Quieter text that is still text. The card labels are the *names of the
+     numbers* -- "Producer risk", "ndc" -- so WCAG 2.1 AA's 4.5:1 for small text
+     applies to them, and an opacity of the foreground did not meet it:
+     text-foreground/40 resolved to #a2a2a2 on white, 2.55:1. A named token
+     instead of an alpha, because a token can be measured; lib/contrast.test.ts
+     reads these values and does the arithmetic. */
+  --muted: #6b6b6b; /* 5.33:1 on #ffffff */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --muted: #8a8a8a; /* 5.73:1 on #0a0a0a */
   }
 }
 
@@ -44,6 +53,7 @@ body {
   :root {
     --background: #ffffff;
     --foreground: #000000;
+    --muted: #595959; /* 7.00:1 on #ffffff -- print has no dark theme */
   }
 
   /* Backgrounds and colours are meaning here (a red limit, an amber warning),

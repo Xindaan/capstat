@@ -7,7 +7,8 @@ import {
   type SchemeHistory,
   type InspectionSeverity,
 } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
+import { ErrorAlert } from "./error-alert";
+import { callApi } from "@/lib/call-api";
 
 // Thirteen lots that exercise both transitions: two non-acceptable four apart
 // tighten the scheme at lot 6, and five consecutive acceptable lots earn normal
@@ -81,25 +82,22 @@ export function SwitchingSchemePanel({
   const compute = async () => {
     if (outcomes == null) return;
     setStatus({ kind: "computing" });
-    try {
-      const { data, error } = await switchingRules(
-        outcomes.map((accepted) => ({
-          accepted,
-          accepted_at_tighter_aql: null,
-        })),
-        authorised,
-      );
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "The series could not be judged."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", history: data });
-    } catch {
-      setStatus({ kind: "error", message: "Could not reach the API." });
+    const outcome = await callApi(
+      () =>
+        switchingRules(
+          outcomes.map((accepted) => ({
+            accepted,
+            accepted_at_tighter_aql: null,
+          })),
+          authorised,
+        ),
+      "The series could not be judged.",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", history: outcome.data });
   };
 
   const history = status.kind === "done" ? status.history : null;
@@ -118,7 +116,7 @@ export function SwitchingSchemePanel({
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className="text-xs uppercase tracking-wide text-foreground/50">
+        <span className="text-xs uppercase tracking-wide text-muted">
           Lot outcomes
         </span>
         <textarea
@@ -155,14 +153,7 @@ export function SwitchingSchemePanel({
         )}
       </div>
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {history && (
         <div className="flex flex-col gap-3">
@@ -181,14 +172,14 @@ export function SwitchingSchemePanel({
             <Card
               label="Reduced allowed"
               value={authorised ? "Yes" : "No"}
-              tone={authorised ? undefined : "text-foreground/40"}
+              tone={authorised ? undefined : "text-muted"}
             />
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-foreground/15">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-foreground/15 text-left text-foreground/50">
+                <tr className="border-b border-foreground/15 text-left text-muted">
                   <th className="px-3 py-2 font-normal">Lot</th>
                   <th className="px-3 py-2 font-normal">Outcome</th>
                   <th className="px-3 py-2 font-normal">Inspected under</th>
@@ -222,7 +213,7 @@ export function SwitchingSchemePanel({
             </table>
           </div>
 
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-muted">
             A switch takes effect on the lot <em>after</em> the one that
             triggered it — the trigger lot was already inspected under the old
             severity, which is where its sample size came from. The switching
@@ -256,9 +247,7 @@ function Card({
 }) {
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
-      <div className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       <div
         className={[
           "font-mono tabular-nums",

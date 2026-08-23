@@ -4,6 +4,8 @@ import {
   STUDY_SCHEMA_VERSION,
   buildStudyFile,
   parseStudyFile,
+  readList,
+  readText,
   serialiseStudyFile,
   studyFileName,
 } from "@/lib/study-file";
@@ -140,5 +142,76 @@ describe("studyFileName", () => {
     expect(studyFileName("gage-rr", "2026-07-22")).toBe(
       "capstat-gage-rr-2026-07-22.json",
     );
+  });
+});
+
+describe("parseStudyFile with an inputs reader (T-0055)", () => {
+  const reader = (inputs: Record<string, unknown>) => ({
+    aql: readText(inputs, "aql", "0"),
+    ltpd: readText(inputs, "ltpd", "0"),
+    rows: readList(inputs, "rows", (row) => ({
+      reference: readText(row, "reference", ""),
+    })),
+  });
+
+  const wrap = (inputs: unknown) =>
+    JSON.stringify({
+      format: "capstat-study",
+      schema_version: 1,
+      page: "acceptance-sampling",
+      saved: "2026-08-23",
+      inputs,
+    });
+
+  it("accepts a well-formed document", () => {
+    const result = parseStudyFile(
+      wrap({ aql: "1", ltpd: "5", rows: [{ reference: "2" }] }),
+      "acceptance-sampling",
+      reader,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok)
+      expect(result.file.inputs).toEqual({
+        aql: "1",
+        ltpd: "5",
+        rows: [{ reference: "2" }],
+      });
+  });
+
+  it("refuses a field of the wrong type instead of handing it on to be rendered", () => {
+    // The crash this prevents: `rows` reaching `rows.map` as a number.
+    const result = parseStudyFile(
+      wrap({ rows: 1 }),
+      "acceptance-sampling",
+      reader,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toMatch(/rows/);
+      expect(result.reason).toMatch(/damaged/i);
+    }
+  });
+
+  it("names the offending field inside a list, not just the list", () => {
+    const result = parseStudyFile(
+      wrap({ rows: [{ reference: "2" }, { reference: 7 }] }),
+      "acceptance-sampling",
+      reader,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/rows\.1\.reference/);
+  });
+
+  it("still restores a file that merely lacks a field a later version added", () => {
+    // Deliberately not an error: the MSA page already relies on this to load
+    // studies written before one of its three sections existed.
+    const result = parseStudyFile(
+      wrap({ aql: "1" }),
+      "acceptance-sampling",
+      reader,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok)
+      expect(result.file.inputs).toEqual({ aql: "1", ltpd: "0", rows: [] });
   });
 });

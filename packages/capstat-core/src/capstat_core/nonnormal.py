@@ -604,11 +604,28 @@ def analyze_capability(
         )
 
     percentile = percentile_capability(arr, lsl=lsl, usl=usl)
+    warnings = list(percentile.warnings)
+    if target is not None:
+        # The other two paths feed the target into Cpm. This one has no
+        # within/overall split and so no Cpm to compute -- an honest answer, and
+        # a silent one would not be. A user who states a target and is handed
+        # indices that ignore it has nothing in the output to notice it by.
+        warnings.append(
+            f"the target ({target:.6g}) was not used. Cpm needs a short-term "
+            "sigma, which the percentile method does not have, so no "
+            "target-based index was computed. Pp and Ppk below measure spread "
+            "and distance to the nearer limit, not distance to the target."
+        )
     return CapabilityAnalysis(
         path="percentile",
         rationale=(
             f"{reason} A {percentile.distribution} distribution was the best fit "
             f"of the candidates tried."
+            + (
+                " The target plays no part on this path; see the warnings."
+                if target is not None
+                else ""
+            )
         ),
         normality=normality,
         normal=None,
@@ -616,5 +633,5 @@ def analyze_capability(
         percentile=percentile,
         pp=percentile.pp,
         ppk=percentile.ppk,
-        warnings=percentile.warnings,
+        warnings=tuple(warnings),
     )

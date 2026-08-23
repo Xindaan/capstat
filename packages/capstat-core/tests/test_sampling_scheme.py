@@ -12,12 +12,14 @@ decision: which severity a given lot was inspected under.
 from __future__ import annotations
 
 import pytest
+import yaml
 from capstat_core import (
     LotResult,
     SchemeHistory,
     SwitchingRules,
     apply_switching_rules,
 )
+from conftest import REFERENCES
 
 A = True  # acceptable on original inspection
 R = False  # not acceptable
@@ -333,3 +335,26 @@ def test_the_report_says_what_it_cannot_know() -> None:
 def test_ending_on_tightened_is_said_out_loud() -> None:
     history = apply_switching_rules([R, R, A])
     assert any("ends on tightened" in w for w in history.warnings)
+
+
+def test_the_restatement_names_the_reset_not_only_the_additions() -> None:
+    """The prose is the artefact under test here, and it has already misled once.
+
+    An external review (2026-08-22) read `_updated_score` resetting to zero as a
+    conformance defect, and cited this note as its evidence: it said the score
+    "adds three or two per accepted lot" and stopped there, which reads as if an
+    accepted lot could never lower the score. The code was right and the
+    sentence was incomplete -- so the sentence is what gets pinned. (T-0062)
+    """
+    document = yaml.safe_load((REFERENCES / "sampling_scheme.yaml").read_text())
+    note = document["sources"]["iso_2859_1_switching"]["note"]
+    assert "resets the score to zero" in note
+    assert "Ac >= 2" in note and "Ac <= 1" in note
+    # And the behaviour it describes is the behaviour that runs.
+    mixed = apply_switching_rules(
+        [
+            LotResult(accepted=True, accepted_at_tighter_aql=True),
+            LotResult(accepted=True, accepted_at_tighter_aql=False),
+        ]
+    )
+    assert [s.switching_score for s in mixed.steps] == [3, 0]

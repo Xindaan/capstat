@@ -165,24 +165,31 @@ def _k_of_m_beyond(
     z: npt.NDArray[np.float64], k: int, m: int, threshold: float
 ) -> list[tuple[int, ...]]:
     """Windows of `m` points holding at least `k` beyond `threshold` sigma on the
-    same side, with the *final* point of the window among them.
+    same side, reported at the point that completes the pattern.
 
-    That last condition matters. Without it a window like ``[3.1, 2.5, 0.2]``
-    would report the harmless final point as a violation, long after the pattern
-    it belongs to has passed. The rule must fire on the point that completes it.
+    The signal belongs on the *last qualifying* point, which is what the caller
+    derives from the returned indices -- not on the last point of the window.
+    Those are two different things, and conflating them costs alarms: a window
+    like ``[2.5, 2.5, 0.1]`` completes at its second point, and demanding that
+    the third one qualify too means the pattern never signals at all. The stale
+    case this once guarded against (``[3.1, 2.5, 0.2]`` must not flag the
+    harmless point 2) is already handled by reporting ``max(qualifying)``, which
+    is point 1 there.
+
+    A pattern spanning several overlapping windows completes once, so windows
+    resolving to the same signal point are reported once -- keeping the earliest,
+    which carries the fullest run.
     """
-    found: list[tuple[int, ...]] = []
+    by_signal: dict[int, tuple[int, ...]] = {}
     for start in range(len(z) - m + 1):
         window = z[start : start + m]
-        last = window[-1]
         for sign in (1.0, -1.0):
-            if sign * last <= threshold:
-                continue
             qualifying = np.flatnonzero(sign * window > threshold)
             if qualifying.size >= k:
-                found.append(tuple(int(start + i) for i in qualifying))
+                indices = tuple(int(start + i) for i in qualifying)
+                by_signal.setdefault(max(indices), indices)
                 break
-    return found
+    return [by_signal[point] for point in sorted(by_signal)]
 
 
 def _monotone_runs(

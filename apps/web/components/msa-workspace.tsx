@@ -14,6 +14,7 @@ import {
   type StabilityInputs,
 } from "./stability-panel";
 import { StudyFileControls } from "./study-file-controls";
+import { readList, readSection, readText } from "@/lib/study-file";
 
 /** The three MSA studies are independent, so the document keeps them apart. */
 export interface MsaStudy {
@@ -23,6 +24,35 @@ export interface MsaStudy {
 }
 
 const PAGE = "msa";
+
+/** Typed reading of a loaded document's `inputs`, or a refusal (T-0055). */
+function readMsaStudy(inputs: Record<string, unknown>): MsaStudy {
+  return {
+    bias: readSection(inputs, "bias", (bias) => ({
+      readings: readText(bias, "readings", EXAMPLE.bias.readings),
+      reference: readText(bias, "reference", EXAMPLE.bias.reference),
+    })),
+    linearity: readSection(inputs, "linearity", (linearity) => ({
+      rows: readList(
+        linearity,
+        "rows",
+        (row) => ({
+          reference: readText(row, "reference", ""),
+          readings: readText(row, "readings", ""),
+        }),
+        EXAMPLE.linearity.rows,
+      ),
+      processVariation: readText(
+        linearity,
+        "processVariation",
+        EXAMPLE.linearity.processVariation,
+      ),
+    })),
+    stability: readSection(inputs, "stability", (stability) => ({
+      readings: readText(stability, "readings", EXAMPLE.stability.readings),
+    })),
+  };
+}
 
 const EXAMPLE: MsaStudy = {
   bias: EXAMPLE_BIAS_INPUTS,
@@ -63,7 +93,12 @@ export function MsaWorkspace() {
 
   return (
     <div className="flex flex-col gap-10">
-      <StudyFileControls page={PAGE} inputs={study} onLoad={onLoad} />
+      <StudyFileControls
+        page={PAGE}
+        inputs={study}
+        onLoad={onLoad}
+        readInputs={readMsaStudy}
+      />
       <BiasPanel
         key={`bias-${generation}`}
         initial={start.bias}

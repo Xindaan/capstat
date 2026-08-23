@@ -585,3 +585,38 @@ def test_a_fit_with_non_finite_percentiles_is_rejected() -> None:
     degenerate = DistributionFit(name="lognorm", params=(0.0, 0.0, 1.0), fit_score=0.0)
     with pytest.raises(ValueError, match="non-finite percentiles"):
         percentile_capability(_lognormal(), lsl=5.0, usl=60.0, distribution=degenerate)
+
+
+def test_a_target_given_to_the_percentile_path_is_reported_not_swallowed() -> None:
+    """The percentile method cannot express Cpm, and must say so (T-0054).
+
+    The normal and Box-Cox paths feed `target` into Cpm. The percentile method
+    has no within/overall split and therefore no Cpm to compute -- which is a
+    fine answer, and a silent one is not. A user who states an engineering
+    target and gets indices that ignore it has no way to notice.
+    """
+    rng = np.random.default_rng(4)
+    bimodal = np.concatenate(
+        [rng.normal(10.0, 0.5, size=200), rng.normal(40.0, 0.5, size=200)]
+    )
+    analysis = analyze_capability(bimodal, lsl=1.0, usl=60.0, target=20.0)
+
+    assert analysis.path == "percentile"
+    said = " ".join(analysis.warnings) + " " + analysis.rationale
+    assert "target" in said.lower()
+    assert "Cpm" in said
+
+    # And it stays quiet when there is nothing to warn about.
+    without = analyze_capability(bimodal, lsl=1.0, usl=60.0)
+    assert not any("target" in w.lower() for w in without.warnings)
+
+
+def test_the_other_two_paths_do_not_gain_a_target_warning() -> None:
+    """Normal and Box-Cox *use* the target, so warning there would be noise."""
+    rng = np.random.default_rng(11)
+    normal = rng.normal(50.0, 2.0, size=300)
+    analysis = analyze_capability(normal, lsl=40.0, usl=60.0, target=50.0)
+    assert analysis.path == "normal"
+    assert not any(
+        "not used" in w.lower() and "target" in w.lower() for w in analysis.warnings
+    )

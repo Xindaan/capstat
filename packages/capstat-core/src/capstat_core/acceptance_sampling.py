@@ -507,12 +507,22 @@ def design_single_sampling_plan(
         )
 
     for ac in range(max_acceptance_number + 1):
-        # Smallest n meeting the consumer's condition, by bisection on n.
+        # Smallest n meeting the consumer's condition, by bisection on n. The
+        # bracket is found by doubling, and the doubling is clamped rather than
+        # allowed to run past the ceiling: a probe that overshoots says nothing
+        # about whether the *answer* fits under it, and treating the overshoot
+        # as "no plan at this Ac" hid feasible plans behind the step size.
         low, high = ac + 1, ac + 1
-        while high <= max_sample_size and pa(high, ac, ltpd) > consumer_risk:
-            low = high + 1
-            high *= 2
         if high > max_sample_size:
+            # Not even Ac + 1 items may be drawn, so no plan at this Ac can
+            # reject anything -- and every higher Ac needs more.
+            continue
+        while high < max_sample_size and pa(high, ac, ltpd) > consumer_risk:
+            low = high + 1
+            high = min(high * 2, max_sample_size)
+        if pa(high, ac, ltpd) > consumer_risk:
+            # Even the largest sample allowed still accepts too much bad
+            # quality. This Ac is genuinely out of reach, not merely overstepped.
             continue
         while low < high:
             mid = (low + high) // 2

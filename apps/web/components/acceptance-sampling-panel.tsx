@@ -10,11 +10,13 @@ import {
   type LotDecision,
   type OCCurve,
   type SamplingModel,
+  type SamplingPlanInput,
   type SamplingPlanReport,
 } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
+import { callApi } from "@/lib/call-api";
 
 import { OcCurveChart } from "./oc-curve-chart";
+import { ErrorAlert } from "./error-alert";
 
 // The AccSamplingDesign vignette's worked example: 1 % acceptable at 2 %
 // producer's risk, 5 % rejectable at 15 % consumer's risk. It designs to
@@ -62,7 +64,7 @@ function pct(v: number | null | undefined, d = 2): string {
 
 /** A risk is comfortable, borderline, or bad — never an inline conditional. */
 function riskTone(risk: number | null, allowed: number): string {
-  if (risk == null || Number.isNaN(risk)) return "text-foreground/40";
+  if (risk == null || Number.isNaN(risk)) return "text-muted";
   if (risk <= allowed) return "text-emerald-600 dark:text-emerald-400";
   if (risk <= allowed * 1.5) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
@@ -164,27 +166,25 @@ export function AcceptanceSamplingPanel({
     if (plan == null || aql == null || ltpd == null) return;
     setStatus({ kind: "computing" });
     setDecision(null);
-    try {
-      const [evaluated, curved] = await Promise.all([
-        evaluateSamplingPlan(plan, aql, ltpd, model),
-        samplingOcCurve(plan, model),
-      ]);
-      if (evaluated.error || !evaluated.data) {
-        fail(
-          describeApiError(evaluated.error, "The plan could not be judged."),
-        );
-        return;
-      }
-      if (curved.error || !curved.data) {
-        fail(
-          describeApiError(curved.error, "The OC curve could not be drawn."),
-        );
-        return;
-      }
-      setStatus({ kind: "done", report: evaluated.data, curve: curved.data });
-    } catch {
-      fail("Could not reach the API.");
+    const [evaluated, curved] = await Promise.all([
+      callApi(
+        () => evaluateSamplingPlan(plan, aql, ltpd, model),
+        "The plan could not be judged.",
+      ),
+      callApi(
+        () => samplingOcCurve(plan, model),
+        "The OC curve could not be drawn.",
+      ),
+    ]);
+    if (!evaluated.ok) {
+      fail(evaluated.message);
+      return;
     }
+    if (!curved.ok) {
+      fail(curved.message);
+      return;
+    }
+    setStatus({ kind: "done", report: evaluated.data, curve: curved.data });
   };
 
   const design = async () => {
@@ -192,57 +192,71 @@ export function AcceptanceSamplingPanel({
     if (producerRisk == null || consumerRisk == null) return;
     setStatus({ kind: "computing" });
     setDecision(null);
-    try {
-      const { data, error } = await designSamplingPlan({
-        aql,
-        ltpd,
-        producerRisk,
-        consumerRisk,
-        model,
-        lotSize,
-      });
-      if (error || !data) {
-        fail(describeApiError(error, "No plan could be designed."));
-        return;
-      }
-      setSampleText(String(data.sample_size));
-      setAcceptText(String(data.acceptance_number));
-      const designed = {
-        sample_size: data.sample_size,
-        acceptance_number: data.acceptance_number,
-        lot_size: lotSize,
-      };
-      const [evaluated, curved] = await Promise.all([
-        evaluateSamplingPlan(designed, aql, ltpd, model),
-        samplingOcCurve(designed, model),
-      ]);
-      if (evaluated.error || !evaluated.data || curved.error || !curved.data) {
-        fail(
-          describeApiError(
-            evaluated.error ?? curved.error,
-            "The designed plan could not be judged.",
-          ),
-        );
-        return;
-      }
-      setStatus({ kind: "done", report: evaluated.data, curve: curved.data });
-    } catch {
-      fail("Could not reach the API.");
+    const plan_ = await callApi(
+      () =>
+        designSamplingPlan({
+          aql,
+          ltpd,
+          producerRisk,
+          consumerRisk,
+          model,
+          lotSize,
+        }),
+      "No plan could be designed.",
+    );
+    if (!plan_.ok) {
+      fail(plan_.message);
+      return;
     }
+    setSampleText(String(plan_.data.sample_size));
+    setAcceptText(String(plan_.data.acceptance_number));
+    const designed = {
+      sample_size: plan_.data.sample_size,
+      acceptance_number: plan_.data.acceptance_number,
+      lot_size: lotSize,
+    };
+    const [evaluated, curved] = await Promise.all([
+      callApi(
+        () => evaluateSamplingPlan(designed, aql, ltpd, model),
+        "The designed plan could not be judged.",
+      ),
+      callApi(
+        () => samplingOcCurve(designed, model),
+        "The designed plan could not be judged.",
+      ),
+    ]);
+    if (!evaluated.ok) {
+      fail(evaluated.message);
+      return;
+    }
+    if (!curved.ok) {
+      fail(curved.message);
+      return;
+    }
+    setStatus({ kind: "done", report: evaluated.data, curve: curved.data });
   };
 
-  const decide = async () => {
-    if (plan == null || defectives == null) return;
-    try {
-      const { data, error } = await inspectLot(plan, defectives, model);
-      if (error || !data) {
-        fail(describeApiError(error, "The lot could not be judged."));
-        return;
-      }
-      setDecision(data);
-    } catch {
-      fail("Could not reach the API.");
+  /**
+   * Judge a lot against the plan the report describes -- not against a plan
+   * rebuilt from the live fields.
+   *
+   * Those two used to be the same thing until the user touched an input, and
+   * then they were not: clearing "Sample size n" made the derived plan null, so
+   * the click returned silently while the button stayed enabled (T-0061). The
+   * decision belongs to the plan on screen; taking it from the report also
+   * means there is no null case left to fall through.
+   */
+  const decide = async (judged: SamplingPlanInput) => {
+    if (defectives == null) return;
+    const outcome = await callApi(
+      () => inspectLot(judged, defectives, model),
+      "The lot could not be judged.",
+    );
+    if (!outcome.ok) {
+      fail(outcome.message);
+      return;
     }
+    setDecision(outcome.data);
   };
 
   const report = status.kind === "done" ? status.report : null;
@@ -296,7 +310,7 @@ export function AcceptanceSamplingPanel({
             onChange={setAcceptText}
           />
           <label className="no-print flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-foreground/50">
+            <span className="text-xs uppercase tracking-wide text-muted">
               Model
             </span>
             <select
@@ -342,14 +356,7 @@ export function AcceptanceSamplingPanel({
         )}
       </div>
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {report && curve && (
         <div className="flex flex-col gap-4">
@@ -410,7 +417,7 @@ export function AcceptanceSamplingPanel({
             <Card label="Inspected per lot" value={fmt(report.ati_at_aql, 1)} />
           </div>
 
-          <p className="text-xs text-foreground/50">
+          <p className="text-xs text-muted">
             At the AQL the plan accepts {pct(report.probability_accept_at_aql)}{" "}
             % of lots; at the LTPD it still accepts{" "}
             {pct(report.probability_accept_at_ltpd)} %. It is a coin flip at{" "}
@@ -422,7 +429,7 @@ export function AcceptanceSamplingPanel({
           </p>
 
           <div className="flex flex-col gap-2 rounded-lg border border-foreground/15 p-4">
-            <span className="text-xs uppercase tracking-wide text-foreground/50">
+            <span className="text-xs uppercase tracking-wide text-muted">
               Decide a lot
             </span>
             <div className="flex flex-wrap items-center gap-3">
@@ -439,7 +446,7 @@ export function AcceptanceSamplingPanel({
               </label>
               <button
                 type="button"
-                onClick={() => void decide()}
+                onClick={() => void decide(report.plan)}
                 disabled={defectives == null}
                 className="h-9 rounded-lg border border-foreground/25 px-3 text-sm font-medium transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -493,7 +500,7 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-wide text-foreground/50">
+      <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
       <input
@@ -504,7 +511,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         className="h-10 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
       />
-      {hint && <span className="text-[11px] text-foreground/40">{hint}</span>}
+      {hint && <span className="text-[11px] text-muted">{hint}</span>}
     </label>
   );
 }
@@ -524,9 +531,7 @@ function Card({
 }) {
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
-      <div className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       <div
         className={[
           "font-mono tabular-nums",

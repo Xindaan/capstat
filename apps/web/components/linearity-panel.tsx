@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { linearityStudy, type LinearityReport } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
 import { parseNumberList } from "@/lib/stats";
+import { ErrorAlert } from "./error-alert";
+import { callApi } from "@/lib/call-api";
 
 export interface Row {
   reference: string;
@@ -84,23 +85,15 @@ export function LinearityPanel({
   const compute = async () => {
     if (!parsed || pvInvalid) return;
     setStatus({ kind: "computing" });
-    try {
-      const { data, error } = await linearityStudy(
-        parsed.references,
-        parsed.measurements,
-        pv,
-      );
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "Linearity could not be computed."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", result: data });
-    } catch {
-      setStatus({ kind: "error", message: "Could not reach the API." });
+    const outcome = await callApi(
+      () => linearityStudy(parsed.references, parsed.measurements, pv),
+      "Linearity could not be computed.",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", result: outcome.data });
   };
 
   const result = status.kind === "done" ? status.result : null;
@@ -139,7 +132,7 @@ export function LinearityPanel({
               onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
               disabled={rows.length <= 2}
               aria-label={`Remove part ${i + 1}`}
-              className="h-9 w-9 shrink-0 rounded-lg border border-foreground/15 text-foreground/50 hover:text-foreground disabled:opacity-30"
+              className="h-9 w-9 shrink-0 rounded-lg border border-foreground/15 text-muted hover:text-foreground disabled:opacity-30"
             >
               ×
             </button>
@@ -156,7 +149,7 @@ export function LinearityPanel({
             + Add part
           </button>
           <label className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-foreground/50">
+            <span className="text-xs uppercase tracking-wide text-muted">
               Process variation
             </span>
             <input
@@ -187,14 +180,7 @@ export function LinearityPanel({
         )}
       </div>
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {result && (
         <div className="flex flex-col gap-3">
@@ -218,7 +204,7 @@ export function LinearityPanel({
           <div className="overflow-x-auto rounded-lg border border-foreground/15">
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-foreground/15 text-foreground/50">
+                <tr className="border-b border-foreground/15 text-muted">
                   <th className="p-2 text-left font-medium">Reference</th>
                   <th className="p-2 text-right font-medium">Mean bias</th>
                 </tr>
@@ -236,7 +222,7 @@ export function LinearityPanel({
             </table>
           </div>
           {result.linearity !== null && (
-            <p className="text-xs text-foreground/50">
+            <p className="text-xs text-muted">
               Absolute linearity (|slope| × process variation):{" "}
               {fmt(result.linearity)}
             </p>
@@ -265,9 +251,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
-      <div className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       <div
         className={[
           "font-mono text-lg tabular-nums",

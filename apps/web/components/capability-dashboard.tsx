@@ -7,8 +7,9 @@ import {
   type CapabilityAnalysis,
   type IngestColumn,
 } from "@/lib/api-client";
-import { describeApiError } from "@/lib/errors";
+import { callApi } from "@/lib/call-api";
 import { CapabilityHistogram, type NormalFit } from "./capability-histogram";
+import { ErrorAlert } from "./error-alert";
 
 type Status =
   | { kind: "idle" }
@@ -28,7 +29,7 @@ function fmt(value: number | null | undefined, digits = 3): string {
 
 /** Capability verdict colouring on the usual 1.00 / 1.33 thresholds. */
 function indexTone(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "text-foreground/40";
+  if (value == null || Number.isNaN(value)) return "text-muted";
   if (value >= 1.33) return "text-emerald-600 dark:text-emerald-400";
   if (value >= 1.0) return "text-amber-600 dark:text-amber-400";
   return "text-red-600 dark:text-red-400";
@@ -55,26 +56,20 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
   const compute = async () => {
     if (!parsed.valid) return;
     setStatus({ kind: "computing" });
-    try {
-      const { data, error } = await analyzeCapability(column.values, {
-        lsl: parsed.l,
-        usl: parsed.u,
-        target: parsed.t,
-      });
-      if (error || !data) {
-        setStatus({
-          kind: "error",
-          message: describeApiError(error, "Capability could not be computed."),
-        });
-        return;
-      }
-      setStatus({ kind: "done", result: data });
-    } catch {
-      setStatus({
-        kind: "error",
-        message: "Could not reach the API.",
-      });
+    const outcome = await callApi(
+      () =>
+        analyzeCapability(column.values, {
+          lsl: parsed.l,
+          usl: parsed.u,
+          target: parsed.t,
+        }),
+      "Capability could not be computed.",
+    );
+    if (!outcome.ok) {
+      setStatus({ kind: "error", message: outcome.message });
+      return;
     }
+    setStatus({ kind: "done", result: outcome.data });
   };
 
   const result = status.kind === "done" ? status.result : null;
@@ -109,7 +104,7 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
         <h2 className="text-sm font-medium text-foreground/70">
           Process capability
         </h2>
-        <p className="text-xs text-foreground/50">
+        <p className="text-xs text-muted">
           Enter the specification limits for{" "}
           <span className="font-mono">{column.name}</span>. At least one of LSL
           or USL is required.
@@ -137,14 +132,7 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
         </p>
       )}
 
-      {status.kind === "error" && (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-        >
-          {status.message}
-        </div>
-      )}
+      {status.kind === "error" && <ErrorAlert message={status.message} />}
 
       {result && (
         <div className="flex flex-col gap-5">
@@ -176,7 +164,7 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
               <NormalityBadge normal={result.normality.normal} />
             </div>
             <p className="text-sm text-foreground/70">{result.rationale}</p>
-            <p className="mt-2 text-xs text-foreground/50">
+            <p className="mt-2 text-xs text-muted">
               {result.normality.recommendation}
             </p>
           </div>
@@ -190,7 +178,7 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
           )}
 
           <div className="rounded-lg border border-foreground/15 p-4">
-            <p className="mb-2 text-xs text-foreground/50">
+            <p className="mb-2 text-xs text-muted">
               Histogram with specification limits
               {fit ? " and the fitted normal curve" : ""}.
             </p>
@@ -219,7 +207,7 @@ function SpecField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs uppercase tracking-wide text-foreground/50">
+      <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
       <input
@@ -255,13 +243,9 @@ function IndexCard({
   const missing = value == null || Number.isNaN(value);
   return (
     <div className="rounded-lg border border-foreground/15 p-3">
-      <div className="text-xs uppercase tracking-wide text-foreground/40">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       {missing && unavailable ? (
-        <div className="text-xs leading-snug text-foreground/45">
-          {unavailable}
-        </div>
+        <div className="text-xs leading-snug text-muted">{unavailable}</div>
       ) : (
         <div
           className={[

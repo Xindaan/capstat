@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
+from typing import cast
 
 import pandas as pd
 import pytest
+from fastapi import HTTPException, UploadFile
 from fastapi.testclient import TestClient
 
 CSV = b"width,height,label\n1.0,2.0,a\n3.0,4.0,b\n5.0,6.0,c\n"
@@ -77,3 +80,67 @@ def test_oversized_file_is_413(
     monkeypatch.setattr("capstat_api.routers.ingest.MAX_BYTES", 4)
     resp = client.post("/ingest", files={"file": ("big.csv", CSV, "text/csv")})
     assert resp.status_code == 413
+
+
+class _RecordingUpload:
+    """Stands in for ``UploadFile`` and remembers how much it handed over.
+
+    The point of the size guard is not the status code -- that was always right
+    -- but that an oversized body is never fully resident. Only the amount
+    actually read can show that, so this counts it (T-0056).
+    """
+
+    def __init__(self, payload: bytes, filename: str = "big.csv") -> None:
+        self._buffer = io.BytesIO(payload)
+        self.filename = filename
+        self.handed_out = 0
+
+    async def read(self, size: int = -1) -> bytes:
+        chunk = self._buffer.read(None if size < 0 else size)
+        self.handed_out += len(chunk)
+        return chunk
+
+
+def test_an_oversized_upload_is_never_fully_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 413 that costs the whole body in memory has not protected anything.
+
+    The comment on MAX_BYTES promised a guard against memory exhaustion; the
+    body was read in full and only then measured, so an oversized upload cost
+    its own size in RAM per request before being refused.
+    """
+    from capstat_api.routers import ingest as module
+
+    monkeypatch.setattr(module, "MAX_BYTES", 1024)
+    monkeypatch.setattr(module, "CHUNK_BYTES", 256)
+    payload = b"x" * (1024 * 1024)  # a thousand times the limit
+    upload = _RecordingUpload(payload)
+
+    with pytest.raises(HTTPException) as raised:
+        asyncio.run(module.ingest_file(cast(UploadFile, upload)))
+
+    assert raised.value.status_code == 413
+    # Bounded by the limit plus the chunk that crossed it, not by the body.
+    assert upload.handed_out <= module.MAX_BYTES + module.CHUNK_BYTES
+    assert upload.handed_out < len(payload)
+
+
+def test_a_file_at_the_limit_is_still_read_whole(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The negative side: the guard must not truncate a legitimate upload.
+
+    A body exactly at the limit is valid, and chunked reading is the kind of
+    change that quietly eats a final partial chunk.
+    """
+    from capstat_api.routers import ingest as module
+
+    monkeypatch.setattr(module, "CHUNK_BYTES", 7)  # deliberately not a divisor
+    rows = b"width\n" + b"".join(b"%d.0\n" % i for i in range(200))
+    upload = _RecordingUpload(rows, filename="data.csv")
+
+    result = asyncio.run(module.ingest_file(cast(UploadFile, upload)))
+    assert result.n_rows == 200
+    assert upload.handed_out == len(rows)
+    assert result.columns[0].values[-1] == 199.0

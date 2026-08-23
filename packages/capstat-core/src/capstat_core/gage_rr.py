@@ -67,7 +67,7 @@ Montgomery, D. C. *Introduction to Statistical Quality Control*, ch. 8
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 import numpy as np
@@ -77,14 +77,34 @@ from scipy import stats
 from capstat_core.constants import d2, d2_star
 
 __all__ = [
+    "GRR_GOOD_AT_OR_BELOW",
+    "GRR_MARGINAL_AT_OR_BELOW",
+    "NDC_MINIMUM",
     "NDC_MULTIPLIER",
     "GageRRMethod",
     "GageRRReport",
+    "GageRRVerdict",
     "gage_rr",
     "gage_rr_range",
 ]
 
 GageRRMethod = Literal["anova", "average_range"]
+
+#: The AIAG acceptance band a study falls in, as a word rather than a number to
+#: be re-thresholded downstream. Exported because a caller that colours or
+#: sorts by the verdict must not own a second copy of the boundaries: a traffic
+#: light disagreeing with the printed warning is the discrepancy this library
+#: exists to prevent.
+GageRRVerdict = Literal["good", "marginal", "unacceptable"]
+
+#: AIAG MSA-4 acceptance bands for %Study Variation of gage R&R. The boundaries
+#: are inclusive at the lower band -- exactly 10 % is "good", exactly 30 % is
+#: "marginal" -- which is how the warnings have always read them.
+GRR_GOOD_AT_OR_BELOW = 10.0
+GRR_MARGINAL_AT_OR_BELOW = 30.0
+
+#: Fewer distinct categories than this and the gage cannot separate the parts.
+NDC_MINIMUM = 5
 
 #: AIAG MSA-4 defines ndc = 1.41 * (PV / GRR); 1.41 is its rounding of sqrt(2),
 #: which is the signal-to-noise factor behind the number of distinct categories.
@@ -106,9 +126,10 @@ class GageRRReport:
     and total are their sums and are exposed as properties. Every component is a
     variance (sigma^2); take a square root for a standard deviation.
 
-    Read ``pct_study_var_gage_rr`` for the AIAG verdict (< 10% good, 10-30%
-    marginal, > 30% unacceptable) and ``ndc`` for whether the gage can tell the
-    parts apart at all (>= 5 wanted).
+    Read ``verdict`` for the AIAG band and ``ndc_adequate`` for whether the gage
+    can tell the parts apart at all. Both are derived here rather than left for
+    each caller to threshold, so the colour on a screen and the sentence in the
+    warnings cannot disagree.
     """
 
     method: GageRRMethod
@@ -196,6 +217,32 @@ class GageRRReport:
             return None
         ratio = math.sqrt(self.var_part) / math.sqrt(self.var_gage_rr)
         return int(NDC_MULTIPLIER * ratio)
+
+    @property
+    def ndc_adequate(self) -> bool | None:
+        """Whether ``ndc`` reaches :data:`NDC_MINIMUM`. ``None`` when undefined."""
+        if self.ndc is None:
+            return None
+        return self.ndc >= NDC_MINIMUM
+
+    @property
+    def verdict(self) -> GageRRVerdict | None:
+        """The AIAG band this study falls in, by %Study Variation of gage R&R.
+
+        ``None`` when there is no measurement variation to judge -- a gage whose
+        own variance is zero, or a sample with no variation at all. That is not
+        the same as "good", and a caller rendering it must not treat it as such.
+        """
+        if self.var_gage_rr <= 0.0:
+            return None
+        pct = self.pct_study_var_gage_rr
+        if math.isnan(pct):
+            return None
+        if pct <= GRR_GOOD_AT_OR_BELOW:
+            return "good"
+        if pct <= GRR_MARGINAL_AT_OR_BELOW:
+            return "marginal"
+        return "unacceptable"
 
 
 def _as_layout(x: npt.ArrayLike) -> npt.NDArray[np.float64]:
@@ -333,24 +380,24 @@ def gage_rr(
     var_part, w = _clamp(var_part, "part")
     warnings += w
 
-    warnings += _verdict_warnings(
-        var_repeatability + var_operator + var_interaction, var_part
-    )
-
-    return GageRRReport(
-        method="anova",
-        n_parts=p,
-        n_operators=o,
-        n_trials=r,
-        interaction_included=interaction_included,
-        interaction_pvalue=p_interaction,
-        var_repeatability=var_repeatability,
-        var_operator=var_operator,
-        var_interaction=var_interaction,
-        var_part=var_part,
-        study_var_multiplier=study_var_multiplier,
-        tolerance=tolerance,
-        warnings=tuple(warnings),
+    # The verdict is appended after the report exists, so it can read the
+    # report's own %Study Variation and ndc rather than recomputing them.
+    return _with_verdict_warnings(
+        GageRRReport(
+            method="anova",
+            n_parts=p,
+            n_operators=o,
+            n_trials=r,
+            interaction_included=interaction_included,
+            interaction_pvalue=p_interaction,
+            var_repeatability=var_repeatability,
+            var_operator=var_operator,
+            var_interaction=var_interaction,
+            var_part=var_part,
+            study_var_multiplier=study_var_multiplier,
+            tolerance=tolerance,
+            warnings=tuple(warnings),
+        )
     )
 
 
@@ -417,22 +464,22 @@ def gage_rr_range(
     var_operator = av**2
     var_part = pv**2
 
-    warnings += _verdict_warnings(var_repeatability + var_operator, var_part)
-
-    return GageRRReport(
-        method="average_range",
-        n_parts=p,
-        n_operators=o,
-        n_trials=r,
-        interaction_included=False,
-        interaction_pvalue=None,
-        var_repeatability=var_repeatability,
-        var_operator=var_operator,
-        var_interaction=0.0,
-        var_part=var_part,
-        study_var_multiplier=study_var_multiplier,
-        tolerance=tolerance,
-        warnings=tuple(warnings),
+    return _with_verdict_warnings(
+        GageRRReport(
+            method="average_range",
+            n_parts=p,
+            n_operators=o,
+            n_trials=r,
+            interaction_included=False,
+            interaction_pvalue=None,
+            var_repeatability=var_repeatability,
+            var_operator=var_operator,
+            var_interaction=0.0,
+            var_part=var_part,
+            study_var_multiplier=study_var_multiplier,
+            tolerance=tolerance,
+            warnings=tuple(warnings),
+        )
     )
 
 
@@ -456,27 +503,33 @@ def _clamp(value: float, name: str) -> tuple[float, list[str]]:
     return value, []
 
 
-def _verdict_warnings(var_gage_rr: float, var_part: float) -> list[str]:
-    """AIAG acceptance guidance -- said out loud, not left for the reader to infer."""
+def _with_verdict_warnings(report: GageRRReport) -> GageRRReport:
+    """Say the AIAG verdict out loud, reading the report's own numbers.
+
+    Appended after construction rather than computed alongside, because the
+    alternative was a second implementation of %Study Variation and ndc sitting
+    next to the properties that already produce them -- and two implementations
+    of one number drift.
+    """
     out: list[str] = []
-    var_total = var_gage_rr + var_part
-    if var_gage_rr <= 0.0 or var_total <= 0.0:
-        return out
-    pct = 100.0 * math.sqrt(var_gage_rr / var_total)
-    if pct > 30.0:
+    verdict = report.verdict
+    if verdict == "unacceptable":
         out.append(
-            f"gage R&R is {pct:.1f}% of study variation (> 30%): the "
-            "measurement system is unacceptable"
+            f"gage R&R is {report.pct_study_var_gage_rr:.1f}% of study variation "
+            f"(> {GRR_MARGINAL_AT_OR_BELOW:g}%): the measurement system is "
+            "unacceptable"
         )
-    elif pct > 10.0:
+    elif verdict == "marginal":
         out.append(
-            f"gage R&R is {pct:.1f}% of study variation (10-30%): the "
+            f"gage R&R is {report.pct_study_var_gage_rr:.1f}% of study variation "
+            f"({GRR_GOOD_AT_OR_BELOW:g}-{GRR_MARGINAL_AT_OR_BELOW:g}%): the "
             "measurement system is marginal"
         )
-    ndc = int(NDC_MULTIPLIER * math.sqrt(var_part) / math.sqrt(var_gage_rr))
-    if ndc < 5:
+    if report.ndc_adequate is False:
         out.append(
-            f"only {ndc} distinct categories (< 5): the gage cannot reliably "
-            "tell the parts apart"
+            f"only {report.ndc} distinct categories (< {NDC_MINIMUM}): the gage "
+            "cannot reliably tell the parts apart"
         )
-    return out
+    if not out:
+        return report
+    return replace(report, warnings=report.warnings + tuple(out))

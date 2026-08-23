@@ -8,6 +8,7 @@ import {
   type SamplingPlanInputs,
 } from "./acceptance-sampling-panel";
 import { StudyFileControls } from "./study-file-controls";
+import { readChoice, readFlag, readSection, readText } from "@/lib/study-file";
 import {
   EXAMPLE_SCHEME_INPUTS,
   SwitchingSchemePanel,
@@ -21,6 +22,50 @@ export interface AcceptanceSamplingStudy {
 }
 
 const PAGE = "acceptance-sampling";
+
+/** Typed reading of a loaded document's `inputs`, or a refusal (T-0055). */
+function readAcceptanceSamplingStudy(
+  inputs: Record<string, unknown>,
+): AcceptanceSamplingStudy {
+  return {
+    plan: readSection(inputs, "plan", (plan) => ({
+      aql: readText(plan, "aql", EXAMPLE_PLAN_INPUTS.aql),
+      ltpd: readText(plan, "ltpd", EXAMPLE_PLAN_INPUTS.ltpd),
+      producerRisk: readText(
+        plan,
+        "producerRisk",
+        EXAMPLE_PLAN_INPUTS.producerRisk,
+      ),
+      consumerRisk: readText(
+        plan,
+        "consumerRisk",
+        EXAMPLE_PLAN_INPUTS.consumerRisk,
+      ),
+      lotSize: readText(plan, "lotSize", EXAMPLE_PLAN_INPUTS.lotSize),
+      sampleSize: readText(plan, "sampleSize", EXAMPLE_PLAN_INPUTS.sampleSize),
+      acceptanceNumber: readText(
+        plan,
+        "acceptanceNumber",
+        EXAMPLE_PLAN_INPUTS.acceptanceNumber,
+      ),
+      model: readChoice(
+        plan,
+        "model",
+        ["binomial", "hypergeometric", "poisson"] as const,
+        EXAMPLE_PLAN_INPUTS.model,
+      ),
+      defectives: readText(plan, "defectives", EXAMPLE_PLAN_INPUTS.defectives),
+    })),
+    scheme: readSection(inputs, "scheme", (scheme) => ({
+      outcomes: readText(scheme, "outcomes", EXAMPLE_SCHEME_INPUTS.outcomes),
+      authorised: readFlag(
+        scheme,
+        "authorised",
+        EXAMPLE_SCHEME_INPUTS.authorised,
+      ),
+    })),
+  };
+}
 
 /**
  * Holds the page's inputs so a study can be saved and loaded.
@@ -65,7 +110,12 @@ export function AcceptanceSamplingWorkspace() {
 
   return (
     <div className="flex flex-col gap-10">
-      <StudyFileControls page={PAGE} inputs={study} onLoad={onLoad} />
+      <StudyFileControls
+        page={PAGE}
+        inputs={study}
+        onLoad={onLoad}
+        readInputs={readAcceptanceSamplingStudy}
+      />
       <AcceptanceSamplingPanel
         key={`plan-${generation}`}
         initial={start.plan}

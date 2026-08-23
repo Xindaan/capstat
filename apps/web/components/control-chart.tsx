@@ -189,5 +189,21 @@ export function ControlChart({
     dark,
   ]);
 
-  return <div ref={ref} className="h-64 w-full" />;
+  // The chart's own words, for a reader who cannot see it. Built from the same
+  // props that are drawn, so the sentence cannot describe a different picture
+  // than the one on screen (T-0060). `role="img"` stops a screen reader walking
+  // into the SVG, which is a maze of coordinates and no information.
+  const flagged = [...new Set([...violations, ...ruleFlags])].sort(
+    (a, b) => a - b,
+  );
+  const label =
+    `${title} chart, ${points.length} points, ` +
+    (flagged.length === 0
+      ? "in control"
+      : `out of control at point${flagged.length > 1 ? "s" : ""} ` +
+        flagged.map((i) => i + 1).join(", "));
+
+  return (
+    <div ref={ref} role="img" aria-label={label} className="h-64 w-full" />
+  );
 }

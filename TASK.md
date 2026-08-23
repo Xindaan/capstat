@@ -10,6 +10,125 @@
   acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
 
 ## Backlog
+- **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
+  execution).** Twelve findings; every cited site was re-read here and the four
+  algorithmic/IO ones reproduced. One finding was wrong (see T-0062), the rest
+  are T-0051..T-0061 below. The review had no access to `TASK.md`, `STATE.md`,
+  data directories or build artefacts, so it argued from the code alone -- which
+  is exactly why it found T-0051: a decision this file records as settled.
+- ~~T-0051 **k-of-m run rules miss completed patterns**~~ -- **done 2026-08-23.**
+  `_k_of_m_beyond` (`rules.py:172`) only emitted a violation when the *last
+  point of the m-window* was itself beyond the threshold, so a pattern followed
+  by quiet points produced no signal. Fixed by dropping that gate: the signal
+  belongs on the last *qualifying* point, which `signal_at = max(w)` already
+  derived. See `## Done`.
+  **The scope is narrower than either the review or this entry first claimed,
+  and the correction is the interesting part.** Measured, not argued: on 100,000
+  simulated in-control points the fix changes *nothing* -- old and new agree to
+  the last violation. An exhaustive differential over every sequence of length
+  6 and 7 drawn from {below, inside, beyond} shows why: signals are only ever
+  **added, never removed**, and the added signal always sits at point **m-2** --
+  point 1 for the 2-of-3 rule, point 3 for the 4-of-5 rule.
+  The reason is structural. If the last qualifying index `ik` is at least
+  `m-1`, the window starting at `ik-m+1` exists, ends exactly on `ik`, and
+  contains the whole pattern -- so the old gate caught it after all. The only
+  unreachable case is a pattern completing *before a full window can end on
+  it*, i.e. within the first `m-1` points of the series.
+  So the real defect is: **a process that is already out of control when the
+  chart starts does not signal.** That is a narrow window and a serious one --
+  a new process on its first chart is precisely where the first alarm matters.
+  It is not "these sequences never trigger", which is how the review put it and
+  how this entry originally repeated it.
+- ~~T-0052 **The chart panel reported "no violations" after a failed rules
+  call**~~ -- **done 2026-08-23**: the rule run now carries its own outcome, and
+  an empty violation list can only mean "the rules ran and found nothing". See
+  `## Done`.
+- ~~T-0053 **`design_single_sampling_plan` claimed no plan exists when one
+  does**~~ -- **done 2026-08-23**: the doubling probe is clamped to the ceiling
+  instead of being allowed to overshoot it. Also fixed a second, silent failure
+  the review did not find -- plans that were valid but larger than necessary.
+  See `## Done`.
+- ~~T-0054 **The percentile path silently discarded `target`**~~ -- **done
+  2026-08-23**: the path now says the target was not used and why. See `## Done`.
+- ~~T-0055 **A corrupt study file crashed the page**~~ -- **done 2026-08-23**:
+  `inputs` is read field by field against a per-page reader, and a reader is now
+  a *required* prop rather than an option. See `## Done`.
+- ~~T-0056 **`/ingest` buffered the whole upload before the size guard**~~ --
+  **done 2026-08-23**: the body is read a chunk at a time and refused at the
+  first chunk that crosses the limit. See `## Done`, and T-0063 for the larger
+  hole this uncovered.
+- ~~T-0057 **Result-card labels fell below WCAG AA**~~ -- **done 2026-08-23**:
+  a measured `--muted` token replaces 51 uses of opacity steps that failed.
+  See `## Done`.
+- T-0063 **The compute endpoints accept a body of any size.** Found by the
+  isomorphism check on T-0056, not by the review, and it is the larger hole of
+  the two: `/ingest` caps uploads at 10 MB, while every `/compute/*` endpoint
+  takes `list[float]` with `Field(min_length=1)` and no maximum
+  (`apps/api/src/capstat_api/requests.py`). The only middleware is CORS.
+  Measured: a 9.5 MB JSON body carrying 2,000,000 floats returns **200**. JSON
+  is the expensive direction -- those floats land as a Python list of boxed
+  objects, several times the wire size, before NumPy ever sees them.
+  Not fixed with T-0056 because it is a contract decision, not a bug fix: what
+  is the largest legitimate SPC series, does the cap belong per-field or in
+  middleware, and what does the caller get told. All three change the published
+  OpenAPI, so they want a deliberate answer rather than a number picked here.
+  Acceptance: an oversized compute body is refused with a stated limit; the
+  limit is documented; a series of realistic size (say 100k points) still works.
+- ~~T-0058 Verdict thresholds duplicated between core and UI~~ -- **done
+  2026-08-23**: the core states the AIAG band as a word; the UI colours by it
+  and owns no boundary. Half the finding was wrong -- see `## Done`.
+- ~~T-0059 The API error path copied 11 times~~ -- **done 2026-08-23**:
+  `callApi` + `<ErrorAlert>`; `describeApiError` is now called from exactly one
+  place. See `## Done`.
+- ~~T-0060 Charts without an accessible name~~ -- **done 2026-08-23**: all
+  three carry `role="img"` and a name built from what they draw. See `## Done`.
+- ~~T-0061 "Decide the lot" was a silent no-op~~ -- **done 2026-08-23**: the
+  decision judges the plan the report describes, which removes the null case
+  rather than disabling the button. See `## Done`.
+- ~~T-0062 The switching-score restatement omitted the reset~~ -- **done
+  2026-08-23**: the note now states both branches of clause 9.3.3.2, and a test
+  pins the wording. The code was right all along. See `## Done`.
+- T-0063 **The compute endpoints accept a body of any size.** Found by the
+  isomorphism check on T-0056, not by the review, and it is the larger hole of
+  the two: `/ingest` caps uploads at 10 MB, while every `/compute/*` endpoint
+  takes `list[float]` with `Field(min_length=1)` and no maximum
+  (`apps/api/src/capstat_api/requests.py`). The only middleware is CORS.
+  Measured: a 9.5 MB JSON body carrying 2,000,000 floats returns **200**. JSON
+  is the expensive direction -- those floats land as a Python list of boxed
+  objects, several times the wire size, before NumPy ever sees them.
+  Not fixed with T-0056 because it is a contract decision, not a bug fix: what
+  is the largest legitimate SPC series, does the cap belong per-field or in
+  middleware, and what does the caller get told. All three change the published
+  OpenAPI, so they want a deliberate answer rather than a number picked here.
+  Acceptance: an oversized compute body is refused with a stated limit; the
+  limit is documented; a series of realistic size (say 100k points) still works.
+- ~~T-0058 Verdict thresholds duplicated between core and UI~~ -- **done
+  2026-08-23**: the core states the AIAG band as a word; the UI colours by it
+  and owns no boundary. Half the finding was wrong -- see `## Done`.
+- ~~T-0059 The API error path copied 11 times~~ -- **done 2026-08-23**:
+  `callApi` + `<ErrorAlert>`; `describeApiError` is now called from exactly one
+  place. See `## Done`.
+- ~~T-0060 Charts without an accessible name~~ -- **done 2026-08-23**: all
+  three carry `role="img"` and a name built from what they draw. See `## Done`.
+- ~~T-0061 "Decide the lot" was a silent no-op~~ -- **done 2026-08-23**: the
+  decision judges the plan the report describes, which removes the null case
+  rather than disabling the button. See `## Done`.
+- T-0062 **Documentation, not a defect -- the one finding the review got wrong.**
+  It read `_updated_score` (`sampling_scheme.py:279`) resetting the switching
+  score to 0 for an accepted lot without tighter-AQL confirmation as
+  non-conformant, expecting `[3, 5]` where capstat gives `[3, 0]`. The code
+  matches ISO 2859-1:1999 clause 9.3.3.2 as `LotResult`'s docstring states it:
+  Ac >= 2 plans add 3 or **reset**, Ac <= 1 plans add 2 per accepted lot. The
+  reset is in the standard.
+  What is genuinely imprecise is the generated restatement in
+  `docs/validation-sources.md:139` -- "the score adding three or two per
+  accepted lot" omits the reset entirely, and reads as if an accepted lot could
+  never lower the score. That sentence produced the false finding.
+  **Caveat, stated rather than hidden:** no licensed copy of the standard was
+  consulted here; the judgement rests on code, docstring and reference YAML
+  agreeing with each other. The repo already carries this as an open gap.
+  Acceptance: the restatement names the reset condition, and a test pins the
+  reset case so the next outside reader does not have to ask.
 - ~~T-0050 Next-generated agent files~~ -- **done 2026-08-16**: gitignored,
   and the useful part rewritten into the root `AGENTS.md`. See `## Done`.
 - T-0049 e2e flake: `acceptance-sampling.spec.ts:318` ("switching rules: what
@@ -320,6 +439,305 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0062 (2026-08-23) **The switching-score restatement now names the reset.**
+  The one finding the external review got wrong, and the sentence that caused
+  it. 529 core tests.
+  * The code was right: ISO 2859-1:1999 clause 9.3.3.2 keeps the score two ways
+    -- for Ac >= 2 an accepted lot adds three *only* if it would still have been
+    accepted one AQL step tighter and **resets to zero otherwise**; for Ac <= 1
+    an accepted lot adds two. `LotResult`'s docstring said exactly that, and the
+    reset case was already pinned by a test (`[3, 0, 3]`).
+  * What was wrong was the restatement in the reference YAML, which said the
+    score adds "three or two per accepted lot" and stopped -- readable as "an
+    accepted lot can never lower the score". The review read it, compared it
+    with the code, and reported the code. A restatement that omits a branch is
+    not a shorter truth; it is a different claim.
+  * **The prose is now the artefact under test.** A test asserts the note names
+    the reset and both Ac branches, and re-checks that the behaviour it
+    describes is the behaviour that runs. Source-text assertions are usually
+    weak evidence -- here the text *is* the deliverable.
+  * The review also claimed the existing test "pins the questionable behaviour
+    and must be deliberately changed". It does not: it pins the standard.
+  * Caveat unchanged and still worth stating: no licensed copy of ISO 2859-1
+    was consulted. The judgement rests on code, docstring, reference YAML and
+    the Annex A cross-check agreeing. The repo already carries that as an open
+    gap and this does not close it.
+
+- T-0061 (2026-08-23) **Deciding a lot judges the plan on screen.** The button
+  was enabled on the defectives field alone while `decide()` read a plan rebuilt
+  from the live inputs, so clearing "Sample size n" after judging left an
+  enabled button that did nothing: no request, no message, no reason.
+  32 e2e tests.
+  * **Fixed the other way round from the review's suggestion, and better for
+    it.** It proposed `disabled={!planValid || defectives == null}` plus a hint.
+    But the block sits inside the report and is labelled "Decide a lot" -- *the*
+    lot, the one the surrounding numbers describe. So the decision now takes
+    `report.plan`, which is well-defined whenever the button is rendered. That
+    removes the null case instead of guarding it, and it fixes a second
+    inconsistency the review did not raise: editing n to a *different valid*
+    value used to decide against the new plan while the report still described
+    the old one.
+  * The test asserts what reached the API, not just that something appeared --
+    an assertion on the visible "Accept" alone passes with the bug present.
+    (Confirmed the hard way: the first version of the test routed a URL that
+    does not exist, recorded nothing, and still went green on the visible text.)
+
+- T-0060 (2026-08-23) **The charts say what they show.** `control-chart.tsx`,
+  `capability-histogram.tsx` and `oc-curve-chart.tsx` each returned a bare
+  `<div>`; a screen reader got nothing for the central claim of every page.
+  32 e2e tests.
+  * Each now carries `role="img"` and a name built from the same props it draws,
+    so the sentence cannot describe a different picture than the one rendered:
+    "Individuals chart, 30 points, out of control at points 3, 6"; the histogram
+    names its limits and target; the OC curve quotes the acceptance probability
+    *read off the plotted curve* at both quality levels rather than recomputed.
+  * `role="img"` deliberately stops a reader walking into the SVG, which is
+    coordinates and no information.
+  * Isomorphism: those three are the only graphics in the app -- no other
+    `<svg>`, `<canvas>` or ref-mounted container exists, and the
+    switching-scheme "marks" that looked like a fourth is a text parser.
+
+- T-0059 (2026-08-23) **One API error path instead of eleven.** The same
+  try/catch, the same fallback wording and the same red `role="alert"` box stood
+  in nine components, already drifting. 65 vitest + 32 e2e.
+  * `callApi(request, fallback, unreachable?)` reduces openapi-fetch's three
+    outcomes to two, and `<ErrorAlert message>` is the one red box. After it:
+    `role="alert"` markup exists in exactly one file and `describeApiError` is
+    called from exactly one place. The only try/catch left in a component wraps
+    `file.text()` -- a local file read, not a request, and rightly not shared.
+  * **Not the `useApiCall` hook the review proposed, on purpose.** The panels'
+    status unions genuinely differ -- one carries a result, one a report *and* a
+    curve, the control chart keeps a second state for its rule run -- so a hook
+    owning the state would force nine components into one mould for the sake of
+    a shared try/catch, and would have to be threaded through T-0052's work.
+    This shares the part that is actually identical.
+  * The drifted wording turned out to be *right* where it drifted: the upload
+    panel is a user's first contact with the API, so "is it running on the
+    configured URL?" belongs there. It is now an argument rather than a reason
+    to own a private copy of the whole path.
+  * **Two faults fell out of the conversion.** In `upload-panel` the `try` also
+    wrapped the code *after* success, so a fault in `looksLikeRowIndex` would
+    have reported the API as unreachable. And the control chart's remaining
+    `.catch` said "could not reach the API" for a case that can only be a state
+    fault -- `callApi` is total. Both now say something true.
+  * `callApi` also treats a 2xx with no body as a failure. That is the T-0052
+    rule in one place instead of nine.
+
+- T-0058 (2026-08-23) **The AIAG verdict is stated once, by the core.**
+  `_verdict_warnings` held the 10/30 bands and ndc < 5, `grrTone` held 10/30
+  again, and the ndc card held its own `< 5` -- so a threshold changed in one
+  place would leave the card coloured by another, contradicting the warning
+  printed beside it. 529 core + 63 API + 32 e2e.
+  * The core exposes `GRR_GOOD_AT_OR_BELOW`, `GRR_MARGINAL_AT_OR_BELOW`,
+    `NDC_MINIMUM`, and `GageRRReport.verdict` / `.ndc_adequate`. The warnings
+    are appended after construction so they read the report's own %Study
+    Variation and ndc instead of recomputing both -- two implementations of one
+    number, which was the review's other half and correct.
+  * `verdict` is `None` when there is nothing to judge (a gage with no variance
+    of its own). That is not "good", and the old ndc colouring fell through to
+    green there -- a clean bill of health for a study that established nothing.
+  * The discriminating e2e serves a response whose percentage says "good" and
+    whose verdict says "unacceptable"; the card must be red. A panel still
+    owning the thresholds paints it green, and that test fails.
+  * Verified as a single source rather than argued: changing only
+    `GRR_MARGINAL_AT_OR_BELOW` to 25 moves the verdict *and* the warning text
+    ("> 25%") together, and the UI follows because it colours by the word.
+  * **Half the finding was wrong, and acting on it would have made things
+    worse.** The review paired this with `indexTone`'s 1.00/1.33 in
+    `capability-dashboard.tsx` as the same duplication. It is not: the core
+    contains no capability-index threshold anywhere, deliberately -- what counts
+    as a capable process is a customer's specification, not a library's opinion.
+    "De-duplicating" it would have meant *inventing* a judgement capstat refuses
+    to make. Left alone; see the open question below.
+  * Isomorphism over the sibling tone functions: `severityTone` already colours
+    by the core's own words and is the model this moves towards; `riskTone`
+    compares an achieved risk against *the user's own requested* risk, so it is
+    not a threshold at all; `indexTone` is the one above. No fourth case.
+  * **Open, and a decision rather than a task:** should the capability page
+    colour by 1.00/1.33 at all? Today the UI asserts a verdict the library
+    declines to assert. Either the thresholds become configurable input (a spec
+    limit is customer-specific), or the colouring goes, or capstat states the
+    convention explicitly and owns it. Recorded here rather than settled.
+
+- T-0057 (2026-08-23) **Muted text is a measured token now, not an opacity
+  guess.** `text-foreground/40` resolved to #a2a2a2 on white -- 2.55:1, against
+  the 4.5:1 WCAG 2.1 AA asks for small text -- and it was carrying the *names of
+  the numbers* ("Producer risk", "ndc"), not decoration. 59 vitest + 26 e2e.
+  * `--muted` is defined per theme with the ratio in the comment: #6b6b6b light
+    (5.33:1), #8a8a8a dark (5.73:1), #595959 print (7.00:1). A named token
+    rather than an alpha because a token can be *measured*: `lib/contrast.test.ts`
+    reads the values out of `globals.css` and does the WCAG arithmetic, so a
+    future colour edit is checked rather than trusted.
+  * 51 occurrences replaced across ten components. The boundary was computed,
+    not eyeballed, and it is not where intuition puts it: /40, /45 and /50 fail,
+    /60 (4.67:1) and /70 pass -- and /50 *passes in dark and fails in light*, so
+    "it looks fine" was never evidence. That table is pinned by a test.
+  * A guard test walks the `.tsx` sources and fails on any `text-foreground/N`
+    below 60, because fixing 51 sites is worth little if the 52nd can be added
+    unnoticed.
+  * **Verified in the browser, not only in the source.** The first build showed
+    no `.text-muted` rule at all and a surviving `.text-foreground\/40` -- which
+    would have meant 51 labels silently inheriting full foreground while every
+    test stayed green. It was a stale `.next` cache; a clean rebuild emits
+    `.text-muted{color:var(--muted)}` and all three token values. Then measured
+    live on `/acceptance-sampling`: 15 elements, computed colour
+    rgb(107,107,107) on rgb(255,255,255) = **5.33:1**, and rgb(138,138,138) on
+    rgb(10,10,10) = **5.73:1** in dark. Source-level tests could not have caught
+    a token that never reached the page.
+  * One knock-on: naming the old class in a doc comment made Tailwind scan it
+    and emit the very utility the guard forbids. The comment now spells it out
+    in words.
+
+- T-0056 (2026-08-23) **An oversized upload is refused before it is resident.**
+  `/ingest` read the whole body with `await file.read()` and compared the length
+  afterwards, so the guard delivered the right status code and none of the
+  protection its comment promised. 63 API tests, mypy strict clean.
+  * The body is now read in 1 MiB chunks and refused at the first chunk crossing
+    `MAX_BYTES`, so at most one chunk past the limit is ever held. Starlette
+    spools the part to disk beyond 1 MiB (`spool_max_size = 1048576`, verified
+    on the installed 1.3.1), so what the old code did was pull a disk-backed
+    body into a single Python `bytes` -- which is the cost worth stopping.
+  * `Content-Length` is deliberately *not* the mechanism: a chunked upload sends
+    none, and a lying one is the case worth defending against. It could only be
+    an early exit on top of the chunking, never a replacement.
+  * The test measures what was actually read rather than the status code, via a
+    recording stand-in for `UploadFile` -- the status code was always right, so
+    asserting on it proves nothing about the fix. Negative probes: restoring the
+    whole-body read fails it, and dropping the final partial chunk (the classic
+    chunking off-by-one) fails six tests including a new one that reads a body
+    at the limit with a chunk size chosen not to divide it.
+  * **Isomorphism check found something bigger: see T-0063.** The compute
+    endpoints have no size limit at all -- a 9.5 MB body of 2,000,000 floats
+    returns 200. Filed rather than fixed here, because the cap is a contract
+    decision.
+
+- T-0055 (2026-08-23) **A hand-edited study file can no longer crash the page it
+  is loaded into.** `parseStudyFile` checked that `inputs` was an object and
+  then cast it unchecked, so `{"grid": 1}` reached `grid.map` and took the page
+  down with an unhandled TypeError. 59 vitest + 26 e2e, tsc and eslint clean.
+  * Each page now supplies a reader that rebuilds `inputs` field by field --
+    which is what the module already did for the document's *outer* fields and
+    documents as its rule; the inner object was simply exempt.
+  * **Refuse, do not half-restore.** A wrong-typed field stops the load with the
+    field named; the alternative (substituting a default) would put a value on
+    screen that nothing distinguishes from a loaded one. Absent fields stay
+    tolerated -- the MSA page relies on that to read studies written before one
+    of its sections existed -- so the rule is: missing is fine, present and
+    wrong is not.
+  * Fault paths are composed on the way *out*: each reader that descends
+    re-throws with its own key in front, so a bad cell reports "grid.0.0.1" and
+    the reader that wrote it never had to know where it sits. Pinned by a test.
+  * **`readInputs` is a required prop on `StudyFileControls`, not an option.**
+    That is the part that makes it stick: a fourth page cannot mount the
+    controls without a reader, because it will not compile.
+  * Isomorphism: the other casts in the web app are `e.target.value as
+    GageRRMethod` and `as SamplingModel` on `<select>`s whose options the
+    component itself renders (the value cannot be anything else), `file as
+    unknown as string` in the API client (an openapi-fetch multipart typing
+    workaround, not a shape assumption), and `value as T` inside `readChoice`
+    immediately after checking membership. None is a trust boundary carrying
+    user-editable data. The study file was the only one.
+
+- T-0054 (2026-08-23) **A target given to the percentile path is reported rather
+  than swallowed.** The normal and Box-Cox paths feed `target` into Cpm; the
+  percentile path dropped it with no mention in `rationale` or `warnings`.
+  524 core tests, mypy strict clean.
+  * The warning names the number and the reason: Cpm needs a short-term sigma,
+    which the percentile method does not have. Not computing it is a fine
+    answer; not saying so is not. The warning reaches the browser -- the API
+    schema passes `warnings` through and the dashboard renders them.
+  * A second test pins that the *other* two paths gain no such warning, since
+    they use the target and a warning there would be noise.
+  * Isomorphism: `alpha` is the only other caller input crossing this dispatch,
+    and it is consumed on all three paths -- it decides the routing via
+    `assess_normality`. Where it does less (no confidence intervals on the
+    percentile path) the result type says so by having no such fields.
+    `target` was the only input that could vanish without a trace.
+
+- T-0053 (2026-08-23) **The sampling-plan search no longer mistakes its own
+  overshoot for an impossible design.** `design_single_sampling_plan` bracketed
+  the smallest `n` by doubling; when the probe stepped past `max_sample_size`
+  (implicitly the lot size) the whole acceptance number was abandoned, and with
+  it every higher one. 522 core + 61 API tests, mypy strict clean.
+  * **A probe that oversteps a ceiling says nothing about whether the answer
+    fits under it.** That is the whole defect in one sentence. The doubling is
+    now clamped to the ceiling, and only a genuine miss at the clamped value
+    retires an acceptance number.
+  * **The review found the loud half; sweeping the fix found the quiet half.**
+    Over a 245-case grid of (AQL, LTPD, lot size): 11 cases went from
+    `ValueError` to a valid plan, and **5 more had been returning a plan that
+    was valid but too large** -- 2 % against 10 % in a lot of 80 gave n=78,
+    Ac=4 where n=65, Ac=3 suffices. The function's contract says *smallest*.
+    Inspecting thirteen extra items per lot with nothing in the output to say
+    so is the worse of the two failures, and it is the one nobody reported.
+  * All 16 changed results were checked against an exhaustive scan of
+    (Ac, n) -- every one is both feasible and minimal, no mismatches.
+  * The two pinned infeasible cases were re-derived by brute force before
+    touching the search, to be sure they pinned a real limit and not this bug.
+    They do: 1 % vs 3 % in a lot of 200, and 1 % vs 1.01 % at 1 % risks, have no
+    plan under their stated bounds.
+  * Isomorphism: one sibling search, `quality_at_acceptance`, bisects on `p`
+    over a fixed [0, 1] bracket with the degenerate case handled before the
+    loop. It has no growth probe and no ceiling to overshoot, so it cannot carry
+    this defect. No other bracketing search exists in the core.
+
+- T-0052 (2026-08-23) **The control-chart panel no longer reports a clean
+  process it never checked.** A failed `/rules/nelson` call landed as
+  `res.data ?? []`, and the panel printed "No Nelson run-rule violations
+  (rules 1-4)". 24 e2e + 47 vitest tests, tsc and eslint clean.
+  * The rule run now carries its own status (`done` / `error`) beside the chart
+    it belongs to, so an empty list can only ever mean "the rules ran and found
+    nothing". On failure the panel says the rules could not be applied and
+    passes the API's own `detail` through.
+  * **A second, quieter instance of the same thing turned up while fixing it:**
+    the panel also claimed "no violations" *while a run was still in flight* --
+    on first render and after every change to the rule selection. The stored
+    result is now keyed by chart *and* rule selection, both by reference, so an
+    unfinished run reads as "applying…" rather than as a verdict. The existing
+    selection test documented this in passing ("the label is rendered from the
+    checkbox state, not from the response") without treating it as a fault.
+  * Isomorphism: one other place coerces a failure into a benign value --
+    the rules *catalogue* fetch, where a failure leaves the descriptions empty
+    and rule labels fall back to the rule number. That one is sound and stays:
+    it degrades a *label*, not a *verdict*; the violations themselves are still
+    whatever the API returned. No other component prints a negative finding
+    from an unverified empty result -- the `warnings.length > 0` blocks
+    elsewhere all hide a section rather than assert that nothing was found.
+
+- T-0051 (2026-08-23) **The k-of-m run rules no longer swallow a pattern that
+  completes at the start of a series.** From an external review (Ox Alpha,
+  2026-08-22) that read the source and nothing else -- and found a decision this
+  file recorded as settled. `_k_of_m_beyond` gated on the last point of the
+  m-window qualifying; the signal belongs on the last *qualifying* point.
+  520 core + 61 API tests, mypy strict clean.
+  * **The gate was redundant everywhere except at the start of the series, and
+    measuring that mattered more than fixing it.** Old and new agree exactly on
+    100,000 simulated in-control points -- not approximately, exactly. An
+    exhaustive differential over all 3^6 + 3^7 sequences of {below, inside,
+    beyond} shows signals are only ever added, never removed, and always at
+    point m-2 (point 1 for 2-of-3, point 3 for 4-of-5). Whenever the last
+    qualifying index reaches m-1, the window ending on it exists and the old
+    code caught the pattern anyway.
+  * So the defect is exactly: **a process already out of control when the chart
+    starts does not signal.** Narrow, and worth fixing -- a new process on its
+    first chart is where the first alarm earns its keep. The review stated this
+    as "sequences like [2.5, 2.5, 0.1, ...] never trigger", which is true of
+    that sequence and overstates the class.
+  * **Deduplication had to come with it.** Without the gate, three consecutive
+    points beyond 2 sigma complete in two overlapping windows that both resolve
+    to the same signal point. Windows are now keyed by their signal point,
+    earliest kept -- it carries the fullest run. The all-points rules
+    (`_runs_on_one_side`, `_monotone_runs`, `_alternating_runs`, Nelson 7 and 8)
+    need no such thing: there the qualifying set *is* the window, so "last
+    qualifying" and "window end" coincide by construction. That is also the
+    isomorphism check -- five sibling loops, none of them able to carry this
+    defect, and their overlapping windows produce genuinely distinct signal
+    points rather than duplicates.
+  * The false-alarm reference case (`rules.yaml`, `false-alarm-rates`) is
+    unmoved: Nelson 0.0216, Western Electric 0.0164, both inside the pinned
+    figures. The `eight-versus-nine-on-one-side` case is untouched by
+    construction -- it exercises a run rule, not a k-of-m one.
 
 - T-0050 (2026-08-16) **The Next-generated agent files are gitignored, and the
   part of them worth keeping was rewritten in our own words.** Next 16.3 writes
@@ -1046,10 +1464,18 @@
   * Zone rules need a symmetric chart. An R/s/moving-range chart's limits are
     D3*Rbar and D4*Rbar -- not equidistant from Rbar -- so the functions refuse
     it with an explanation rather than computing arithmetic without meaning.
-  * A rule fires on the point that *completes* its pattern, and the k-of-m rules
-    require that final point to qualify. Without that, a window like
-    [3.1, 2.5, 0.2] would flag the harmless last point long after the pattern
-    passed.
+  * A rule fires on the point that *completes* its pattern. **The second half of
+    this note used to read "and the k-of-m rules require that final point to
+    qualify" -- meaning the last point of the m-window -- and that was wrong;
+    corrected 2026-08-23 under T-0051.** The two are different things: the
+    pattern completes at the last *qualifying* point, which `signal_at = max(w)`
+    already gives. Demanding that the window's final point qualify as well
+    silently suppressed any pattern completing inside the first m-1 points.
+    The stale case the wording was defending against -- [3.1, 2.5, 0.2] must not
+    flag the harmless point 2 -- never needed that gate: `max(w)` reports point
+    1 there regardless. A justification that names the right goal and implements
+    a different one is worse than none, because it stops the next reader
+    looking.
 - T-0008 (2026-07-14) M2b EWMA + CUSUM. `capstat_core.time_weighted`:
   `ewma_chart` -> `EwmaChart`, `cusum_chart` -> `CusumChart`.
   355 tests, 100 % coverage. Both NIST worked examples reproduced.

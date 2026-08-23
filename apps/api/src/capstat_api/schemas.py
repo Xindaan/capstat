@@ -217,6 +217,11 @@ class CapabilityAnalysisOut(_CoreModel):
 # ---------------------------------------------------------------------------
 
 GageRRMethod = Literal["anova", "average_range"]
+# Restated like every other literal in this module (see the module docstring):
+# what is mirrored here is the *type*, three words. The boundaries that decide
+# which word applies live only in the core -- that is the whole point of
+# T-0058, and moving a number here would undo it.
+GageRRVerdict = Literal["good", "marginal", "unacceptable"]
 
 
 class GageRRReportOut(_CoreModel):
@@ -249,6 +254,11 @@ class GageRRReportOut(_CoreModel):
     pct_study_var_part: SafeFloat
     pct_tolerance_gage_rr: float | None
     ndc: int | None
+    # The AIAG band, stated by the core rather than re-thresholded by each
+    # client. Null when there is no measurement variation to judge, which is not
+    # the same as "good" (T-0058).
+    verdict: GageRRVerdict | None
+    ndc_adequate: bool | None
 
 
 # ---------------------------------------------------------------------------

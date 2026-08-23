@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-08-16
+Date: 2026-08-23
 
 ## Goal
 
@@ -80,6 +80,40 @@ M5 MSA, M6 release (report, deployment, docs, release).
 7. **Say what the numbers cannot say.** Every report carries warnings.
 
 ## Next actions
+
+**External review triaged 2026-08-23** (Ox Alpha, 2026-08-22, source read only).
+Eleven confirmed findings are filed as T-0051..T-0061; T-0062 is the one the
+review got wrong and is a documentation task. Agreed cut: block A now, block B
+next, the rest parked in the backlog.
+
+- **Block A -- the silent false statements. Done 2026-08-23** (T-0051, T-0052,
+  T-0053). Each fix carries a test that was red first and a negative probe that
+  re-broke it. Two things the review did not have: T-0051's real scope is far
+  narrower than reported (only a process already out of control when the chart
+  *starts*), and T-0053 was additionally returning valid-but-oversized plans,
+  which is the worse of its two failures because nothing in the output says so.
+- **Block B -- robustness. Done 2026-08-23** (T-0054, T-0055, T-0056, T-0057).
+  Same discipline: red test, fix, isomorphism check, negative probe. T-0057 was
+  additionally measured in a live browser, which is what caught a stale build
+  cache hiding a token that reached no page.
+- **T-0063 is new and came out of T-0056's isomorphism check, not the review:**
+  the `/compute/*` endpoints accept a body of any size (measured: 9.5 MB and
+  2,000,000 floats -> 200), while `/ingest` caps at 10 MB. Left unfixed on
+  purpose -- the cap is a contract decision that changes the published OpenAPI.
+  **This is the next thing worth deciding.**
+- **Block C -- structure, UI and the documentation fix. Done 2026-08-23**
+  (T-0058, T-0059, T-0060, T-0061, T-0062). The whole review is now answered:
+  eleven confirmed findings fixed, one refuted and its cause (a restatement that
+  omitted a branch) repaired.
+- **One open question came out of T-0058 and wants an answer, not a task:**
+  the capability page colours Cp/Cpk by 1.00 / 1.33, thresholds the core
+  contains *nowhere* and declines to assert -- what counts as capable is a
+  customer's specification. So the UI states a verdict the library refuses to.
+  Either those thresholds become an input, or the colouring goes, or capstat
+  states the convention and owns it.
+- **Nothing is committed.** The whole review response sits in the working tree
+  on `main`; branch and commit before anything else lands. Suggested shape: one
+  commit per T-number, so `git log` keeps the answer to each finding separable.
 
 **T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
 carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are
