@@ -760,3 +760,41 @@ def test_design_rejects_unusable_requests() -> None:
 def test_evaluate_rejects_unordered_quality_levels() -> None:
     with pytest.raises(ValueError, match="strictly below"):
         evaluate_plan(SamplingPlan(52, 3), 0.06, 0.01)
+
+
+def test_a_plan_inside_the_lot_is_found_even_when_the_search_overshoots_it() -> None:
+    """The doubling search must not abandon an acceptance number just because
+    its own probe stepped past the lot size (T-0053).
+
+    The smallest n meeting the consumer's condition at Ac=10 is 100, which a lot
+    of 150 can supply. The probe walks 11, 22, 44, 88, 176 -- and 176 exceeds
+    150, so the whole acceptance number used to be skipped, and with it every
+    higher one, until the function reported that no plan exists. It does.
+    """
+    plan = design_single_sampling_plan(
+        0.06, 0.15, producer_risk=0.05, consumer_risk=0.10, lot_size=150
+    )
+    assert plan.sample_size <= 150
+    assert probability_of_acceptance(plan, 0.06) >= 0.95
+    assert probability_of_acceptance(plan, 0.15) <= 0.10
+    # Exhaustively the smallest such plan, not merely a working one.
+    assert (plan.sample_size, plan.acceptance_number) == (100, 10)
+
+
+def test_the_designed_plan_is_the_smallest_one_not_merely_a_working_one() -> None:
+    """The same overshoot also returned plans that were valid but too large.
+
+    Found by sweeping the fix rather than from the review, which only noticed
+    the error case. Separating 2 % from 10 % in a lot of 80 used to give n=78,
+    Ac=4: a real plan, meeting both risks, and thirteen items per lot more than
+    necessary -- because the probe for Ac=3 stepped 4, 8, 16, 32, 64, 128 past
+    the lot and skipped an acceptance number that had an answer at n=65.
+    Silently inspecting more than the design requires is the worse failure of
+    the two: nothing about the output says it happened.
+    """
+    plan = design_single_sampling_plan(
+        0.02, 0.10, producer_risk=0.05, consumer_risk=0.10, lot_size=80
+    )
+    assert (plan.sample_size, plan.acceptance_number) == (65, 3)
+    assert probability_of_acceptance(plan, 0.02) >= 0.95
+    assert probability_of_acceptance(plan, 0.10) <= 0.10
