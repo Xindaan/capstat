@@ -782,6 +782,8 @@ export interface components {
             n_trials: number;
             /** Ndc */
             ndc: number | null;
+            /** Ndc Adequate */
+            ndc_adequate: boolean | null;
             /** Pct Contribution Gage Rr */
             pct_contribution_gage_rr: number | null;
             /** Pct Contribution Part */
@@ -818,6 +820,8 @@ export interface components {
             var_reproducibility: number;
             /** Var Total */
             var_total: number;
+            /** Verdict */
+            verdict: ("good" | "marginal" | "unacceptable") | null;
             /** Warnings */
             warnings: string[];
         };

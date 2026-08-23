@@ -105,6 +105,8 @@ export function stabilityStudy(measurements: number[]) {
 
 export type GageRRReport = components["schemas"]["GageRRReportOut"];
 export type GageRRMethod = GageRRReport["method"];
+/** The AIAG band, decided by the core. Null means "not judged", not "good". */
+export type GageRRVerdict = NonNullable<GageRRReport["verdict"]>;
 
 export interface GageRROptions {
   method: GageRRMethod;

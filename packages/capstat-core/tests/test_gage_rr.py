@@ -390,3 +390,94 @@ def test_report_is_immutable() -> None:
 
 def test_report_type() -> None:
     assert isinstance(gage_rr(_strong_interaction()), GageRRReport)
+
+
+# ---------------------------------------------------------------------------
+# The verdict is the core's to state, once (T-0058)
+# ---------------------------------------------------------------------------
+
+
+def test_the_report_states_the_aiag_verdict_itself() -> None:
+    """The AIAG bands lived twice: in `_verdict_warnings` and in the web app's
+    colouring. A traffic light that disagrees with the printed warning is
+    exactly the discrepancy this project exists to avoid, so the band is now a
+    property and everything downstream reads it."""
+    report = gage_rr(_strong_interaction())
+    assert report.verdict in {"good", "marginal", "unacceptable"}
+    # The verdict and the warning are the same judgement, not two.
+    if report.verdict == "unacceptable":
+        assert any("unacceptable" in w for w in report.warnings)
+    elif report.verdict == "marginal":
+        assert any("marginal" in w for w in report.warnings)
+    else:
+        assert not any("marginal" in w or "unacceptable" in w for w in report.warnings)
+
+
+def test_the_verdict_turns_exactly_at_the_published_thresholds() -> None:
+    """Pinned against the constants, not against 10 and 30 written again here --
+    a test that restates the number cannot catch the number being changed."""
+    from capstat_core.gage_rr import (
+        GRR_GOOD_AT_OR_BELOW,
+        GRR_MARGINAL_AT_OR_BELOW,
+    )
+
+    def report_at(pct: float) -> GageRRReport:
+        # %Study variation is sqrt(var_grr / var_total), so pick the variances
+        # that produce the wanted percentage exactly.
+        fraction = (pct / 100.0) ** 2
+        return GageRRReport(
+            method="anova",
+            n_parts=5,
+            n_operators=3,
+            n_trials=3,
+            interaction_included=False,
+            interaction_pvalue=None,
+            var_repeatability=fraction,
+            var_operator=0.0,
+            var_interaction=0.0,
+            var_part=1.0 - fraction,
+            study_var_multiplier=6.0,
+            tolerance=None,
+            warnings=(),
+        )
+
+    assert report_at(GRR_GOOD_AT_OR_BELOW).verdict == "good"
+    assert report_at(GRR_GOOD_AT_OR_BELOW + 0.5).verdict == "marginal"
+    assert report_at(GRR_MARGINAL_AT_OR_BELOW).verdict == "marginal"
+    assert report_at(GRR_MARGINAL_AT_OR_BELOW + 0.5).verdict == "unacceptable"
+
+
+def test_a_gage_with_no_variation_of_its_own_has_no_verdict_to_give() -> None:
+    """A perfect gage divides by zero on the way to a percentage. `None` says
+    "not judged", which a colour can render as absent rather than as good."""
+    perfect = GageRRReport(
+        method="anova",
+        n_parts=5,
+        n_operators=3,
+        n_trials=3,
+        interaction_included=False,
+        interaction_pvalue=None,
+        var_repeatability=0.0,
+        var_operator=0.0,
+        var_interaction=0.0,
+        var_part=1.0,
+        study_var_multiplier=6.0,
+        tolerance=None,
+        warnings=(),
+    )
+    assert perfect.verdict is None
+    assert perfect.ndc is None
+    assert perfect.ndc_adequate is None
+
+
+def test_the_warnings_read_the_reports_own_numbers() -> None:
+    """`_verdict_warnings` recomputed %SV and ndc from raw variances instead of
+    reading the properties beside them -- two implementations of one number."""
+    report = gage_rr(_strong_interaction())
+    stated = [w for w in report.warnings if "% of study variation" in w]
+    if stated:
+        assert f"{report.pct_study_var_gage_rr:.1f}%" in stated[0]
+    if report.ndc_adequate is False:
+        assert any(
+            f"only {report.ndc} distinct categories" in w for w in report.warnings
+        )
