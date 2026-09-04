@@ -12,7 +12,7 @@ quality-engineering software. Its differentiator is verifiable correctness:
 every statistical result is validated against published reference values
 (NIST StRD, Montgomery, AIAG manuals, ISO 22514).
 
-> **Status:** v0.2.0. All three pieces are built and tested — the statistics
+> **Status:** v0.2.1. All three pieces are built and tested — the statistics
 > library, the HTTP API, and the web app (capability, control charts, Gage R&R,
 > bias/linearity/stability, acceptance sampling). The core library is on PyPI as
 > [`capstat-core`](https://pypi.org/project/capstat-core/); the API and web app
@@ -214,8 +214,9 @@ Other things capstat tells you rather than leaving you to know:
 - **These are Phase I (trial) limits**, estimated from the data being plotted.
   A large excursion inflates the very limits meant to catch it.
 
-Run-based rules (Nelson, Western Electric) that catch drifts never crossing a
-limit are not in yet — only points beyond the limits are flagged today.
+`ControlChart.violations` holds only the points beyond the limits. The run-based
+rules that catch drifts never crossing one are applied *to* a chart rather than
+baked into it — see [Run rules](#run-rules--nelson-and-western-electric) below.
 
 All chart constants (d₂, d₃, c₄, A₂, A₃, B₃, B₄, D₃, D₄, E₂) are **computed from
 their definitions**, not copied from a table. That is not fussiness: the
@@ -651,8 +652,8 @@ capstat is a uv-managed monorepo:
 ```
 packages/capstat-core/   # pure numpy+scipy stats library, PyPI-publishable
 apps/api/                # FastAPI compute service (wraps the core)
-apps/web/                # Next.js dashboard                          [later]
-docs/                    # mkdocs-material site                       [later]
+apps/web/                # Next.js dashboard (App Router)
+docs/                    # mkdocs-material site
 ```
 
 The core carries no web dependencies and can be used on its own. The API

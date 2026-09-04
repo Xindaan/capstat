@@ -1,11 +1,12 @@
 # STATE.md — capstat
 
-Date: 2026-08-23
+Date: 2026-09-02
 
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project, released as v0.1.0.
+Next.js frontend as a professional MIT open-source project. Released: v0.2.1;
+`capstat-core` is on PyPI.
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -17,8 +18,9 @@ M5 MSA, M6 release (report, deployment, docs, release).
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **517 core + 61 API tests, 100 % coverage on both packages**, mypy strict,
-  ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
+- **609 Python tests (core + API) at 100 % coverage on both packages**, mypy
+  strict, ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
+  Web: 65 vitest, 34 Playwright, eslint/prettier/build green.
 - **Acceptance sampling (T-0035 + T-0036 + T-0037) landed after v0.1.0 and is
   end-to-end**, ISO 2859-1's switching scheme included. Single sampling plans by
   attributes: OC curve (binomial / hypergeometric / Poisson), AOQ, AOQL, ATI,
@@ -111,9 +113,50 @@ next, the rest parked in the backlog.
   customer's specification. So the UI states a verdict the library refuses to.
   Either those thresholds become an input, or the colouring goes, or capstat
   states the convention and owns it.
-- **Nothing is committed.** The whole review response sits in the working tree
-  on `main`; branch and commit before anything else lands. Suggested shape: one
-  commit per T-number, so `git log` keeps the answer to each finding separable.
+- **The first review's answer is merged** (a44e184, 2026-08-23). This file said
+  "nothing is committed" for ten days after it landed -- corrected 2026-09-02.
+
+**Second external review 2026-09-02 (Claude Fable 5.1), answered in full.**
+It read the source *and ran it*, which is where its findings came from. Its own
+verdict on the statistics: sound -- ANOVA Gage R&R, average-and-range,
+Anderson-Darling, the chart constants, capability, the OC curves and the
+switching rules were re-derived and nothing was wrong. The defects sat one layer
+up. Filed and fixed as T-0064..T-0072:
+
+- **T-0064 is the one that mattered.** The Box-Cox path passed on its own two
+  sentences about the transform and discarded everything the inner capability
+  report had said about the data -- so a drifting lognormal process showed
+  Cpk 1.60 against Ppk 1.22 with no instability warning anywhere the app renders.
+  That is the exact failure this library exists to prevent, on the path taken by
+  any genuinely skewed process.
+- **T-0065** destroyed hand-entered Gage R&R data: typing "10" into Parts
+  resized the grid on every keystroke and truncated it to two parts on the way.
+  Reproduced in a browser first, fixed by committing on blur, and the e2e test
+  fails against the old component.
+- **T-0067** made capstat usable on a German Excel export at all -- semicolons,
+  decimal commas, cp1252 and a UTF-8 BOM are now detected *and named in the
+  response*.
+- T-0066, T-0068, T-0069, T-0070 are smaller: a contradictory lot outcome that
+  moved the switching score the wrong way, a ceiling message naming the wrong
+  quantity, a symmetry check defeated by numpy's absolute tolerance on
+  nanometre-scale charts, and two unevaluated assumptions that stayed silent.
+- **T-0071 was refuted by measurement**, and is recorded as refuted: the
+  remount-key collision does not reproduce, because `UploadPanel` nulls its
+  selection before every request. The simplification was kept; the claim was not.
+- **T-0072** closed the gap between the steering files and the code -- including
+  a `TASK.md` block that appeared twice, byte-identical.
+
+**Next actions:**
+
+1. **T-0063 is still the open decision, and it is yours** (a cap on `/compute/*`
+   body size). Unchanged since 2026-08-23: it changes the published OpenAPI, so
+   it wants a number chosen deliberately -- what is the largest legitimate SPC
+   series, does the cap belong per-field or in middleware, and what does the
+   caller get told.
+2. **The capability colouring question is still open** (below): the UI states a
+   verdict on Cp/Cpk that the core declines to assert.
+3. Commit and open a PR for T-0064..T-0072. One commit per T-number keeps
+   `git log` answering each finding separately, as with the first review.
 
 **T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
 carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are

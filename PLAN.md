@@ -30,11 +30,12 @@ result validated against published reference values.
 ```
 capstat/
 ├── packages/capstat-core/          # pure stats library, PyPI-ready
-│   ├── src/capstat_core/
-│   │   ├── capability/             # Cp, Cpk, Pp, Ppk, Cpm, non-normal path
-│   │   ├── control_charts/         # I-MR, XbarR, XbarS, EWMA, CUSUM, rules, constants
-│   │   ├── msa/                    # Gage R&R (ANOVA + avg-range), bias, linearity, stability
-│   │   └── distributions/          # normality tests, Box-Cox, percentile method
+│   ├── src/capstat_core/           # one flat module per method, not subpackages
+│   │   ├── descriptive.py robust.py normality.py
+│   │   ├── capability.py nonnormal.py          # indices + the non-normal path
+│   │   ├── constants.py control_charts.py rules.py time_weighted.py
+│   │   ├── gage_rr.py bias.py linearity.py stability.py
+│   │   └── acceptance_sampling.py sampling_scheme.py
 │   ├── tests/references/           # reference values as YAML (see below)
 │   └── pyproject.toml
 ├── apps/
@@ -50,6 +51,12 @@ capstat/
 Contract: the FastAPI OpenAPI schema is the single source of truth; the TS
 client is generated from it in CI with a drift check (`git diff
 --exit-code` after regeneration).
+
+**Deviation, recorded 2026-09-02:** the subpackage layout above was planned but
+never built. Each method is one module instead, because the grouping would have
+been one file per subpackage anyway and a package boundary that holds a single
+module buys nothing. The public surface is unaffected: everything is re-exported
+from `capstat_core`, which is what the docs and the API import.
 
 ## Toolchain decisions (with rationale)
 

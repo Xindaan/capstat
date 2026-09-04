@@ -236,7 +236,17 @@ class GageRRReport:
         if self.var_gage_rr <= 0.0:
             return None
         pct = self.pct_study_var_gage_rr
-        if math.isnan(pct):
+        if math.isnan(pct):  # pragma: no cover - unreachable, kept as a floor
+            # No test can reach this, and the reason is worth writing down
+            # rather than deleting the branch over. ``var_total`` is
+            # ``var_gage_rr + var_part``; every component is clamped at zero
+            # before the report is built, so a positive ``var_gage_rr`` forces a
+            # positive total and ``_pct_sd`` returns a real number. The guard
+            # above is what actually handles "nothing to judge". This stays as a
+            # floor under a future component that could arrive unclamped: the
+            # honest answer to an undefined percentage is "no verdict", and
+            # falling through would return "unacceptable" instead, because every
+            # comparison against nan is False.
             return None
         if pct <= GRR_GOOD_AT_OR_BELOW:
             return "good"

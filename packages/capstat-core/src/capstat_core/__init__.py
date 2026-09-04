@@ -3,9 +3,16 @@
 Every statistic exposed here is validated against published reference values;
 see ``tests/references/`` for the sources and the certified numbers.
 
-The public API is populated milestone by milestone (see TASK.md). Available
-today: descriptive summary statistics, robust location/scale estimators, and
-normality testing.
+What is here: descriptive and robust summary statistics, normality testing,
+process capability (including the non-normal decision path), Shewhart control
+charts with their constants computed rather than transcribed, EWMA and CUSUM,
+the Nelson and Western Electric run rules, the four measurement-system studies
+(Gage R&R by both AIAG methods, bias, linearity, stability), and acceptance
+sampling with the ISO 2859-1 switching scheme.
+
+Every entry point returns a frozen dataclass carrying ``warnings``: the
+sentences that say what the numbers cannot. They are part of the result, not
+decoration -- a report whose assumptions were not met says so there.
 """
 
 from __future__ import annotations
