@@ -450,6 +450,15 @@ def box_cox_capability(
         f"to ordinary indices, but the underlying mean and sigma are NOT in the "
         f"original units."
     )
+    # Everything the inner report has to say applies here too, and saying it
+    # here is what makes it reach a caller (T-0064). The transformation changes
+    # the scale, not the study: an unstable process is still unstable, the
+    # moving-range sigma still assumes time order, and Cpm is still absent
+    # without a target. Those warnings were being dropped -- the analysis on the
+    # Box-Cox path carried two sentences about the transform and nothing about
+    # the data, so a drifting process showed a flattering Cpk with no sign that
+    # its own report had objected.
+    warnings.extend(w for w in report.warnings if w not in warnings)
 
     return BoxCoxCapability(
         lmbda=lmbda,
