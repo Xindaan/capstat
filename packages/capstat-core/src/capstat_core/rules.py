@@ -125,7 +125,15 @@ def _standardise(chart: ControlChart) -> npt.NDArray[np.float64]:
     above = chart.limits.upper - center
     below = center - chart.limits.lower
 
-    if above <= 0.0 or not np.isclose(above, below, rtol=1e-9):
+    # atol=0.0 on purpose: numpy's default absolute tolerance is 1e-8, which is
+    # larger than the entire chart when the measurements are small (nanometres,
+    # strain, ppm). A chart with limits at -1e-9 and +3e-9 is three times as far
+    # above the centre line as below it, and the default tolerance called that
+    # symmetric -- so the zone rules ran on a dispersion chart's limits and
+    # reported patterns that do not exist (T-0069). The relative tolerance is
+    # what this comparison always meant; it survives the last-ulp difference
+    # between ``center + spread`` and ``center - spread``.
+    if above <= 0.0 or not np.isclose(above, below, rtol=1e-9, atol=0.0):
         raise ValueError(
             f"the {chart.name} chart's limits are not symmetric about its centre "
             f"line (upper is {above:.4g} above, lower is {below:.4g} below), so "
