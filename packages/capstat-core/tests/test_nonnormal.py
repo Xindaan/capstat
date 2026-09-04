@@ -30,6 +30,7 @@ from capstat_core import (
     fit_distribution,
     percentile_capability,
 )
+from capstat_core.capability import STABILITY_RATIO
 from capstat_core.nonnormal import (
     LOWER_PERCENTILE,
     UPPER_PERCENTILE,
@@ -248,6 +249,43 @@ def test_box_cox_reports_lambda_rather_than_hiding_it() -> None:
     assert math.isfinite(result.lmbda)
     assert any("lambda" in w for w in result.warnings)
     assert any("NOT in the original units" in w for w in result.warnings)
+
+
+def test_box_cox_carries_the_inner_reports_warnings() -> None:
+    """A warning the capability report raises must survive the transformation.
+
+    The Box-Cox path used to report only what it had done to the *scale* and
+    nothing about the *data*: on a drifting lognormal process the analysis
+    showed a flattering Cpk with no sign that its own inner report had called
+    the process unstable (T-0064). The transform changes the units, not the
+    study -- an unstable process is still unstable on the transformed scale,
+    and the ratio that says so is dimensionless.
+    """
+    rng = np.random.default_rng(7)
+    base = np.exp(rng.normal(3.0, 0.3, size=200))
+    drifting = np.concatenate([base[:100], base[100:] * 1.6])
+
+    analysis = analyze_capability(drifting, lsl=5.0, usl=90.0)
+    assert analysis.path == "box-cox"
+    assert analysis.box_cox is not None
+
+    # Measure that the inner report really did object, rather than assuming it.
+    inner = analysis.box_cox.capability
+    assert inner.stability_ratio > STABILITY_RATIO
+    assert any("is not stable" in w for w in inner.warnings)
+    assert inner.cpk is not None and inner.ppk is not None
+    assert inner.cpk > inner.ppk  # the gap the warning is about
+
+    # Every sentence it produced reaches the caller, on both surfaces.
+    for warning in inner.warnings:
+        assert warning in analysis.box_cox.warnings
+        assert warning in analysis.warnings
+
+
+def test_box_cox_does_not_repeat_a_warning_it_already_made() -> None:
+    """Merging the inner warnings must not double anything up."""
+    result = box_cox_capability(_lognormal(), lsl=5.0, usl=60.0)
+    assert len(result.warnings) == len(set(result.warnings))
 
 
 def test_box_cox_flags_a_transformation_that_did_not_work() -> None:
