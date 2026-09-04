@@ -164,7 +164,19 @@ def _sigma_within(groups: npt.NDArray[np.float64], method: WithinMethod) -> floa
         # that bias -- the same convention Minitab uses.
         degrees = k * (n - 1)
         pooled_variance = float(np.sum((n - 1) * groups.var(axis=1, ddof=1)) / degrees)
-        return math.sqrt(pooled_variance) / c4(degrees + 1)
+        try:
+            correction = c4(degrees + 1)
+        except ValueError as exc:
+            # c4 is applied at the *pooled degrees of freedom*, not at a
+            # subgroup size, so its own ceiling message named the wrong
+            # quantity and a number the caller never supplied (T-0068).
+            raise ValueError(
+                f"the pooled estimate has {degrees} degrees of freedom, beyond "
+                f"the range the c4 bias correction is computed over. Use "
+                f"within_method='sbar_c4' or 'rbar_d2', which apply their "
+                f"correction at the subgroup size instead"
+            ) from exc
+        return math.sqrt(pooled_variance) / correction
 
     raise ValueError(f"unknown within_method {method!r}")
 
@@ -372,11 +384,30 @@ def _warnings(
             "assume the target is the midpoint of the specification."
         )
 
-    if subgroups < 20 and n > 1:
+    if subgroups < 20:
+        # Individuals were excluded from this warning, which is backwards: with
+        # no subgroup structure the estimates are the *least* well determined,
+        # and i_mr_chart warns about exactly the same shortage on the same data
+        # (T-0070). Two reports on one series should not disagree about whether
+        # it is long enough.
+        measured = f"{subgroups} subgroups" if n > 1 else f"{subgroups} measurements"
         messages.append(
-            f"only {subgroups} subgroups: the sigma estimates, and hence every "
-            f"index, carry wide confidence intervals. AIAG recommends at least "
-            f"25 subgroups for a capability study."
+            f"only {measured}: the sigma estimates, and hence every index, "
+            f"carry wide confidence intervals. AIAG recommends at least 25 "
+            f"subgroups for a capability study, and an individuals study wants "
+            f"as many points."
+        )
+
+    if normality is None:
+        # Silence here read as "nothing to report", when what happened is that
+        # nothing was checked: below the Anderson-Darling floor the assessment
+        # is skipped entirely, while every index in the report goes on assuming
+        # a normal process (T-0070).
+        messages.append(
+            f"n={n * subgroups} is below the {AD_MIN_SAMPLE_SIZE} observations "
+            f"the normality assessment needs, so none was made. Every index "
+            f"here still assumes a normal process -- that assumption is "
+            f"untested, not confirmed."
         )
 
     return tuple(messages)

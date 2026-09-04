@@ -439,3 +439,79 @@ def test_constants_reject_a_non_integer_subgroup_size() -> None:
     # runtime guard checks isinstance(n, bool) explicitly: mypy cannot catch it.
     with pytest.raises(TypeError, match="must be an int"):
         c4(True)
+
+
+# The sbar_c4 cross-check below runs capability() over 150 000 points, and
+# scipy warns that its Shapiro-Wilk p-value is inaccurate above N = 5000. That
+# is true and capstat says the same thing in its own words (assess_normality
+# warns above n = 1000); it is not what this test is about.
+@pytest.mark.filterwarnings("ignore:scipy.stats.shapiro:UserWarning")
+def test_pooled_sigma_names_the_quantity_that_hit_the_ceiling() -> None:
+    """The c4 ceiling is on degrees of freedom, and said "subgroup size".
+
+    `_sigma_within` applies the bias correction at the *pooled* degrees of
+    freedom, which for a large study runs past what c4 is computed over. The
+    error that surfaced came from c4's own guard, so it named a subgroup size
+    and a number the caller never passed -- 100003 for a study of subgroups of
+    3 (T-0068).
+    """
+    rng = np.random.default_rng(3)
+    # 50 000 subgroups of 3 -> 100 000 pooled degrees of freedom, one past the
+    # ceiling. The estimate raises before normality is ever assessed.
+    many = rng.normal(10.0, 1.0, size=(50_000, 3))
+
+    with pytest.raises(ValueError) as excinfo:
+        capability(many, lsl=7.0, usl=13.0, within_method="pooled")
+
+    message = str(excinfo.value)
+    assert "degrees of freedom" in message
+    assert "100000" in message
+    # The old message was c4's own guard talking about the wrong quantity:
+    # "subgroup size must be <= 100000, got 100003" for subgroups of three.
+    assert "subgroup size must be" not in message
+    assert "100003" not in message
+    # It also says what to do instead, and that advice has to work.
+    assert "sbar_c4" in message
+    assert capability(many, lsl=7.0, usl=13.0, within_method="sbar_c4").cpk is not None
+
+
+def test_individuals_are_warned_about_a_short_series_too() -> None:
+    """Two reports on one series must not disagree about whether it is long enough.
+
+    The shortage warning was gated on `n > 1`, so it never fired for
+    individuals -- exactly the case with no subgroup structure, where the
+    estimates are least well determined. `i_mr_chart` warned about the same
+    fifteen points all along (T-0070).
+    """
+    rng = np.random.default_rng(5)
+    short = rng.normal(10.0, 1.0, size=15)
+
+    report = capability(short, lsl=7.0, usl=13.0)
+    assert any("only 15 measurements" in w for w in report.warnings)
+
+    # The subgroup wording is unchanged for subgrouped data.
+    grouped = capability(rng.normal(10.0, 1.0, size=(15, 4)), lsl=7.0, usl=13.0)
+    assert any("only 15 subgroups" in w for w in grouped.warnings)
+
+    # And a long enough series is not nagged.
+    long = capability(rng.normal(10.0, 1.0, size=40), lsl=7.0, usl=13.0)
+    assert not any("carry wide confidence intervals" in w for w in long.warnings)
+
+
+def test_a_sample_too_small_to_test_for_normality_says_so() -> None:
+    """Silence read as "nothing to report"; nothing had been checked.
+
+    Below the Anderson-Darling floor the assessment is skipped and `normality`
+    is None, while every index in the report goes on assuming a normal process.
+    Untested is not confirmed, and the report now says which it is (T-0070).
+    """
+    report = capability([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.5], lsl=0.0, usl=10.0)
+    assert report.normality is None
+    assert any("normality assessment needs" in w for w in report.warnings)
+    assert any("untested, not confirmed" in w for w in report.warnings)
+
+    # With enough observations the assessment happens and the notice goes away.
+    rng = np.random.default_rng(6)
+    enough = capability(rng.normal(5.0, 1.0, size=40), lsl=0.0, usl=10.0)
+    assert enough.normality is not None
+    assert not any("normality assessment needs" in w for w in enough.warnings)
