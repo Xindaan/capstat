@@ -246,3 +246,42 @@ test("a gage with nothing to judge is not painted green", async ({ page }) => {
   // assertion on a locator that legitimately matches twice.)
   await expect(ndc.getByText("—")).toBeVisible();
 });
+
+test("typing a two-digit dimension does not eat the grid", async ({ page }) => {
+  // Selecting the field and typing "10" passed through "1", which was clamped
+  // up to the minimum of 2 and truncated the grid to two parts -- the
+  // measurements for parts 3 to 5 were gone before the second digit landed,
+  // with no undo (T-0065). The resize now happens once, on leaving the field.
+  await gotoReady(page, "/gage-rr");
+
+  const thirdPart = page.getByLabel("Part 3, operator A, trial 1");
+  await expect(thirdPart).toHaveValue("4.34");
+
+  const parts = page.getByLabel("Parts", { exact: true });
+  await parts.click();
+  await parts.press("ControlOrMeta+a");
+  await parts.pressSequentially("10");
+  await parts.blur();
+
+  await expect(parts).toHaveValue("10");
+  await expect(page.locator("tbody tr")).toHaveCount(10);
+  // The rows that were already filled in still hold what the example put there.
+  await expect(thirdPart).toHaveValue("4.34");
+  await expect(page.getByLabel("Part 1, operator A, trial 1")).toHaveValue(
+    "3.29",
+  );
+  await expect(page.getByLabel("Part 5, operator C, trial 3")).toHaveValue(
+    "1.55",
+  );
+  // The rows it added are empty, waiting to be typed into.
+  await expect(page.getByLabel("Part 10, operator A, trial 1")).toHaveValue("");
+
+  // Beyond the cap the value is refused rather than clamped, so nothing resizes
+  // and the grid on screen is still the one the user built.
+  await parts.click();
+  await parts.press("ControlOrMeta+a");
+  await parts.pressSequentially("500");
+  await parts.blur();
+  await expect(parts).toHaveValue("10");
+  await expect(page.locator("tbody tr")).toHaveCount(10);
+});

@@ -43,6 +43,18 @@ const EXAMPLE: string[][][] = [
 
 const OPERATOR_LABELS = "ABCDEFGH";
 
+/**
+ * Largest value a study dimension may take.
+ *
+ * Not a statistical limit — the core imposes none — but a guard on the grid this
+ * page builds: three fields multiply, so an unbounded one turns a fat-fingered
+ * "1000" into a million inputs and a wedged tab. Thirty is well above any real
+ * study (AIAG's worked example is 10 parts x 3 operators x 3 trials), and a
+ * value beyond it is refused rather than clamped, so nothing is resized to a
+ * number nobody asked for.
+ */
+const MAX_DIMENSION = 30;
+
 type Status =
   | { kind: "idle" }
   | { kind: "computing" }
@@ -274,6 +286,18 @@ export function GageRRPanel({
   );
 }
 
+/**
+ * A study dimension: typed freely, applied only when it is a whole number in
+ * range.
+ *
+ * It used to resize the grid on every keystroke, clamping whatever stood in the
+ * box up to `min` as it went. Typing "10" over a 5 therefore went through "1",
+ * which clamped to 2 and truncated the grid to two parts — the measurements for
+ * parts 3 to 5 were gone before the second digit was typed, with no undo
+ * (T-0065). The draft is now local text, and the resize happens when the field
+ * is left or Enter is pressed: one resize per edit, from the number the user
+ * actually meant.
+ */
 function DimField({
   label,
   value,
@@ -285,21 +309,67 @@ function DimField({
   min: number;
   onChange: (v: number) => void;
 }) {
+  const [draft, setDraft] = useState(String(value));
+
+  // The committed value also changes from outside — a loaded study, a remount —
+  // and the box has to follow it rather than keep showing what was last typed.
+  // Adjusted during render rather than in an effect: React supports exactly
+  // this for "a prop changed, reset the state derived from it", and it avoids
+  // the extra paint an effect would cause (the lint rule that forbids
+  // setState-in-effect is pointing at the same thing).
+  const [lastSeen, setLastSeen] = useState(value);
+  if (lastSeen !== value) {
+    setLastSeen(value);
+    setDraft(String(value));
+  }
+
+  const parsed = Number(draft);
+  const valid =
+    draft.trim() !== "" &&
+    Number.isInteger(parsed) &&
+    parsed >= min &&
+    parsed <= MAX_DIMENSION;
+
+  const commit = () => {
+    if (valid) {
+      if (parsed !== value) onChange(parsed);
+    } else {
+      // Refuse rather than clamp: clamping is what silently resized the grid to
+      // a number nobody asked for.
+      setDraft(String(value));
+    }
+  };
+
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
       <input
+        // Named explicitly because the range hint below lives inside this
+        // label, and without an aria-label it would join the field's accessible
+        // name the moment it appears — the box would stop being "Parts" and
+        // become "Parts 2–30" exactly when a user most needs it to be findable.
+        aria-label={label}
         type="number"
         min={min}
-        value={value}
-        onChange={(e) => {
-          const v = Math.max(min, Math.floor(Number(e.target.value) || min));
-          onChange(v);
+        max={MAX_DIMENSION}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
         }}
         className="h-10 w-20 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
       />
+      {!valid && (
+        <span className="text-[11px] text-amber-600 dark:text-amber-400">
+          {min}–{MAX_DIMENSION}
+        </span>
+      )}
     </label>
   );
 }
