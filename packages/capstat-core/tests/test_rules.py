@@ -373,3 +373,32 @@ def test_an_overlapping_pattern_is_reported_once_not_once_per_window() -> None:
     assert len(violations) == 1
     assert violations[0].point == 2
     assert violations[0].window == (0, 1, 2)
+
+
+def test_asymmetry_far_below_numpys_default_tolerance_is_still_asymmetry() -> None:
+    """A chart measured in nanometres must not pass the symmetry check.
+
+    `np.isclose` carries a default absolute tolerance of 1e-8, which is larger
+    than this entire chart: limits at -1e-9 and +3e-9 are three times as far
+    above the centre line as below it, and the default called that symmetric.
+    The zone rules would then have run on a dispersion chart's limits and
+    reported patterns that do not exist (T-0069).
+    """
+    lopsided = ControlChart(
+        name="R",
+        points=(0.0,) * 10,
+        limits=ControlLimits(center=0.0, lower=-1e-9, upper=3e-9),
+        violations=(),
+    )
+    with pytest.raises(ValueError, match="not symmetric"):
+        nelson_rules(lopsided, [2])
+
+    # And a genuinely symmetric chart at the same scale still works, so the
+    # tightening rejects asymmetry rather than small numbers.
+    tiny = ControlChart(
+        name="individuals",
+        points=(1e-9,) * 10,
+        limits=ControlLimits(center=0.0, lower=-3e-9, upper=3e-9),
+        violations=(),
+    )
+    assert nelson_rules(tiny, [2])
