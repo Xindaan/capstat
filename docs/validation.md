@@ -87,4 +87,8 @@ actually asserts.
   on an assumption the data do not support. They cannot tell you whether your
   sampling plan was sensible or your parts representative.
 - **Not exhaustive.** Coverage is 100 % of lines and branches, which says every
-  path runs — not that every statistical edge case has been imagined.
+  path runs — not that every statistical edge case has been imagined. One line
+  is deliberately excluded: a `verdict` guard in `gage_rr.py` against a
+  not-a-number percentage, which the clamping upstream of it makes unreachable.
+  It is kept as a floor under a future change and marked, rather than deleted to
+  make the number look better or left in to make it look worse.

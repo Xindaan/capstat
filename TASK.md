@@ -5,9 +5,11 @@
 <!-- max 3 -->
 
 - (Doing is clear. What is left of the old T-0018 split: T-0036 increment 3, a
-  code-letter lookup, only worth revisiting if something real needs it; T-0038,
-  parked; and finishing T-0041 -- the study file works on the
-  acceptance-sampling page, and `/`, `/gage-rr` and `/msa` are not wired yet.)
+  code-letter lookup, only worth revisiting if something real needs it; and
+  T-0038, parked. **T-0041 is finished** -- the study file is wired on all three
+  hand-entered pages, and `/` is deliberately without one because its input is
+  an uploaded CSV. This block said otherwise until 2026-09-02, three weeks after
+  the work landed; a stale Doing block is the one that costs a session.)
 
 ## Backlog
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
@@ -60,34 +62,6 @@
 - ~~T-0057 **Result-card labels fell below WCAG AA**~~ -- **done 2026-08-23**:
   a measured `--muted` token replaces 51 uses of opacity steps that failed.
   See `## Done`.
-- T-0063 **The compute endpoints accept a body of any size.** Found by the
-  isomorphism check on T-0056, not by the review, and it is the larger hole of
-  the two: `/ingest` caps uploads at 10 MB, while every `/compute/*` endpoint
-  takes `list[float]` with `Field(min_length=1)` and no maximum
-  (`apps/api/src/capstat_api/requests.py`). The only middleware is CORS.
-  Measured: a 9.5 MB JSON body carrying 2,000,000 floats returns **200**. JSON
-  is the expensive direction -- those floats land as a Python list of boxed
-  objects, several times the wire size, before NumPy ever sees them.
-  Not fixed with T-0056 because it is a contract decision, not a bug fix: what
-  is the largest legitimate SPC series, does the cap belong per-field or in
-  middleware, and what does the caller get told. All three change the published
-  OpenAPI, so they want a deliberate answer rather than a number picked here.
-  Acceptance: an oversized compute body is refused with a stated limit; the
-  limit is documented; a series of realistic size (say 100k points) still works.
-- ~~T-0058 Verdict thresholds duplicated between core and UI~~ -- **done
-  2026-08-23**: the core states the AIAG band as a word; the UI colours by it
-  and owns no boundary. Half the finding was wrong -- see `## Done`.
-- ~~T-0059 The API error path copied 11 times~~ -- **done 2026-08-23**:
-  `callApi` + `<ErrorAlert>`; `describeApiError` is now called from exactly one
-  place. See `## Done`.
-- ~~T-0060 Charts without an accessible name~~ -- **done 2026-08-23**: all
-  three carry `role="img"` and a name built from what they draw. See `## Done`.
-- ~~T-0061 "Decide the lot" was a silent no-op~~ -- **done 2026-08-23**: the
-  decision judges the plan the report describes, which removes the null case
-  rather than disabling the button. See `## Done`.
-- ~~T-0062 The switching-score restatement omitted the reset~~ -- **done
-  2026-08-23**: the note now states both branches of clause 9.3.3.2, and a test
-  pins the wording. The code was right all along. See `## Done`.
 - T-0063 **The compute endpoints accept a body of any size.** Found by the
   isomorphism check on T-0056, not by the review, and it is the larger hole of
   the two: `/ingest` caps uploads at 10 MB, while every `/compute/*` endpoint
@@ -439,6 +413,154 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- **Second external review 2026-09-02 (Claude Fable 5.1, source read plus
+  execution).** Its own summary: the statistics are sound -- the formulas for
+  ANOVA Gage R&R, average-and-range, Anderson-Darling, the chart constants,
+  capability, the OC curves and the switching rules were re-derived and nothing
+  was wrong. The findings sit a layer above: where warnings are merged, where
+  the UI holds input, and where the steering files disagree with the code.
+  Filed as T-0064..T-0072. One finding (T-0071) was refuted by measurement and
+  is recorded as refuted rather than quietly dropped. 609 Python tests at 100 %
+  coverage, 65 vitest, 34 Playwright.
+
+- T-0064 (2026-09-02) **The Box-Cox path was dropping the inner report's
+  warnings.** The one finding that touched the project's central claim.
+  * `analyze_capability` passed `transformed.warnings` straight through, and
+    those were the two sentences Box-Cox writes about the *scale*. Everything
+    the inner `CapabilityReport` said about the *data* -- the instability
+    warning, the time-order caveat on the moving-range sigma, the missing-Cpm
+    note -- was computed and then discarded.
+  * Measured on a drifting lognormal series: path `box-cox`, sigma ratio 1.31,
+    Cpk 1.60 against Ppk 1.22, and the analysis showed **one** warning where the
+    report had made four. A user reading the app saw the flattering number with
+    nothing to say the process was unstable -- exactly the failure capstat
+    exists to prevent.
+  * Fixed in `box_cox_capability`, so a direct caller benefits too, with
+    de-duplication so nothing is said twice. Negative probe: removing the merge
+    fails the new test on the stability sentence.
+  * Isomorphism check across every aggregator: `capability`, `gage_rr`,
+    `evaluate_plan`, `inspect_lot` and `apply_switching_rules` each build a
+    single list and lose nothing; `stability` keeps two lists and the UI renders
+    both. Box-Cox was the only one that aggregated and dropped.
+
+- T-0065 (2026-09-02) **A two-digit study dimension ate the Gage R&R grid.**
+  * Every keystroke in Parts / Operators / Trials resized the grid, clamping
+    whatever stood in the box up to the minimum. Selecting "5" and typing "10"
+    went through "1", which clamped to 2 and truncated the grid to two parts;
+    the second digit then made it 20. Reproduced in a real browser before the
+    fix: the field read 20, the grid had 20 rows, and part 3's measurements were
+    gone. No undo, and the page ships pre-filled with the AIAG example.
+  * The draft is now local text and the resize happens once, on blur or Enter.
+    An out-of-range value is refused rather than clamped, so nothing is ever
+    resized to a number nobody asked for.
+  * **New constraint, stated rather than slipped in:** a dimension is capped at
+    30. Three fields multiply, and an unbounded one turns a fat-fingered "1000"
+    into a million inputs. Thirty is well above any real study (AIAG's example
+    is 10 x 3 x 3).
+  * The range hint lives inside the `<label>`, which would have joined the
+    field's accessible name the moment it appeared -- caught by the e2e test,
+    fixed with an explicit `aria-label`, the same guard the other panels use.
+  * e2e test with a negative probe: against the old component it fails with the
+    field reading 20.
+
+- T-0066 (2026-09-02) **A rejected lot could claim acceptance at a tighter AQL.**
+  `LotResult(accepted=False, accepted_at_tighter_aql=True)` is contradictory --
+  a tighter AQL is the harder test -- but nothing checked it, and
+  `_updated_score` asks the tighter-AQL question first. Three rejected lots
+  scored 3 then 6: the switching score climbing on the evidence that should
+  reset it. Validated in `__post_init__`; the router maps it to a 422 like every
+  other domain error, and both non-contradictory combinations stay legal. The
+  web page never sent it, so this was an API-client defect only.
+
+- T-0067 (2026-09-02) **Ingestion failed silently on a German Excel CSV.**
+  * A semicolon-separated file parsed as one text column and came back as "No
+    numeric columns found"; a decimal comma turned the measurement column into
+    text, which was then reported as an *ignored non-numeric column*. Telling a
+    user their measurements are not numbers is the worst available answer, and
+    both are what Excel writes in a German locale.
+  * Now detected and **named in the response**: the separator, a cp1252
+    encoding, a UTF-8 BOM, and a decimal comma converted per column. Detection
+    without disclosure would have been the same class of bug one level down.
+  * The separator is found by asking which candidate splits every sampled line
+    into the same number of fields, using the csv module's quote-aware reader --
+    deliberately not `csv.Sniffer`, which guesses from character frequency and
+    is unreliable on short files. It gets the genuinely ambiguous case right:
+    `"9,71",1` is comma-separated *and* comma-decimal.
+  * The decimal repair fires only on a column that is entirely European
+    decimals. A label column holding one numeric-looking entry stays a label --
+    pinned by a test, because inventing measurements out of text is worse than
+    ignoring the column.
+  * Also: a multi-sheet workbook now says which sheet was read. Only the first
+    ever was, and nothing said so.
+
+- T-0068 (2026-09-02) **The pooled sigma's ceiling named the wrong quantity.**
+  `_sigma_within` applies c4 at the pooled degrees of freedom, so c4's own guard
+  surfaced as "subgroup size must be <= 100000, got 100003" for a study of
+  subgroups of three -- a quantity the caller never supplied. It now reports the
+  degrees of freedom and names the two within-methods that apply their
+  correction at the subgroup size instead; the test checks that advice works.
+
+- T-0069 (2026-09-02) **The zone-symmetry check tolerated real asymmetry.**
+  `np.isclose` carries a default absolute tolerance of 1e-8, which is larger
+  than an entire chart measured in nanometres or ppm: limits at -1e-9 and +3e-9
+  are three times as far above the centre line as below, and the check called
+  them symmetric. The run rules would then have derived sigma zones from a
+  dispersion chart's limits. `atol=0.0` -- the relative tolerance is what the
+  comparison always meant, and it still absorbs the last-ulp difference between
+  `center + spread` and `center - spread`.
+
+- T-0070 (2026-09-02) **Two unevaluated assumptions stayed silent.**
+  * Below eight observations the normality assessment is skipped entirely and
+    `normality` is None, while every index in the report goes on assuming a
+    normal process. Silence read as "nothing to report"; nothing had been
+    checked. The report now says which it is.
+  * The short-series warning was gated on `n > 1`, so it never fired for
+    individuals -- the case with no subgroup structure, where the estimates are
+    *least* well determined. `i_mr_chart` warned about the same fifteen points
+    all along; two reports on one series should not disagree about whether it is
+    long enough.
+
+- T-0071 (2026-09-02) **Refuted: the capability page's remount key.**
+  Reported as a probable defect -- the key was column name + length + first
+  value + last value, and two columns can share all four. **It does not
+  reproduce**, and the measurement is the point: an e2e test that uploads a
+  deliberately colliding second file passes against the old key too, because
+  `UploadPanel` clears its selection before every request, so `column` passes
+  through null and both panels unmount regardless of the key.
+  The counter that replaced the fingerprint is kept as a simplification, not a
+  fix: it makes the reset a property of the component rather than a consequence
+  of how another one sequences its state. The test is kept because it pins that
+  load-bearing behaviour, which nothing else did. Both the code comment and the
+  test say all of this, so the next reader is not told a bug was fixed here.
+
+- T-0072 (2026-09-02) **The docs and steering files had drifted from the code.**
+  Nothing here changes behaviour; all of it changes what a reader is told.
+  * `README.md`: status said v0.2.0 (shipped: 0.2.1); a paragraph said the run
+    rules "are not in yet" three paragraphs above the section documenting them;
+    the architecture block still marked `apps/web/` and `docs/` as `[later]`.
+  * `capstat_core/__init__.py` said "Available today: descriptive, robust and
+    normality" -- a bootstrap sentence outlived by ten modules.
+    `control_charts.py` announced the run rules as arriving "in T-0009".
+  * `PLAN.md` showed a subpackage layout (`capability/`, `control_charts/`,
+    `msa/`, `distributions/`) that was never built. Replaced with the real flat
+    one, and the deviation recorded with its reason rather than silently
+    overwritten.
+  * `TASK.md`: the Doing block claimed `/gage-rr` and `/msa` were not wired to
+    the study file, three weeks after T-0041 wired them. The T-0063 /
+    T-0058..T-0061 block appeared **twice**, byte-identical, and T-0062 appeared
+    in both a short and a long form; one copy of each kept.
+  * `STATE.md`: dated 2026-08-23, still said "Nothing is committed" of work that
+    was merged that day in a44e184, and gave the goal as "released as v0.1.0".
+  * `docs/validation.md` claimed 100 % coverage, which had drifted to 99.85 %.
+    Restored to a measured 100 % instead of weakening the claim: the two
+    uncovered lines got real tests, and the one genuinely unreachable defensive
+    branch (`gage_rr.py`, a nan guard the upstream clamping makes impossible) is
+    marked and now named in the docs.
+  * **One review finding was itself wrong and is withdrawn:** the OpenAPI drift
+    check is described accurately in both `README.md` and `AGENTS.md`. The
+    semantic comparison is the schema check; the `git diff --exit-code` that
+    AGENTS.md mentions is the TS-client check, which really does work that way.
 
 - T-0062 (2026-08-23) **The switching-score restatement now names the reset.**
   The one finding the external review got wrong, and the sentence that caused

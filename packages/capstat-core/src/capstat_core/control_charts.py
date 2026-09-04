@@ -24,11 +24,14 @@ that are supposed to catch it. Once the process is shown to be stable, freeze
 the limits and use them to judge *future* data (Phase II). capstat computes
 Phase I limits; it does not pretend they are Phase II limits.
 
-What this module does not do yet
---------------------------------
-Only points beyond the control limits are flagged. The run-based rules -- Nelson
-and Western Electric, which catch drifts and trends that never cross a limit --
-arrive in T-0009.
+What a violation here is, and is not
+-----------------------------------
+:attr:`ControlChart.violations` means one thing only: points beyond the control
+limits. The run-based rules that catch drifts and trends never crossing a limit
+live in :mod:`capstat_core.rules` and are applied *to* a chart, deriving their
+zones from its own limits. Keeping them apart is deliberate -- it is what stops
+the same signal being reported twice under two names, and it leaves this
+attribute meaning what it has always meant.
 
 References
 ----------

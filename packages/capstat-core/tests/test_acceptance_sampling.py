@@ -798,3 +798,17 @@ def test_the_designed_plan_is_the_smallest_one_not_merely_a_working_one() -> Non
     assert (plan.sample_size, plan.acceptance_number) == (65, 3)
     assert probability_of_acceptance(plan, 0.02) >= 0.95
     assert probability_of_acceptance(plan, 0.10) <= 0.10
+
+
+def test_a_lot_too_small_to_draw_from_reports_that_no_plan_exists() -> None:
+    """Every acceptance number needs more items than this lot holds.
+
+    The sample size is capped at the lot size, so for a lot of three no plan
+    with Ac >= 3 can be drawn at all -- rejecting anything would need Ac + 1
+    items out of three. The search skips those rather than probing them, and
+    then says plainly that nothing fits, naming the cap that made it so.
+    """
+    with pytest.raises(ValueError, match="no single sampling plan"):
+        design_single_sampling_plan(0.01, 0.5, lot_size=3)
+    with pytest.raises(ValueError, match="capped at the lot size, 3"):
+        design_single_sampling_plan(0.01, 0.5, lot_size=3)
