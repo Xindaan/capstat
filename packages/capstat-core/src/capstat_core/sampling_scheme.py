@@ -75,6 +75,19 @@ class LotResult:
     accepted: bool
     accepted_at_tighter_aql: bool | None = None
 
+    def __post_init__(self) -> None:
+        # A tighter AQL is a harder test, so a lot that was not accepted here
+        # cannot have been accepted there. Left unchecked, the pair reached
+        # ``_updated_score``, which asks the tighter-AQL question first and
+        # therefore added 3 for a *rejected* lot -- the score moving up on the
+        # evidence that should reset it (T-0066).
+        if not self.accepted and self.accepted_at_tighter_aql:
+            raise ValueError(
+                "a lot that was not accepted cannot have been accepted one AQL "
+                "step tighter: the tighter plan is the harder test. Set "
+                "accepted_at_tighter_aql to False or None for a rejected lot."
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class SwitchingRules:

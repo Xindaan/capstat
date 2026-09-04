@@ -579,3 +579,33 @@ def test_switching_rules_cannot_start_discontinued(client: TestClient) -> None:
     )
     assert resp.status_code == 422
     assert isinstance(resp.json()["detail"], str)
+
+
+def test_a_contradictory_lot_outcome_is_a_422_not_a_500(client: TestClient) -> None:
+    """The core's new guard has to reach the caller as a client error.
+
+    `accepted=false` with `accepted_at_tighter_aql=true` is contradictory -- a
+    tighter AQL is the harder test -- and it used to score +3, moving the
+    switching score up on a rejected lot (T-0066). The core raises ValueError;
+    the router must map it the way it maps every other domain error.
+    """
+    resp = client.post(
+        "/compute/acceptance-sampling/switching-rules",
+        json={"lots": [{"accepted": False, "accepted_at_tighter_aql": True}]},
+    )
+    assert resp.status_code == 422
+    assert "cannot have been accepted one AQL" in resp.json()["detail"]
+
+    # The combinations that are not contradictory still go through.
+    ok = client.post(
+        "/compute/acceptance-sampling/switching-rules",
+        json={
+            "lots": [
+                {"accepted": True, "accepted_at_tighter_aql": True},
+                {"accepted": True, "accepted_at_tighter_aql": False},
+                {"accepted": False, "accepted_at_tighter_aql": False},
+            ]
+        },
+    )
+    assert ok.status_code == 200
+    assert [s["switching_score"] for s in ok.json()["steps"]] == [3, 0, 0]

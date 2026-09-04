@@ -358,3 +358,22 @@ def test_the_restatement_names_the_reset_not_only_the_additions() -> None:
         ]
     )
     assert [s.switching_score for s in mixed.steps] == [3, 0]
+
+
+def test_a_rejected_lot_cannot_claim_acceptance_at_a_tighter_aql() -> None:
+    """The pair is contradictory, and it moved the score the wrong way.
+
+    A tighter AQL is a harder test, so a lot not accepted here cannot have been
+    accepted there. Unvalidated, the pair reached `_updated_score`, which asks
+    the tighter-AQL question first -- so three rejected lots scored 3 then 6,
+    the score climbing on the very evidence that should reset it (T-0066).
+    """
+    with pytest.raises(ValueError, match="cannot have been accepted one AQL"):
+        LotResult(accepted=False, accepted_at_tighter_aql=True)
+
+    # The two combinations that are not contradictory stay legal: a lot may be
+    # accepted here and fail one step tighter, and "not answered" is the whole
+    # point of the optional field.
+    assert LotResult(accepted=True, accepted_at_tighter_aql=False).accepted
+    assert LotResult(accepted=False, accepted_at_tighter_aql=False).accepted is False
+    assert LotResult(accepted=False).accepted_at_tighter_aql is None
