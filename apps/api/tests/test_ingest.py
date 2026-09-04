@@ -144,3 +144,125 @@ def test_a_file_at_the_limit_is_still_read_whole(
     assert result.n_rows == 200
     assert upload.handed_out == len(rows)
     assert result.columns[0].values[-1] == 199.0
+
+
+def test_a_german_excel_csv_is_read_rather_than_ignored(client: TestClient) -> None:
+    """Semicolons and decimal commas are what Excel writes in a German locale.
+
+    Both failed silently: the file parsed as a single text column, so the
+    measurements came back as an "ignored non-numeric column" and the user was
+    told, in effect, that their numbers were not numbers (T-0067).
+    """
+    csv = b"durchmesser;charge\n9,71;1\n9,80;2\n9,75;3\n"
+    body = client.post("/ingest", files={"file": ("m.csv", csv, "text/csv")}).json()
+
+    values = {c["name"]: c["values"] for c in body["columns"]}
+    assert values["durchmesser"] == [9.71, 9.80, 9.75]
+    assert values["charge"] == [1.0, 2.0, 3.0]
+    assert body["ignored_columns"] == []
+    # And it says what it detected rather than fixing things behind the back.
+    assert any("semicolon" in w for w in body["warnings"])
+    assert any("decimal comma" in w and "durchmesser" in w for w in body["warnings"])
+
+
+def test_a_decimal_comma_survives_a_comma_separated_file(client: TestClient) -> None:
+    """The ambiguous case: separator and decimal mark are both commas.
+
+    Quoting is what tells them apart, which is why the detection uses a
+    quote-aware split rather than counting characters.
+    """
+    csv = b'diameter,batch\n"9,71",1\n"9,80",2\n"9,75",3\n'
+    body = client.post("/ingest", files={"file": ("q.csv", csv, "text/csv")}).json()
+
+    values = {c["name"]: c["values"] for c in body["columns"]}
+    assert values["diameter"] == [9.71, 9.80, 9.75]
+    assert values["batch"] == [1.0, 2.0, 3.0]
+    assert any("decimal comma" in w for w in body["warnings"])
+
+
+def test_a_cp1252_file_is_read_and_the_encoding_is_named(client: TestClient) -> None:
+    """The same Excel that writes semicolons often does not write UTF-8."""
+    csv = "größe;wert\n1,5;2\n2,5;3\n".encode("cp1252")
+    body = client.post("/ingest", files={"file": ("e.csv", csv, "text/csv")}).json()
+
+    assert [c["name"] for c in body["columns"]] == ["größe", "wert"]
+    assert any("cp1252" in w for w in body["warnings"])
+
+
+def test_a_utf8_bom_does_not_stick_to_the_first_column_name(
+    client: TestClient,
+) -> None:
+    """Excel's UTF-8 CSV carries a byte-order mark, and plain utf-8 keeps it."""
+    body = client.post(
+        "/ingest",
+        files={
+            "file": ("b.csv", "width,height\n1.0,2.0\n".encode("utf-8-sig"), "text/csv")
+        },
+    ).json()
+    assert [c["name"] for c in body["columns"]] == ["width", "height"]
+
+
+def test_a_multi_sheet_workbook_says_which_sheet_it_read(client: TestClient) -> None:
+    """Only the first sheet is read, and that was nowhere on the response."""
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        pd.DataFrame({"m": [1.0, 2.0]}).to_excel(
+            writer, sheet_name="measurements", index=False
+        )
+        pd.DataFrame({"other": [9.0]}).to_excel(writer, sheet_name="notes", index=False)
+
+    body = client.post(
+        "/ingest",
+        files={"file": ("w.xlsx", buffer.getvalue(), "application/vnd.ms-excel")},
+    ).json()
+    assert [c["name"] for c in body["columns"]] == ["m"]
+    assert any("2 sheets" in w and "measurements" in w for w in body["warnings"])
+
+
+def test_a_text_column_holding_commas_is_not_turned_into_numbers(
+    client: TestClient,
+) -> None:
+    """The repair fires only on a column that is *entirely* decimal commas.
+
+    A label column with one numeric-looking entry must stay a label. Inventing
+    measurements out of text is worse than ignoring the column, which is the
+    failure this whole file exists to avoid.
+    """
+    csv = b'label,value\n"a,b",1.0\n"9,71",2.0\n'
+    body = client.post("/ingest", files={"file": ("t.csv", csv, "text/csv")}).json()
+
+    assert body["ignored_columns"] == ["label"]
+    assert [c["name"] for c in body["columns"]] == ["value"]
+    assert not any("decimal comma" in w for w in body["warnings"])
+
+
+def test_a_file_that_is_text_in_no_encoding_capstat_reads_is_422(
+    client: TestClient,
+) -> None:
+    """The fallback chain ends somewhere, and it ends with a stated reason."""
+    # 0x81 and 0x8d are a stray continuation byte in UTF-8 and undefined in
+    # cp1252, so neither decoder can claim this.
+    resp = client.post(
+        "/ingest", files={"file": ("bin.csv", b"\x81\x8d\x90", "text/csv")}
+    )
+    assert resp.status_code == 422
+    assert "utf-8 and cp1252" in resp.json()["detail"]
+
+
+def test_an_empty_column_is_not_reported_as_repaired() -> None:
+    """A column with nothing in it has no decimal mark to have been read.
+
+    `Series.all()` is vacuously true on an empty series, so without the guard an
+    all-empty column would be listed among those whose decimal comma was
+    converted -- a warning describing something that never happened.
+    """
+    from capstat_api.routers import ingest as module
+
+    frame = pd.DataFrame(
+        {
+            "blank": pd.Series([None, None], dtype=object),
+            "real": pd.Series(["9,71", "9,80"], dtype=object),
+        }
+    )
+    assert module._repair_decimal_commas(frame) == ["real"]
+    assert frame["real"].tolist() == [9.71, 9.80]
