@@ -362,3 +362,65 @@ test("an out-of-control chart names the points, not just the state", async ({
     }),
   ).toBeVisible();
 });
+
+test("a second file replaces the analyses rather than reusing them", async ({
+  page,
+}) => {
+  // A second file must not leave the first one's report on screen. The case
+  // that would break it is a column sharing name, length, first and last value
+  // with the one before -- the four parts of the remount key this page used to
+  // carry -- dropped straight onto the dropzone without the "Upload another
+  // file" reset.
+  //
+  // It passes against that old key as well, and that is worth recording rather
+  // than dressing up: what actually resets the panels is UploadPanel clearing
+  // its selection before the request, so `column` goes through null and both
+  // unmount regardless. The test stays because that property is load-bearing
+  // and nothing else pins it -- remove the intermediate null and this is what
+  // catches it (T-0071).
+  const edited = {
+    ...INGEST,
+    columns: [
+      {
+        name: "measurement",
+        values: VALUES.map((v, i) =>
+          i === 0 || i === VALUES.length - 1 ? v : Number((v + 0.5).toFixed(4)),
+        ),
+        dropped_missing: 0,
+      },
+    ],
+  };
+
+  await mockApi(page);
+  await gotoReady(page, "/");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "first.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n"),
+  });
+  await page.getByLabel("LSL").fill("9.7");
+  await page.getByLabel("USL").fill("10.3");
+  await page.getByRole("button", { name: "Compute capability" }).click();
+  await expect(page.getByText("1.310")).toBeVisible();
+
+  await page.route("**/ingest", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(edited),
+    }),
+  );
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "second.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n"),
+  });
+
+  await expect(page.getByText(/Parsed/)).toContainText("second.csv");
+  // The old report described data that is no longer loaded.
+  await expect(page.getByText("1.310")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Compute capability" }),
+  ).toBeVisible();
+});
