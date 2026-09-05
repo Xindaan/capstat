@@ -62,6 +62,20 @@
 - ~~T-0057 **Result-card labels fell below WCAG AA**~~ -- **done 2026-08-23**:
   a measured `--muted` token replaces 51 uses of opacity steps that failed.
   See `## Done`.
+- T-0082 **`uv.lock` keeps the old version of the workspace members after a
+  release.** release-please stamps `0.3.0` into the two `pyproject.toml` files
+  through `extra-files`, but nothing updates `uv.lock`, which records the
+  version of each editable workspace member as well. After cutting 0.3.0 the
+  lock still said `capstat-api 0.2.1` and `capstat-core 0.2.1`.
+  Measured: it does **not** break CI -- `uv sync --frozen` succeeds either way,
+  so this is latent rather than red. What it costs is a stray two-line diff on
+  everyone's next `uv lock`, which is exactly the sort of thing that gets
+  committed by accident inside an unrelated change.
+  Corrected by hand for 0.3.0. Acceptance: the next release leaves the lock
+  consistent without hand-editing -- either by teaching release-please to update
+  `uv.lock` as an extra file, or by a release-time step that runs `uv lock` and
+  commits the result.
+
 - T-0081 **release-please dropped the breaking change from the release notes.**
   Found while cutting 0.3.0, and corrected by hand before the tag was made --
   but the cause is unfixed and will recur on the next breaking commit.
@@ -446,10 +460,17 @@
   first -- see T-0081 -- and the release notes on GitHub were re-set from the
   corrected file, because release-please writes those from its own record
   rather than from the committed changelog.
-  The PyPI publish was dispatched for `v0.3.0` and **waits on the `pypi`
-  environment's required reviewer**; the workflow's `environment` is declared
-  at job level, so no step runs before that approval. Nothing is on PyPI until
-  the maintainer approves it.
+  **`capstat-core` 0.3.0 is on PyPI**, approved by the maintainer and published
+  over trusted publishing. Verified before the approval, because a PyPI upload
+  is permanent and a version number can never be reused: the tag stamps 0.3.0
+  in both files, `uv build` at that tag produces the expected sdist and wheel,
+  a clean install of that wheel imports and computes and exports `Caveat`, and
+  0.3.0 returned 404 on PyPI so nothing was being overwritten. Verified after:
+  `pip install capstat-core==0.3.0` from PyPI reports 0.3.0, takes the normal
+  decision path and returns warnings carrying codes.
+  **Correction to an earlier note in this file and in STATE.md:** PyPI held
+  **0.2.0**, not 0.2.1 -- the 0.2.1 release was tagged but never published, so
+  the gap the 0.3.0 publish closed was two releases wide, not one.
 
 - T-0080 (2026-09-02) **Dependency sweep: five bumps, one verified combination.**
   Dependabot's five open PRs (#18-#22) all dated 2026-08-18 and all touched
