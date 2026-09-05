@@ -1,6 +1,6 @@
 [project]
 name = "capstat-api"
-version = "0.3.0" # x-release-please-version
+version = "0.3.1" # x-release-please-version
 description = "FastAPI service wrapping capstat-core: stateless SPC/capability compute + CSV/XLSX ingestion."
 readme = "README.md"
 requires-python = ">=3.11"
