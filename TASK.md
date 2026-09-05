@@ -416,6 +416,26 @@
 
 ## Done
 
+- T-0080 (2026-09-02) **Dependency sweep: five bumps, one verified combination.**
+  Dependabot's five open PRs (#18-#22) all dated 2026-08-18 and all touched
+  `uv.lock`, two of them `apps/api/pyproject.toml` -- which had since changed.
+  * **Done as one branch against current `main` rather than five merges.** Each
+    PR's green tick belonged to a base roughly twenty commits old, and merging
+    them one at a time would have invalidated the next one's lock without ever
+    testing the combination. What actually matters is that the five work
+    *together* with the current code, and that is what the gates now say.
+  * mypy 2.3.1, pandas 3.0.5, uvicorn 0.52.4, types-pyyaml 20260815,
+    httpx2 2.12.0. mypy was the one worth watching -- a new release meeting a
+    week of fresh code -- and it is clean.
+  * The declared floors were raised as dependabot proposed. Checked first that
+    none of it touches `packages/capstat-core`: the published package still
+    declares only `numpy>=1.26` and `scipy>=1.11`, so nobody installing
+    `capstat-core` is constrained by any of this. Fighting the default
+    versioning strategy would only have re-opened the same PRs weekly.
+  * Noted while resolving it, and *not* a defect: `watchdog` left the
+    environment because uvicorn's `standard` extra now uses `watchfiles`.
+    `--reload` still works.
+
 - **The three deferred features were built 2026-09-02**, in the order the
   warning-codes decision implied (T-0075, T-0076, T-0077). New follow-up:
   T-0078 below.
