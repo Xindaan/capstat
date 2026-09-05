@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/Xindaan/capstat/compare/v0.3.0...v0.3.1) (2026-09-05)
+
+
+### Documentation
+
+* **task,state:** record the 0.3.0 publish, and correct two things ([9c65a9b](https://github.com/Xindaan/capstat/commit/9c65a9b1a7d7440fe4e51149d8187e572441d571))
+* **task,state:** record the 0.3.0 release and the notes it nearly shipped ([fb0c952](https://github.com/Xindaan/capstat/commit/fb0c95289dfd7deabebc040be99400d7bed6c49e))
+
 ## [0.3.0](https://github.com/Xindaan/capstat/compare/v0.2.1...v0.3.0) (2026-09-05)
 
 
