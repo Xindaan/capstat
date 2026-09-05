@@ -62,6 +62,26 @@
 - ~~T-0057 **Result-card labels fell below WCAG AA**~~ -- **done 2026-08-23**:
   a measured `--muted` token replaces 51 uses of opacity steps that failed.
   See `## Done`.
+- T-0081 **release-please dropped the breaking change from the release notes.**
+  Found while cutting 0.3.0, and corrected by hand before the tag was made --
+  but the cause is unfixed and will recur on the next breaking commit.
+  Measured: of the twenty changelog-eligible commits since v0.2.1, exactly one
+  was absent from the generated changelog, and it was the only one whose header
+  carried a `!` (`feat(core,api,web)!: ...`). The same multi-part scope *without*
+  the `!` (T-0076) rendered fine, and the version still moved 0.2.1 -> 0.3.0,
+  which on a 0.x project is what a breaking change produces and a plain feat
+  does not. So the `BREAKING CHANGE:` footer in the body was read for the
+  version bump while the header was not read for the notes.
+  That is the diagnosis the evidence supports; the parser's exact objection was
+  not confirmed, and `(core,api,web)!` being an unusual scope is the obvious
+  suspect. Cheap mitigation until it is: **a breaking commit gets a single-word
+  scope** (`feat(core)!: ...`).
+  Why it matters more than a formatting nit: the notes are what a consumer
+  reads before upgrading, and the one thing 0.3.0 required them to act on is
+  precisely what went missing.
+  Acceptance: a breaking commit appears in the generated changelog without
+  hand-editing -- verified on a scratch branch, not on a real release.
+
 - T-0078 **Point positions are reported in two conventions.** Found while
   building the CLI, not by the review. The core's warnings quote raw 0-based
   indices -- "the moving range chart is out of control at [29, 30]" -- while
@@ -420,6 +440,16 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- **v0.3.0 released 2026-09-05.** Tag cut, versions stamped across all five
+  files, GitHub release published. The changelog needed a hand correction
+  first -- see T-0081 -- and the release notes on GitHub were re-set from the
+  corrected file, because release-please writes those from its own record
+  rather than from the committed changelog.
+  The PyPI publish was dispatched for `v0.3.0` and **waits on the `pypi`
+  environment's required reviewer**; the workflow's `environment` is declared
+  at job level, so no step runs before that approval. Nothing is on PyPI until
+  the maintainer approves it.
 
 - T-0080 (2026-09-02) **Dependency sweep: five bumps, one verified combination.**
   Dependabot's five open PRs (#18-#22) all dated 2026-08-18 and all touched
