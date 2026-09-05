@@ -24,14 +24,14 @@
         "description": "Judge a plan at the two quality levels it exists to discriminate.",
         "properties": {
           "aql": {
-            "maximum": 1.0,
-            "minimum": 0.0,
+            "maximum": 1,
+            "minimum": 0,
             "title": "Aql",
             "type": "number"
           },
           "ltpd": {
-            "maximum": 1.0,
-            "minimum": 0.0,
+            "maximum": 1,
+            "minimum": 0,
             "title": "Ltpd",
             "type": "number"
           },
@@ -1003,7 +1003,7 @@
             "type": "array"
           },
           "h": {
-            "default": 5.0,
+            "default": 5,
             "title": "H",
             "type": "number"
           },
@@ -1250,7 +1250,7 @@
         "additionalProperties": false,
         "properties": {
           "L": {
-            "default": 3.0,
+            "default": 3,
             "title": "L",
             "type": "number"
           },
@@ -1592,7 +1592,7 @@
             "type": "string"
           },
           "study_var_multiplier": {
-            "default": 6.0,
+            "default": 6,
             "title": "Study Var Multiplier",
             "type": "number"
           },
@@ -1949,7 +1949,7 @@
         "description": "Apply a plan to one observed sample. The result is a decision.",
         "properties": {
           "defectives": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Defectives",
             "type": "integer"
           },
@@ -2388,8 +2388,8 @@
         "description": "Two risk points in, the smallest plan meeting both out.",
         "properties": {
           "aql": {
-            "maximum": 1.0,
-            "minimum": 0.0,
+            "maximum": 1,
+            "minimum": 0,
             "title": "Aql",
             "type": "number"
           },
@@ -2401,7 +2401,7 @@
           "lot_size": {
             "anyOf": [
               {
-                "minimum": 1.0,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -2411,8 +2411,8 @@
             "title": "Lot Size"
           },
           "ltpd": {
-            "maximum": 1.0,
-            "minimum": 0.0,
+            "maximum": 1,
+            "minimum": 0,
             "title": "Ltpd",
             "type": "number"
           },
@@ -2444,14 +2444,14 @@
         "description": "A single sampling plan by attributes: sample ``n``, accept on ``Ac``.\n\n``lot_size`` is optional here for the same reason it is optional in the\ncore: the binomial (Type B) curve does not depend on the lot. The core\nrejects the impossible combinations (Ac above n, a lot smaller than the\nsample) with a ValueError, which becomes a 422.",
         "properties": {
           "acceptance_number": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Acceptance Number",
             "type": "integer"
           },
           "lot_size": {
             "anyOf": [
               {
-                "minimum": 1.0,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -2461,7 +2461,7 @@
             "title": "Lot Size"
           },
           "sample_size": {
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Sample Size",
             "type": "integer"
           }
@@ -2803,31 +2803,31 @@
         "properties": {
           "discontinue_on_non_accepted": {
             "default": 5,
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Discontinue On Non Accepted",
             "type": "integer"
           },
           "reduce_at_switching_score": {
             "default": 30,
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Reduce At Switching Score",
             "type": "integer"
           },
           "relax_after_consecutive_acceptable": {
             "default": 5,
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Relax After Consecutive Acceptable",
             "type": "integer"
           },
           "tighten_on_non_acceptable": {
             "default": 2,
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Tighten On Non Acceptable",
             "type": "integer"
           },
           "within_consecutive_lots": {
             "default": 5,
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Within Consecutive Lots",
             "type": "integer"
           }
@@ -2958,7 +2958,7 @@
   "info": {
     "description": "Stateless HTTP surface over capstat-core: reference-validated SPC, process-capability and run-rule statistics, plus CSV/XLSX ingestion. Every response mirrors a core dataclass faithfully, warnings included.",
     "title": "capstat API",
-    "version": "0.2.1"
+    "version": "0.3.0"
   },
   "openapi": "3.1.0",
   "paths": {
