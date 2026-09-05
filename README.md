@@ -597,6 +597,10 @@ configuration to run. One optional knob exists for the browser client:
 - **`CAPSTAT_CORS_ORIGINS`** — comma-separated list of allowed browser origins
   (default `http://localhost:3000,http://127.0.0.1:3000`, the Next.js dev
   server). Set it to your web app's origin when deploying elsewhere.
+- **`CAPSTAT_MAX_COMPUTE_BYTES`** — largest accepted request body on
+  `/compute/*`, in bytes (default `10485760`, i.e. 10 MB). An unparseable or
+  non-positive value falls back to the default: a typo must not be the way the
+  guard gets switched off. `/ingest` has its own 10 MB cap, unaffected by this.
 
 The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
 (default `http://127.0.0.1:8000`).
@@ -610,11 +614,16 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
 - **An upload is rejected with 413** — `/ingest` caps a file at 10 MB. The body
   is read in chunks and refused at the first one that crosses the limit, so an
   oversized upload is turned away before it is resident, not after.
-- **The API process dies on a very large series** — the `/compute/*` endpoints
-  currently accept a request body of any size, and JSON numbers cost roughly
-  13–20× their wire size once parsed (2,000,000 values ≈ 265 MB). If you are
-  feeding capstat far more points than a study needs, that is why; a size limit
-  is an open question (TASK.md T-0063).
+- **A compute request is rejected with 413** — `/compute/*` caps a request body
+  at 10 MB, the same ceiling `/ingest` uses. That is about 1.5 million points,
+  three orders of magnitude beyond a capability study. The limit exists because
+  JSON numbers cost roughly 16× their wire size once parsed (measured: 2,000,000
+  values ≈ 13 MB on the wire, ≈ 214 MB resident), so an unbounded body is an
+  out-of-memory kill rather than an error anyone reads. Raise it with
+  `CAPSTAT_MAX_COMPUTE_BYTES` if you genuinely need to. Note that the limit is
+  deliberately *not* in the OpenAPI schema — it is a transport-level guard, so
+  the contract and its generated client are unaffected, and a client learns the
+  limit by receiving the 413.
 
 ## Development
 
