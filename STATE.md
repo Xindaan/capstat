@@ -163,7 +163,7 @@ implemented** (T-0063, T-0073, T-0074):
 
 **Next actions:**
 
-1. **Open a PR for the branch `fix/review-followups-t0064`** (12 commits, one
+1. **Open a PR for the branch `fix/review-followups-t0064`** (11 commits, one
    per finding or decision). Nothing is pushed yet.
 2. **The three deferred features, in the order the decision implies:**
    subgroups in the app (uses core and API that already exist and are
