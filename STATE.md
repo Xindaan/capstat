@@ -18,9 +18,9 @@ M5 MSA, M6 release (report, deployment, docs, release).
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **653 Python tests (core + API) at 100 % coverage on both packages**, mypy
+- **677 Python tests (core + API) at 100 % coverage on both packages**, mypy
   strict, ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-  Web: 72 vitest, 36 Playwright, eslint/prettier/build green.
+  Web: 79 vitest, 39 Playwright, eslint/prettier/build green.
 - **Acceptance sampling (T-0035 + T-0036 + T-0037) landed after v0.1.0 and is
   end-to-end**, ISO 2859-1's switching scheme included. Single sampling plans by
   attributes: OC curve (binomial / hypergeometric / Poisson), AOQ, AOQL, ATI,
@@ -161,18 +161,38 @@ implemented** (T-0063, T-0073, T-0074):
    537 core tests passed unchanged through a 64-site conversion. Over HTTP a
    warning is `{"code", "message"}` -- a deliberate breaking contract change.
 
+**The review answer is merged** (PR #24, rebased so each finding keeps its own
+commit and reaches the changelog).
+
+**The three deferred features are built** (T-0075, T-0076, T-0077), in the order
+the warning-codes decision implied:
+
+- **Subgroups reach the app.** The largest of the three: until now *every*
+  Cp/Cpk the page showed rested on a moving-range sigma, because the UI only
+  ever sent a flat column -- while `capability()` has taken subgroups since
+  T-0005. Leftover rows are named rather than dropped.
+- **Phase II limits.** The measurement is the finding: Phase I limits do not
+  merely miss a sustained shift, they move the centre towards it and then flag
+  seven *stable* subgroups. A baseline holds the limits and only the shifted
+  five signal. The Phase II arithmetic is the Phase I arithmetic, and an
+  identity test pins that for all three pairs.
+- **A local CLI** -- `capstat columns | capability | chart`. It shares the
+  tabular parser with `/ingest` rather than owning a second one, and reproduces
+  the README's demo figures exactly, which is the test that matters for a
+  second surface onto one library.
+
 **Next actions:**
 
-1. **Open a PR for the branch `fix/review-followups-t0064`** (11 commits, one
-   per finding or decision). Nothing is pushed yet.
-2. **The three deferred features, in the order the decision implies:**
-   subgroups in the app (uses core and API that already exist and are
-   unreachable from the UI -- the largest fachlich gain, ~1 day), Phase-II
-   limits, and the CLI. The codes landing first is what makes each of them
-   cheaper now than it would have been.
-3. `capstat-core`'s public API changed (warnings are `Caveat`, not `str`).
-   Harmless for anyone printing them; worth a minor version and a changelog
-   line when the next release goes out.
+1. **T-0078 is the new open item** (backlog): the core quotes 0-based point
+   indices in its warnings while the app and the CLI count from 1, and the
+   CLI's output now shows both in one block. Pre-existing, deliberately not
+   fixed as a rider on a feature.
+2. `capstat-core`'s public API changed (warnings are `Caveat`, not `str`), and
+   `ChartPair` gained `phase`. Harmless for anyone printing warnings; worth a
+   minor version and a changelog line when the next release goes out.
+3. The screenshots in `docs/images/` predate the subgroup control and the
+   required-index field. Re-run `npm run screenshots` before the next release
+   so the README does not show a UI that no longer exists.
 
 **T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
 carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are

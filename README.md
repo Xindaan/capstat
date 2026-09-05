@@ -428,6 +428,38 @@ plan, read `n` and `Ac` from your own copy of the standard and hand them to
 side actually carries, the AOQL, and the inspection it costs. The standard says
 *which* plan; capstat says *what it buys*.
 
+## Command line
+
+The same analyses without a browser or a server, on a file you already have.
+Installed with the API package (`uv sync`), and it uploads nothing:
+
+```bash
+uv run capstat columns examples/shaft-diameter.csv
+uv run capstat capability examples/shaft-diameter.csv \
+  --column diameter_mm --lsl 9.7 --usl 10.3
+uv run capstat chart examples/shaft-diameter.csv --column diameter_mm \
+  --subgroup-size 5
+```
+
+It prints the indices, then every warning with its code:
+
+```
+Column 'diameter_mm', 60 measurements — percentile
+  Cp  —    Pp  1.3792
+  Cpk —    Ppk 0.9418
+
+Warnings:
+  [nonnormal.percentile-no-cpk] the percentile method yields long-term (Pp/Ppk)
+  indices only. It reads percentiles off the overall fitted distribution ...
+```
+
+Those are the figures on this page and in the screenshots — the CLI reads files
+through the same parser as `/ingest` and calls the same core, so a decimal comma
+or a Box-Cox decision cannot come out differently here. `--json` gives the same
+report for a script. `chart --fail-on-signal` exits 3 when the process signals,
+which is opt-in: a control chart is a report, not a pass/fail test, unless you
+say otherwise. Bad input exits 2 with the core's own message.
+
 ## HTTP API
 
 `apps/api` is a stateless FastAPI service that exposes every core statistic
