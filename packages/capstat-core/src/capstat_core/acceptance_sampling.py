@@ -64,6 +64,8 @@ import numpy as np
 import numpy.typing as npt
 from scipy import optimize, stats
 
+from capstat_core.caveats import Caveat
+
 __all__ = [
     "AOQLimit",
     "LotDecision",
@@ -160,7 +162,7 @@ class LotDecision:
     defectives: int
     accepted: bool
     sample_fraction_defective: float
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,7 +216,7 @@ class SamplingPlanReport:
     limiting_quality: float
     aoql: AOQLimit | None
     ati_at_aql: float | None
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
 
 def _check_fraction(p: float, name: str = "fraction_defective") -> float:
@@ -415,16 +417,22 @@ def inspect_lot(
     warnings = list(_plan_warnings(plan, model))
     if accepted:
         warnings.append(
-            "accepting this lot is a decision about a stream of lots, not "
-            "evidence that this lot is good: a plan is chosen so that lots as "
-            "bad as the LTPD are usually caught, and 'usually' is the whole "
-            "guarantee."
+            Caveat(
+                "sampling.acceptance-is-not-evidence",
+                "accepting this lot is a decision about a stream of lots, not "
+                "evidence that this lot is good: a plan is chosen so that lots as "
+                "bad as the LTPD are usually caught, and 'usually' is the whole "
+                "guarantee.",
+            )
         )
     else:
         warnings.append(
-            "rejecting this lot says the sample was worse than the plan "
-            "tolerates. It does not measure how defective the lot is; for that, "
-            "estimate the fraction defective with a confidence interval."
+            Caveat(
+                "sampling.rejection-is-not-a-measurement",
+                "rejecting this lot says the sample was worse than the plan "
+                "tolerates. It does not measure how defective the lot is; for that, "
+                "estimate the fraction defective with a confidence interval.",
+            )
         )
     return LotDecision(
         plan=plan,
@@ -571,29 +579,41 @@ def evaluate_plan(
         limit = aoq_limit(plan, model=model)
         ati = average_total_inspection(plan, aql, model=model)
         warnings.append(
-            "AOQ, the AOQL and ATI describe rectifying inspection -- rejected "
-            "lots screened 100 % and their defectives replaced. Without that "
-            "screening they do not apply."
+            Caveat(
+                "sampling.rectifying-inspection-assumed",
+                "AOQ, the AOQL and ATI describe rectifying inspection -- rejected "
+                "lots screened 100 % and their defectives replaced. Without that "
+                "screening they do not apply.",
+            )
         )
         warnings.append(
-            f"the AOQL ({limit.aoql:.4f}) is the worst *average* outgoing "
-            "quality over a stream of lots. Individual outgoing lots can be "
-            "worse; it bounds no single lot."
+            Caveat(
+                "sampling.aoql-is-an-average",
+                f"the AOQL ({limit.aoql:.4f}) is the worst *average* outgoing "
+                "quality over a stream of lots. Individual outgoing lots can be "
+                "worse; it bounds no single lot.",
+            )
         )
     if pa_aql < 0.5:
         warnings.append(
-            f"this plan rejects more than half of the lots that are exactly at "
-            f"the AQL (Pa = {pa_aql:.3f}). The AQL is meant to be the quality "
-            "the producer can ship routinely; check that n and Ac are the ones "
-            "you intended."
+            Caveat(
+                "sampling.rejects-at-aql",
+                f"this plan rejects more than half of the lots that are exactly at "
+                f"the AQL (Pa = {pa_aql:.3f}). The AQL is meant to be the quality "
+                "the producer can ship routinely; check that n and Ac are the ones "
+                "you intended.",
+            )
         )
     limiting_quality = quality_for_acceptance(plan, _LIMITING_QUALITY_PA, model=model)
     if limiting_quality > ltpd:
         warnings.append(
-            f"this plan's limiting quality is {limiting_quality:.4f} -- the "
-            f"quality it still accepts 10 % of the time (ISO 2859-1's LQ). That "
-            f"is worse than the {ltpd} you named as unacceptable, so the plan "
-            "does not give the protection the LTPD implies."
+            Caveat(
+                "sampling.limiting-quality-worse-than-ltpd",
+                f"this plan's limiting quality is {limiting_quality:.4f} -- the "
+                f"quality it still accepts 10 % of the time (ISO 2859-1's LQ). That "
+                f"is worse than the {ltpd} you named as unacceptable, so the plan "
+                "does not give the protection the LTPD implies.",
+            )
         )
     return SamplingPlanReport(
         plan=plan,
@@ -618,7 +638,7 @@ def _quantisation_warnings(
     *,
     aql: float,
     ltpd: float,
-) -> list[str]:
+) -> list[Caveat]:
     """A finite lot cannot be any fraction defective -- only ``D/N`` of them.
 
     Asking a Type A curve about ``p`` really asks it about the nearest whole
@@ -626,7 +646,7 @@ def _quantisation_warnings(
     stays silent when the requested levels land exactly on the lot's own grid,
     which is the usual case.
     """
-    out: list[str] = []
+    out: list[Caveat] = []
     if model != "hypergeometric" or plan.lot_size is None:
         return out
     for name, quality in (("AQL", aql), ("LTPD", ltpd)):
@@ -634,42 +654,57 @@ def _quantisation_warnings(
         realised = defectives / plan.lot_size
         if realised != quality:
             out.append(
-                f"a lot of {plan.lot_size} items cannot be exactly {quality} "
-                f"defective; the {name} was evaluated at the nearest attainable "
-                f"lot quality, {defectives}/{plan.lot_size} = {realised}."
+                Caveat(
+                    "sampling.lot-quantisation",
+                    f"a lot of {plan.lot_size} items cannot be exactly {quality} "
+                    f"defective; the {name} was evaluated at the nearest attainable "
+                    f"lot quality, {defectives}/{plan.lot_size} = {realised}.",
+                )
             )
     return out
 
 
-def _plan_warnings(plan: SamplingPlan, model: SamplingModel) -> list[str]:
+def _plan_warnings(plan: SamplingPlan, model: SamplingModel) -> list[Caveat]:
     """What the model and the plan shape cost, said before anyone asks."""
-    out: list[str] = []
+    out: list[Caveat] = []
     if plan.lot_size is not None and model == "binomial":
         ratio = plan.sample_size / plan.lot_size
         if ratio > _LARGE_LOT_RATIO:
             out.append(
-                f"the sample is {100 * ratio:.0f}% of the lot, so the binomial "
-                "(Type B) model no longer describes it: drawing without "
-                "replacement from one finite lot is hypergeometric. Use "
-                'model="hypergeometric" for a Type A curve.'
+                Caveat(
+                    "sampling.sample-fraction-too-large",
+                    f"the sample is {100 * ratio:.0f}% of the lot, so the binomial "
+                    "(Type B) model no longer describes it: drawing without "
+                    "replacement from one finite lot is hypergeometric. Use "
+                    'model="hypergeometric" for a Type A curve.',
+                )
             )
     if model == "poisson":
         out.append(
-            "the Poisson approximation is used. It is what the classical "
-            "unity-value tables assume, and it drifts from the binomial as the "
-            "fraction defective grows -- for a (52, 3) plan it is off by 0.016 "
-            "in Pa at p = 0.12."
+            Caveat(
+                "sampling.poisson-approximation",
+                "the Poisson approximation is used. It is what the classical "
+                "unity-value tables assume, and it drifts from the binomial as the "
+                "fraction defective grows -- for a (52, 3) plan it is off by 0.016 "
+                "in Pa at p = 0.12.",
+            )
         )
     if plan.acceptance_number == 0:
         out.append(
-            "this is an Ac = 0 plan: Pa = (1 - p)^n, a curve with no shoulder. "
-            "It falls from the first defective onward, so it rejects lots of "
-            "genuinely good quality far more often than the sample size "
-            "suggests. That is a deliberate trade, not a free tightening."
+            Caveat(
+                "sampling.zero-acceptance-number",
+                "this is an Ac = 0 plan: Pa = (1 - p)^n, a curve with no shoulder. "
+                "It falls from the first defective onward, so it rejects lots of "
+                "genuinely good quality far more often than the sample size "
+                "suggests. That is a deliberate trade, not a free tightening.",
+            )
         )
     if plan.acceptance_number == plan.sample_size:
         out.append(
-            "Ac equals the sample size: this plan accepts every possible "
-            "sample and can never reject a lot."
+            Caveat(
+                "sampling.accepts-every-sample",
+                "Ac equals the sample size: this plan accepts every possible "
+                "sample and can never reject a lot.",
+            )
         )
     return out

@@ -28,6 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from capstat_core.caveats import Caveat
 from capstat_core.control_charts import ChartPair, i_mr_chart, xbar_r_chart
 
 __all__ = [
@@ -46,7 +47,7 @@ class StabilityReport:
     """
 
     chart: ChartPair
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def stable(self) -> bool:
@@ -80,13 +81,16 @@ def stability(measurements: npt.ArrayLike) -> StabilityReport:
             f"got {arr.ndim} dimensions"
         )
 
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
     if not chart.in_control:
         out = len(chart.location.violations) + len(chart.dispersion.violations)
         warnings.append(
-            f"the measurement system is not stable: {out} out-of-control "
-            "point(s) on the master's control chart -- the gage drifted, the "
-            "part did not"
+            Caveat(
+                "stability.not-stable",
+                f"the measurement system is not stable: {out} out-of-control "
+                "point(s) on the master's control chart -- the gage drifted, the "
+                "part did not",
+            )
         )
 
     return StabilityReport(chart=chart, warnings=tuple(warnings))

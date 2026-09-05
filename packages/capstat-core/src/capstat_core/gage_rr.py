@@ -74,6 +74,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
+from capstat_core.caveats import Caveat
 from capstat_core.constants import d2, d2_star
 
 __all__ = [
@@ -150,7 +151,7 @@ class GageRRReport:
 
     study_var_multiplier: float
     tolerance: float | None
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def var_reproducibility(self) -> float:
@@ -343,7 +344,7 @@ def gage_rr(
     ms_interaction = ss_interaction / df_interaction
     ms_error = ss_error / df_error
 
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
 
     # Interaction F-test: MS_interaction against MS_error. A zero error mean
     # square (perfect repeatability) leaves the test undefined -- keep the
@@ -354,8 +355,11 @@ def gage_rr(
     else:
         p_interaction = 0.0
         warnings.append(
-            "repeatability is exactly zero (identical replicates); the "
-            "interaction test is undefined and the interaction was kept"
+            Caveat(
+                "gage-rr.zero-repeatability",
+                "repeatability is exactly zero (identical replicates); the "
+                "interaction test is undefined and the interaction was kept",
+            )
         )
 
     interaction_included = p_interaction <= interaction_alpha
@@ -376,9 +380,12 @@ def gage_rr(
         var_operator = (ms_operator - pooled_ms_error) / (p * r)
         var_part = (ms_part - pooled_ms_error) / (o * r)
         warnings.append(
-            f"part-operator interaction was not significant "
-            f"(p = {p_interaction:.3f} > {interaction_alpha}); it was pooled "
-            "into repeatability"
+            Caveat(
+                "gage-rr.interaction-pooled",
+                f"part-operator interaction was not significant "
+                f"(p = {p_interaction:.3f} > {interaction_alpha}); it was pooled "
+                "into repeatability",
+            )
         )
 
     var_repeatability, w = _clamp(var_repeatability, "repeatability")
@@ -456,15 +463,18 @@ def gage_rr_range(
     x_diff = float(operator_means.max() - operator_means.min())
     range_parts = float(part_means.max() - part_means.min())
 
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
 
     ev = rbar_bar / d2(r)
     av_squared = (x_diff / d2_star(o, 1)) ** 2 - ev**2 / (p * r)
     if av_squared < 0.0:
         av = 0.0
         warnings.append(
-            "appraiser variation came out below repeatability and was clamped "
-            "to zero (reproducibility is indistinguishable from zero)"
+            Caveat(
+                "gage-rr.appraiser-variation-clamped",
+                "appraiser variation came out below repeatability and was clamped "
+                "to zero (reproducibility is indistinguishable from zero)",
+            )
         )
     else:
         av = math.sqrt(av_squared)
@@ -503,12 +513,15 @@ def _pct_sd(var: float, total: float) -> float:
     return 100.0 * math.sqrt(var / total) if total > 0.0 else math.nan
 
 
-def _clamp(value: float, name: str) -> tuple[float, list[str]]:
+def _clamp(value: float, name: str) -> tuple[float, list[Caveat]]:
     """A variance cannot be negative; clamp to zero and report it."""
     if value < 0.0:
         return 0.0, [
-            f"{name} variance estimate was negative ({value:.4g}); clamped to "
-            "zero (the component is indistinguishable from zero)"
+            Caveat(
+                "gage-rr.negative-variance",
+                f"{name} variance estimate was negative ({value:.4g}); clamped to "
+                "zero (the component is indistinguishable from zero)",
+            )
         ]
     return value, []
 
@@ -521,24 +534,33 @@ def _with_verdict_warnings(report: GageRRReport) -> GageRRReport:
     next to the properties that already produce them -- and two implementations
     of one number drift.
     """
-    out: list[str] = []
+    out: list[Caveat] = []
     verdict = report.verdict
     if verdict == "unacceptable":
         out.append(
-            f"gage R&R is {report.pct_study_var_gage_rr:.1f}% of study variation "
-            f"(> {GRR_MARGINAL_AT_OR_BELOW:g}%): the measurement system is "
-            "unacceptable"
+            Caveat(
+                "gage-rr.unacceptable",
+                f"gage R&R is {report.pct_study_var_gage_rr:.1f}% of study variation "
+                f"(> {GRR_MARGINAL_AT_OR_BELOW:g}%): the measurement system is "
+                "unacceptable",
+            )
         )
     elif verdict == "marginal":
         out.append(
-            f"gage R&R is {report.pct_study_var_gage_rr:.1f}% of study variation "
-            f"({GRR_GOOD_AT_OR_BELOW:g}-{GRR_MARGINAL_AT_OR_BELOW:g}%): the "
-            "measurement system is marginal"
+            Caveat(
+                "gage-rr.marginal",
+                f"gage R&R is {report.pct_study_var_gage_rr:.1f}% of study variation "
+                f"({GRR_GOOD_AT_OR_BELOW:g}-{GRR_MARGINAL_AT_OR_BELOW:g}%): the "
+                "measurement system is marginal",
+            )
         )
     if report.ndc_adequate is False:
         out.append(
-            f"only {report.ndc} distinct categories (< {NDC_MINIMUM}): the gage "
-            "cannot reliably tell the parts apart"
+            Caveat(
+                "gage-rr.ndc-inadequate",
+                f"only {report.ndc} distinct categories (< {NDC_MINIMUM}): the gage "
+                "cannot reliably tell the parts apart",
+            )
         )
     if not out:
         return report

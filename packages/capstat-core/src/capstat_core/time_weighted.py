@@ -41,6 +41,7 @@ import numpy as np
 import numpy.typing as npt
 
 from capstat_core._validation import as_sample
+from capstat_core.caveats import Caveat
 from capstat_core.constants import d2
 
 __all__ = [
@@ -65,25 +66,31 @@ def _resolve(
     values: npt.NDArray[np.float64],
     target: float | None,
     sigma: float | None,
-) -> tuple[float, float, list[str]]:
-    warnings: list[str] = []
+) -> tuple[float, float, list[Caveat]]:
+    warnings: list[Caveat] = []
 
     if target is None:
         target = float(values.mean())
         warnings.append(
-            "no target was given, so the mean of these data was used. If the data "
-            "already contain the shift you are looking for, that shift has pulled "
-            "the centre line towards it and the chart is less sensitive than it "
-            "looks. A target from a known in-control period is better."
+            Caveat(
+                "time-weighted.no-target",
+                "no target was given, so the mean of these data was used. If the data "
+                "already contain the shift you are looking for, that shift has pulled "
+                "the centre line towards it and the chart is less sensitive than it "
+                "looks. A target from a known in-control period is better.",
+            )
         )
 
     if sigma is None:
         sigma = _moving_range_sigma(values)
         warnings.append(
-            "no sigma was given, so it was estimated from the moving range of "
-            "these data. That is the safe default -- the overall standard "
-            "deviation would absorb any sustained shift and hide it -- but a "
-            "sigma from a known in-control period is better still."
+            Caveat(
+                "time-weighted.no-sigma",
+                "no sigma was given, so it was estimated from the moving range of "
+                "these data. That is the safe default -- the overall standard "
+                "deviation would absorb any sustained shift and hide it -- but a "
+                "sigma from a known in-control period is better still.",
+            )
         )
     if sigma <= 0.0:
         raise ValueError(f"sigma must be strictly positive, got {sigma}")
@@ -120,7 +127,7 @@ class EwmaChart:
     lower: tuple[float, ...]
     steady_state_limits: tuple[float, float]
     violations: tuple[int, ...]
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def in_control(self) -> bool:
@@ -194,9 +201,12 @@ def ewma_chart(
 
     if not time_varying_limits:
         warnings.append(
-            "steady-state limits were used for every point. The early limits are "
-            "therefore too wide and a shift present at the start of the series can "
-            "be missed. This mode exists to reproduce published examples."
+            Caveat(
+                "time-weighted.steady-state-limits",
+                "steady-state limits were used for every point. The early limits are "
+                "therefore too wide and a shift present at the start of the series can "
+                "be missed. This mode exists to reproduce published examples.",
+            )
         )
 
     return EwmaChart(
@@ -240,7 +250,7 @@ class CusumChart:
     upper: tuple[float, ...]
     lower: tuple[float, ...]
     violations: tuple[int, ...]
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def in_control(self) -> bool:

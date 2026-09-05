@@ -452,7 +452,7 @@ export interface components {
             /** T Statistic */
             t_statistic: number | null;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /**
          * BiasRequest
@@ -497,7 +497,7 @@ export interface components {
             /** Usl Transformed */
             usl_transformed: number | null;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** CapabilityAnalysisOut */
         CapabilityAnalysisOut: {
@@ -517,7 +517,7 @@ export interface components {
             /** Rationale */
             rationale: string;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** CapabilityReportOut */
         CapabilityReportOut: {
@@ -561,7 +561,7 @@ export interface components {
             /** Usl */
             usl: number | null;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
             /**
              * Within Method
              * @enum {string}
@@ -586,6 +586,21 @@ export interface components {
             /** Within Method */
             within_method?: ("pooled" | "rbar_d2" | "sbar_c4" | "moving_range") | null;
         };
+        /**
+         * CaveatOut
+         * @description One warning: the code a program branches on, the prose a person reads.
+         *
+         *     The core's ``Caveat`` is a ``str`` subclass, so a Python caller still sees
+         *     a sentence. Over HTTP that would flatten to a bare string and the code
+         *     would be lost -- which is the half a client needs to react to a warning
+         *     rather than merely display it (T-0074).
+         */
+        CaveatOut: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
         /** ChartPairOut */
         ChartPairOut: {
             dispersion: components["schemas"]["ControlChartOut"];
@@ -599,7 +614,7 @@ export interface components {
             /** Subgroups */
             subgroups: number;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** ControlChartOut */
         ControlChartOut: {
@@ -654,7 +669,7 @@ export interface components {
             /** Violations */
             violations: number[];
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** CusumRequest */
         CusumRequest: {
@@ -737,7 +752,7 @@ export interface components {
             /** Violations */
             violations: number[];
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** EwmaRequest */
         EwmaRequest: {
@@ -823,7 +838,7 @@ export interface components {
             /** Verdict */
             verdict: ("good" | "marginal" | "unacceptable") | null;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /**
          * GageRRRequest
@@ -883,7 +898,7 @@ export interface components {
             /** N Rows */
             n_rows: number;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** LinearityReportOut */
         LinearityReportOut: {
@@ -918,7 +933,7 @@ export interface components {
             /** Slope T Statistic */
             slope_t_statistic: number | null;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /**
          * LinearityRequest
@@ -947,7 +962,7 @@ export interface components {
             /** Sample Fraction Defective */
             sample_fraction_defective: number;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /**
          * LotInspectionRequest
@@ -994,7 +1009,7 @@ export interface components {
             recommendation: string;
             shapiro_wilk: components["schemas"]["NormalityTestResultOut"];
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** NormalityTestResultOut */
         NormalityTestResultOut: {
@@ -1068,7 +1083,7 @@ export interface components {
             /** Usl */
             usl: number | null;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** RuleViolationOut */
         RuleViolationOut: {
@@ -1183,7 +1198,7 @@ export interface components {
             /** Producer Risk */
             producer_risk: number;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** SchemeHistoryOut */
         SchemeHistoryOut: {
@@ -1196,7 +1211,7 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["SchemeStepOut"][];
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /** SchemeStepOut */
         SchemeStepOut: {
@@ -1225,7 +1240,7 @@ export interface components {
             /** Stable */
             stable: boolean;
             /** Warnings */
-            warnings: string[];
+            warnings: components["schemas"]["CaveatOut"][];
         };
         /**
          * StabilityRequest

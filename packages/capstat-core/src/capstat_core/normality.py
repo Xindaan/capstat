@@ -42,6 +42,7 @@ import numpy.typing as npt
 from scipy import stats
 
 from capstat_core._validation import as_sample
+from capstat_core.caveats import Caveat
 from capstat_core.descriptive import lag1_autocorrelation, std_dev
 
 __all__ = [
@@ -262,7 +263,7 @@ class NormalityAssessment:
     shapiro_wilk: NormalityTestResult
     lag1_autocorrelation: float
     normal: bool
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
     recommendation: str
 
 
@@ -288,34 +289,46 @@ def assess_normality(x: npt.ArrayLike, *, alpha: float = 0.05) -> NormalityAsses
     r1 = lag1_autocorrelation(arr)
 
     normal = ad.normal and sw.normal
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
 
     if abs(r1) > MATERIAL_AUTOCORRELATION:
         warnings.append(
-            f"lag-1 autocorrelation is {r1:.3f}; both tests assume independent "
-            f"observations, so their p-values are unreliable here. Investigate "
-            f"the time order of the data before trusting this verdict."
+            Caveat(
+                "normality.autocorrelation",
+                f"lag-1 autocorrelation is {r1:.3f}; both tests assume independent "
+                f"observations, so their p-values are unreliable here. Investigate "
+                f"the time order of the data before trusting this verdict.",
+            )
         )
 
     if ad.normal != sw.normal:
         warnings.append(
-            f"the two tests disagree (Anderson-Darling p={ad.p_value:.4g}, "
-            f"Shapiro-Wilk p={sw.p_value:.4g} at alpha={alpha}); the evidence is "
-            f"borderline. Treat the data as non-normal unless a histogram and a "
-            f"probability plot say otherwise."
+            Caveat(
+                "normality.tests-disagree",
+                f"the two tests disagree (Anderson-Darling p={ad.p_value:.4g}, "
+                f"Shapiro-Wilk p={sw.p_value:.4g} at alpha={alpha}); the evidence is "
+                f"borderline. Treat the data as non-normal unless a histogram and a "
+                f"probability plot say otherwise.",
+            )
         )
 
     if n < LOW_POWER_SAMPLE_SIZE and normal:
         warnings.append(
-            f"n={n} is small, so the tests have little power. 'Not rejected' "
-            f"here means 'too little evidence to reject', not 'normal'."
+            Caveat(
+                "normality.low-power",
+                f"n={n} is small, so the tests have little power. 'Not rejected' "
+                f"here means 'too little evidence to reject', not 'normal'.",
+            )
         )
 
     if n > 1000 and not normal:
         warnings.append(
-            f"n={n} is large, so even a practically irrelevant departure from "
-            f"normality becomes statistically significant. Check the size of the "
-            f"deviation on a probability plot before rejecting the normal model."
+            Caveat(
+                "normality.large-sample",
+                f"n={n} is large, so even a practically irrelevant departure from "
+                f"normality becomes statistically significant. Check the size of the "
+                f"deviation on a probability plot before rejecting the normal model.",
+            )
         )
 
     if normal:

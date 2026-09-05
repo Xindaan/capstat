@@ -46,6 +46,20 @@ GAGE_DATA = [
 ]
 
 
+def assert_same_warnings(
+    body_warnings: list[dict[str, str]], core_warnings: object
+) -> None:
+    """The API must carry both halves of every caveat, in order (T-0074).
+
+    Before the codes existed this was ``body["warnings"] == list(core.warnings)``.
+    The sentence alone is no longer the whole warning, so comparing it alone
+    would no longer prove the contract is faithful.
+    """
+    core = list(core_warnings)  # type: ignore[call-overload]
+    assert [w["message"] for w in body_warnings] == [str(w) for w in core]
+    assert [w["code"] for w in body_warnings] == [w.code for w in core]
+
+
 def test_descriptive_matches_core(client: TestClient) -> None:
     body = client.post("/compute/descriptive", json={"data": SERIES}).json()
     core = describe(SERIES)
@@ -66,7 +80,7 @@ def test_capability_matches_core_and_keeps_warnings(client: TestClient) -> None:
     assert body["cpk"] == core.cpk
     assert body["within_method"] == core.within_method
     # The warnings tuple must survive as a JSON array, not be flattened away.
-    assert body["warnings"] == list(core.warnings)
+    assert_same_warnings(body["warnings"], core.warnings)
     # The derived property is not a dataclass field; it must still be present.
     assert body["stability_ratio"] == core.stability_ratio
 
@@ -219,7 +233,7 @@ def test_gage_rr_anova_matches_core(client: TestClient) -> None:
     assert body["pct_study_var_gage_rr"] == core.pct_study_var_gage_rr
     assert body["ndc"] == core.ndc
     assert body["interaction_pvalue"] == core.interaction_pvalue
-    assert body["warnings"] == list(core.warnings)
+    assert_same_warnings(body["warnings"], core.warnings)
 
 
 def test_gage_rr_average_range_matches_core(client: TestClient) -> None:
@@ -278,7 +292,7 @@ def test_bias_matches_core(client: TestClient) -> None:
     assert body["ci_lower"] == core.ci_lower
     # A derived property, not a field.
     assert body["bias_significant"] == core.bias_significant
-    assert body["warnings"] == list(core.warnings)
+    assert_same_warnings(body["warnings"], core.warnings)
 
 
 def test_bias_degenerate_serialises_infinite_t_as_null(client: TestClient) -> None:
@@ -389,7 +403,7 @@ def test_acceptance_sampling_evaluate_matches_core(client: TestClient) -> None:
     assert body["aoql"]["aoql"] == core.aoql.aoql
     assert body["aoql"]["at_fraction_defective"] == core.aoql.at_fraction_defective
     assert body["ati_at_aql"] == core.ati_at_aql
-    assert body["warnings"] == list(core.warnings)
+    assert_same_warnings(body["warnings"], core.warnings)
     # rejection_number is a derived property, not a dataclass field.
     assert body["plan"]["rejection_number"] == core.plan.rejection_number
 
@@ -469,7 +483,7 @@ def test_acceptance_sampling_inspect_carries_the_decision(client: TestClient) ->
     assert accepted["accepted"] is True
     assert rejected["accepted"] is False
     assert accepted["sample_fraction_defective"] == core.sample_fraction_defective
-    assert accepted["warnings"] == list(core.warnings)
+    assert_same_warnings(accepted["warnings"], core.warnings)
 
 
 def test_acceptance_sampling_impossible_plan_maps_core_error_to_422(
@@ -522,7 +536,7 @@ def test_switching_rules_match_core(client: TestClient) -> None:
     ]
     # switched is a derived property, not a dataclass field.
     assert [s["switched"] for s in body["steps"]] == [s.switched for s in core.steps]
-    assert body["warnings"] == list(core.warnings)
+    assert_same_warnings(body["warnings"], core.warnings)
     assert body["rules"]["discontinue_on_non_accepted"] == 5
 
 

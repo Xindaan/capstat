@@ -72,6 +72,7 @@ from scipy import stats
 
 from capstat_core._validation import as_sample
 from capstat_core.capability import CapabilityReport, capability
+from capstat_core.caveats import Caveat
 from capstat_core.normality import (
     AD_MIN_SAMPLE_SIZE,
     NormalityAssessment,
@@ -206,7 +207,7 @@ class PercentileCapability:
     ppl: float | None
     ppu: float | None
     ppk: float | None
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
 
 def _check_limits(lsl: float | None, usl: float | None) -> None:
@@ -279,16 +280,22 @@ def percentile_capability(
     available = [v for v in (ppl, ppu) if v is not None]
     ppk = min(available) if available else None
 
-    warnings: list[str] = [
-        "the percentile method yields long-term (Pp/Ppk) indices only. It reads "
-        "percentiles off the overall fitted distribution and has no within/"
-        "between subgroup split, so no Cp or Cpk exists for it."
+    warnings: list[Caveat] = [
+        Caveat(
+            "nonnormal.percentile-no-cpk",
+            "the percentile method yields long-term (Pp/Ppk) indices only. It reads "
+            "percentiles off the overall fitted distribution and has no within/"
+            "between subgroup split, so no Cp or Cpk exists for it.",
+        )
     ]
     if arr.size < 100:
         warnings.append(
-            f"n={arr.size}: the indices depend on the 0.135 % and 99.865 % "
-            f"percentiles, which sit far out in the tails where a fitted "
-            f"distribution is least reliable. Treat them as indicative."
+            Caveat(
+                "nonnormal.small-sample-tails",
+                f"n={arr.size}: the indices depend on the 0.135 % and 99.865 % "
+                f"percentiles, which sit far out in the tails where a fitted "
+                f"distribution is least reliable. Treat them as indicative.",
+            )
         )
 
     return PercentileCapability(
@@ -347,7 +354,7 @@ class BoxCoxCapability:
     normality_after: NormalityAssessment
     transform_successful: bool
     capability: CapabilityReport
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
 
 def box_cox_capability(
@@ -437,18 +444,24 @@ def box_cox_capability(
         alpha=alpha,
     )
 
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
     if not successful:
         warnings.append(
-            "the Box-Cox transformation did NOT achieve normality (the normal "
-            "model is still rejected after transforming). These indices are not "
-            "trustworthy; use the percentile method instead."
+            Caveat(
+                "nonnormal.transform-failed",
+                "the Box-Cox transformation did NOT achieve normality (the normal "
+                "model is still rejected after transforming). These indices are not "
+                "trustworthy; use the percentile method instead.",
+            )
         )
     warnings.append(
-        f"indices are computed on the Box-Cox scale (lambda = {lmbda:.4f}) "
-        f"against the transformed limits. They are dimensionless and comparable "
-        f"to ordinary indices, but the underlying mean and sigma are NOT in the "
-        f"original units."
+        Caveat(
+            "nonnormal.transformed-scale",
+            f"indices are computed on the Box-Cox scale (lambda = {lmbda:.4f}) "
+            f"against the transformed limits. They are dimensionless and comparable "
+            f"to ordinary indices, but the underlying mean and sigma are NOT in the "
+            f"original units.",
+        )
     )
     # Everything the inner report has to say applies here too, and saying it
     # here is what makes it reach a caller (T-0064). The transformation changes
@@ -497,7 +510,7 @@ class CapabilityAnalysis:
     percentile: PercentileCapability | None
     pp: float | None
     ppk: float | None
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
 
 def analyze_capability(
@@ -620,10 +633,13 @@ def analyze_capability(
         # a silent one would not be. A user who states a target and is handed
         # indices that ignore it has nothing in the output to notice it by.
         warnings.append(
-            f"the target ({target:.6g}) was not used. Cpm needs a short-term "
-            "sigma, which the percentile method does not have, so no "
-            "target-based index was computed. Pp and Ppk below measure spread "
-            "and distance to the nearer limit, not distance to the target."
+            Caveat(
+                "nonnormal.target-unused",
+                f"the target ({target:.6g}) was not used. Cpm needs a short-term "
+                "sigma, which the percentile method does not have, so no "
+                "target-based index was computed. Pp and Ppk below measure spread "
+                "and distance to the nearer limit, not distance to the target.",
+            )
         )
     return CapabilityAnalysis(
         path="percentile",

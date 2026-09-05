@@ -62,20 +62,10 @@
 - ~~T-0057 **Result-card labels fell below WCAG AA**~~ -- **done 2026-08-23**:
   a measured `--muted` token replaces 51 uses of opacity steps that failed.
   See `## Done`.
-- T-0063 **The compute endpoints accept a body of any size.** Found by the
-  isomorphism check on T-0056, not by the review, and it is the larger hole of
-  the two: `/ingest` caps uploads at 10 MB, while every `/compute/*` endpoint
-  takes `list[float]` with `Field(min_length=1)` and no maximum
-  (`apps/api/src/capstat_api/requests.py`). The only middleware is CORS.
-  Measured: a 9.5 MB JSON body carrying 2,000,000 floats returns **200**. JSON
-  is the expensive direction -- those floats land as a Python list of boxed
-  objects, several times the wire size, before NumPy ever sees them.
-  Not fixed with T-0056 because it is a contract decision, not a bug fix: what
-  is the largest legitimate SPC series, does the cap belong per-field or in
-  middleware, and what does the caller get told. All three change the published
-  OpenAPI, so they want a deliberate answer rather than a number picked here.
-  Acceptance: an oversized compute body is refused with a stated limit; the
-  limit is documented; a series of realistic size (say 100k points) still works.
+- ~~T-0063 **The compute endpoints accept a body of any size**~~ -- **decided
+  and done 2026-09-02.** The maintainer chose a byte limit in middleware (10 MB,
+  413, mirroring `/ingest`) over a per-field `max_length`, so the published
+  OpenAPI schema is unchanged. See `## Done`.
 - ~~T-0058 Verdict thresholds duplicated between core and UI~~ -- **done
   2026-08-23**: the core states the AIAG band as a word; the UI colours by it
   and owns no boundary. Half the finding was wrong -- see `## Done`.
@@ -413,6 +403,85 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- **The three open decisions were taken 2026-09-02** (see the decision
+  templates in the session that produced them). Body limit: middleware, not
+  schema. Capability colouring: a stated requirement, not a fixed 1.33. Feature
+  order: warning codes first, then the rest. T-0063, T-0073, T-0074 below.
+
+- T-0063 (2026-09-02) **The compute body is capped at 10 MB.**
+  * Measured before choosing: 2,000,000 floats are 13.15 MB on the wire and
+    cost about 214 MB resident once parsed -- roughly 16x amplification, per
+    concurrent request. Not a CPU problem; the same request computes in 0.43 s.
+    The failure mode was an out-of-memory kill, which nobody reads.
+  * **Decision: a byte limit in middleware, not `max_length` per field.** The
+    resource at risk is memory, memory is bytes, and an element count is only a
+    proxy for it. It also leaves `openapi.json` untouched -- verified by the
+    drift check passing with no regeneration.
+  * The price, stated rather than hidden: the limit is invisible in the
+    contract, so a client learns it by receiving a 413. That was the strongest
+    argument for the other option and it is recorded in the README.
+  * 10 MB mirrors `/ingest` deliberately: a 10 MB CSV with one numeric column
+    yields a compute body of about 7 MB, so a smaller ceiling would accept a
+    file and then refuse to compute it.
+  * Raw ASGI rather than `BaseHTTPMiddleware`, because the decision has to be
+    made *while* the body arrives -- Starlette's HTTP middleware hands over a
+    request whose body is already assembled, which is the moment the memory has
+    been spent. Chunks are counted as they arrive, since a chunked request
+    sends no `Content-Length` and a lying one is the case worth defending
+    against.
+  * **The ordering guard has its own test**, and it is the only one that fails
+    when the order is swapped: the limit sits *inside* CORS, so a browser can
+    read the 413 instead of an opaque CORS failure.
+
+- T-0073 (2026-09-02) **Cp/Cpk are judged against a stated requirement.**
+  * The page coloured green at 1.33 and amber at 1.00 -- thresholds the core
+    contains nowhere and declines to assert, because what counts as capable is
+    a customer's specification. The app was stating a verdict the library
+    refuses to.
+  * **Decision: the requirement becomes an input** (default 1.33), rather than
+    removing the colouring or moving the threshold into the core.
+  * The discriminating case, now an e2e test: a Cpk of exactly 1.33 meets a
+    1.33 requirement and falls short of 1.67. The old threshold called it green
+    for both, so a customer asking for 1.67 read a clean bill of health off a
+    process that misses their specification.
+  * 1.00 stays in code: it is not a convention but the point where the spread
+    exactly fills the tolerance, and below it no requirement can make a process
+    capable.
+  * An unreadable or empty requirement colours *nothing* rather than falling
+    back to 1.33 -- a default substituted there would reinstate the assumption
+    the field exists to remove.
+  * The report names the threshold it judged by, for the same reason the
+    control chart names its rule set: a colour means nothing without the number
+    behind it, least of all in a printed PDF.
+
+- T-0074 (2026-09-02) **Every warning carries a code.** The largest change of
+  the three, and the one chosen deliberately *first* because every page built
+  later would be another place reacting to English prose.
+  * `Caveat` is a **`str` subclass**, which is the decision the rest follows
+    from. A warning still *is* its sentence, so all ~50 existing assertions,
+    every `"text" in warning`, and every join kept working unchanged: the 537
+    core tests passed on the first run after the conversion. A plain dataclass
+    would have meant rewriting the tests that guard the statistics in the same
+    change that touches the statistics.
+  * 57 construction sites across 12 core modules, plus 7 in the ingest router
+    so the contract is coded end to end rather than half of it. The rewrite was
+    done through the **AST**, not by paren-counting: several warnings are
+    multi-line f-strings containing brackets, which is exactly where a textual
+    rewrite goes wrong silently.
+  * Over HTTP a warning is now `{"code", "message"}` -- a **breaking contract
+    change**, and the one thing the decision explicitly bought.
+  * The guard is execution-based: a battery of 24 entry points asserts every
+    warning is a coded `Caveat` with a well-formed, namespaced code. A grep for
+    `Caveat(` would have proved only that somebody typed it.
+  * Codes are deliberately **not** unique per message: `_clamp` emits
+    `gage-rr.negative-variance` once per component, naming the component in the
+    sentence. That is one kind of finding reported four times.
+  * TypeScript found all nine render sites, and `data-code` now carries the
+    code into the DOM -- with an e2e test proving it survives from the core to
+    the page. Six e2e tests went red because their *mocks* still returned the
+    old shape; that is the correct signal, and the fixtures were updated rather
+    than the assertion loosened.
 
 - **Second external review 2026-09-02 (Claude Fable 5.1, source read plus
   execution).** Its own summary: the statistics are sound -- the formulas for

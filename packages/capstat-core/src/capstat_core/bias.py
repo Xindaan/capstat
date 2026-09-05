@@ -39,6 +39,7 @@ import numpy.typing as npt
 from scipy import stats
 
 from capstat_core._validation import as_sample
+from capstat_core.caveats import Caveat
 from capstat_core.descriptive import mean as _mean
 from capstat_core.descriptive import std_dev
 
@@ -67,7 +68,7 @@ class BiasReport:
     alpha: float
     ci_lower: float
     ci_upper: float
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def bias_significant(self) -> bool:
@@ -110,7 +111,7 @@ def bias(
     repeatability = std_dev(x, ddof=1)
     std_error = repeatability / math.sqrt(n)
 
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
 
     if std_error > 0.0:
         t_statistic = bias_value / std_error
@@ -123,8 +124,11 @@ def bias(
         )
         p_value = 0.0 if bias_value != 0.0 else math.nan
         warnings.append(
-            "every measurement is identical (zero repeatability); the t-test is "
-            "degenerate and the verdict rests on the bias alone"
+            Caveat(
+                "bias.degenerate-t-test",
+                "every measurement is identical (zero repeatability); the t-test is "
+                "degenerate and the verdict rests on the bias alone",
+            )
         )
 
     t_crit = float(stats.t.ppf(1.0 - alpha / 2.0, df))
@@ -135,8 +139,11 @@ def bias(
     if not (ci_lower <= 0.0 <= ci_upper):
         direction = "high" if bias_value > 0.0 else "low"
         warnings.append(
-            f"the measurement system is biased by {bias_value:.4g} (reads "
-            f"{direction}); zero is outside the {1 - alpha:.0%} interval"
+            Caveat(
+                "bias.significant",
+                f"the measurement system is biased by {bias_value:.4g} (reads "
+                f"{direction}); zero is outside the {1 - alpha:.0%} interval",
+            )
         )
 
     return BiasReport(

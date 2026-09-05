@@ -19,8 +19,11 @@ import io
 import re
 
 import pandas as pd
+from capstat_core import Caveat
 from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
+
+from capstat_api.schemas import CaveatOut
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
@@ -51,7 +54,7 @@ class IngestResponse(BaseModel):
     n_rows: int
     columns: list[IngestColumn]
     ignored_columns: list[str]
-    warnings: list[str]
+    warnings: list[CaveatOut]
 
 
 # Excel writes CSV in the operator's locale. A German Excel writes
@@ -139,26 +142,37 @@ def _repair_decimal_commas(frame: pd.DataFrame) -> list[str]:
     return repaired
 
 
-def _read_frame(filename: str, raw: bytes) -> tuple[pd.DataFrame, list[str]]:
+def _read_frame(filename: str, raw: bytes) -> tuple[pd.DataFrame, list[Caveat]]:
     """The parsed table, plus what had to be detected to parse it."""
     name = filename.lower()
-    notes: list[str] = []
+    notes: list[Caveat] = []
 
     if name.endswith(".csv"):
         text, encoding = _decode(raw)
         if encoding != _ENCODINGS[0]:
-            notes.append(f"Read as {encoding}; the file is not valid UTF-8.")
+            notes.append(
+                Caveat(
+                    "ingest.encoding-detected",
+                    f"Read as {encoding}; the file is not valid UTF-8.",
+                )
+            )
         delimiter = _detect_delimiter(text)
         if delimiter != ",":
             notes.append(
-                f"Detected {_DELIMITER_NAMES[delimiter]} as the column separator."
+                Caveat(
+                    "ingest.separator-detected",
+                    f"Detected {_DELIMITER_NAMES[delimiter]} as the column separator.",
+                )
             )
         frame = pd.read_csv(io.StringIO(text), sep=delimiter)
         repaired = _repair_decimal_commas(frame)
         if repaired:
             notes.append(
-                "Read a decimal comma as the decimal mark in column(s): "
-                f"{', '.join(repaired)}."
+                Caveat(
+                    "ingest.decimal-comma-detected",
+                    "Read a decimal comma as the decimal mark in column(s): "
+                    f"{', '.join(repaired)}.",
+                )
             )
         return frame, notes
 
@@ -167,8 +181,11 @@ def _read_frame(filename: str, raw: bytes) -> tuple[pd.DataFrame, list[str]]:
         sheets = [str(sheet) for sheet in book.sheet_names]
         if len(sheets) > 1:
             notes.append(
-                f"The workbook holds {len(sheets)} sheets; only the first "
-                f"({sheets[0]!r}) was read."
+                Caveat(
+                    "ingest.sheet-selected",
+                    f"The workbook holds {len(sheets)} sheets; only the first "
+                    f"({sheets[0]!r}) was read.",
+                )
             )
         return book.parse(sheets[0]), notes
 
@@ -178,11 +195,11 @@ def _read_frame(filename: str, raw: bytes) -> tuple[pd.DataFrame, list[str]]:
     )
 
 
-def _to_response(frame: pd.DataFrame, notes: list[str]) -> IngestResponse:
+def _to_response(frame: pd.DataFrame, notes: list[Caveat]) -> IngestResponse:
     columns: list[IngestColumn] = []
     ignored: list[str] = []
     # What was detected comes first: it explains the column list below it.
-    warnings: list[str] = list(notes)
+    warnings: list[Caveat] = list(notes)
 
     for name in frame.columns:
         series = frame[name]
@@ -202,21 +219,33 @@ def _to_response(frame: pd.DataFrame, notes: list[str]) -> IngestResponse:
         )
 
     if ignored:
-        warnings.append(f"Ignored non-numeric column(s): {', '.join(ignored)}.")
+        warnings.append(
+            Caveat(
+                "ingest.non-numeric-columns-ignored",
+                f"Ignored non-numeric column(s): {', '.join(ignored)}.",
+            )
+        )
     for col in columns:
         if col.dropped_missing:
             warnings.append(
-                f"Column {col.name!r}: dropped {col.dropped_missing} "
-                "missing/non-numeric cell(s)."
+                Caveat(
+                    "ingest.cells-dropped",
+                    f"Column {col.name!r}: dropped {col.dropped_missing} "
+                    "missing/non-numeric cell(s).",
+                )
             )
     if not columns:
-        warnings.append("No numeric columns found.")
+        warnings.append(
+            Caveat("ingest.no-numeric-columns", "No numeric columns found.")
+        )
 
     return IngestResponse(
         n_rows=len(frame),
         columns=columns,
         ignored_columns=ignored,
-        warnings=warnings,
+        # Split here rather than leaning on the schema's validator: the
+        # declared type and the value passed should agree at the call site.
+        warnings=[CaveatOut(code=w.code, message=str(w)) for w in warnings],
     )
 
 

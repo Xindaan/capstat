@@ -49,6 +49,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
+from capstat_core.caveats import Caveat
 from capstat_core.constants import MAX_SUBGROUP_SIZE, c4, d2
 from capstat_core.descriptive import std_dev
 from capstat_core.normality import (
@@ -109,7 +110,7 @@ class CapabilityReport:
     ppk: float | None
 
     normality: NormalityAssessment | None
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def stability_ratio(self) -> float:
@@ -339,49 +340,67 @@ def _warnings(
     usl: float | None,
     target: float | None,
     normality: NormalityAssessment | None,
-) -> tuple[str, ...]:
-    messages: list[str] = []
+) -> tuple[Caveat, ...]:
+    messages: list[Caveat] = []
 
     if normality is not None and not normality.normal:
         messages.append(
-            "the normal model was rejected, and every index in this report "
-            "assumes normality. These numbers are not conservative, they are "
-            "wrong. Use the non-normal path (Box-Cox or the ISO 22514 "
-            "percentile method) instead."
+            Caveat(
+                "capability.non-normal",
+                "the normal model was rejected, and every index in this report "
+                "assumes normality. These numbers are not conservative, they are "
+                "wrong. Use the non-normal path (Box-Cox or the ISO 22514 "
+                "percentile method) instead.",
+            )
         )
 
     ratio = sigma_overall / sigma_within
     if ratio > STABILITY_RATIO:
         messages.append(
-            f"sigma_overall is {ratio:.2f}x sigma_within, so the process is not "
-            f"stable: it drifts between subgroups. Cp/Cpk describe a potential "
-            f"the process is not currently delivering -- quote Pp/Ppk to the "
-            f"customer, and put the process in control before trusting Cpk."
+            Caveat(
+                "capability.unstable-process",
+                f"sigma_overall is {ratio:.2f}x sigma_within, so the process is not "
+                f"stable: it drifts between subgroups. Cp/Cpk describe a potential "
+                f"the process is not currently delivering -- quote Pp/Ppk to the "
+                f"customer, and put the process in control before trusting Cpk.",
+            )
         )
 
     if n == 1:
         messages.append(
-            "no subgroups were supplied, so the short-term sigma comes from the "
-            "moving range of consecutive observations. This assumes the data are "
-            "in time order; if they are not, sigma_within is meaningless."
+            Caveat(
+                "capability.no-subgroups",
+                "no subgroups were supplied, so the short-term sigma comes from the "
+                "moving range of consecutive observations. This assumes the data are "
+                "in time order; if they are not, sigma_within is meaningless.",
+            )
         )
 
     if within_method == "moving_range" and n > 1:
         messages.append(
-            "within_method='moving_range' was applied to subgrouped data, which "
-            "ignores the subgroup structure."
+            Caveat(
+                "capability.moving-range-on-subgroups",
+                "within_method='moving_range' was applied to subgrouped data, which "
+                "ignores the subgroup structure.",
+            )
         )
 
     if lsl is None or usl is None:
         messages.append(
-            "only one specification limit was given, so Cp, Pp and Cpm are "
-            "undefined (they measure spread against a two-sided tolerance). "
-            "Cpk/Ppk are reported against the single limit."
+            Caveat(
+                "capability.one-sided-specification",
+                "only one specification limit was given, so Cp, Pp and Cpm are "
+                "undefined (they measure spread against a two-sided tolerance). "
+                "Cpk/Ppk are reported against the single limit.",
+            )
         )
     elif target is None:
         messages.append(
-            "no target was given, so Cpm was not computed. capstat does not "
-            "assume the target is the midpoint of the specification."
+            Caveat(
+                "capability.no-target",
+                "no target was given, so Cpm was not computed. capstat does not "
+                "assume the target is the midpoint of the specification.",
+            )
         )
 
     if subgroups < 20:
@@ -392,10 +411,13 @@ def _warnings(
         # it is long enough.
         measured = f"{subgroups} subgroups" if n > 1 else f"{subgroups} measurements"
         messages.append(
-            f"only {measured}: the sigma estimates, and hence every index, "
-            f"carry wide confidence intervals. AIAG recommends at least 25 "
-            f"subgroups for a capability study, and an individuals study wants "
-            f"as many points."
+            Caveat(
+                "capability.short-series",
+                f"only {measured}: the sigma estimates, and hence every index, "
+                f"carry wide confidence intervals. AIAG recommends at least 25 "
+                f"subgroups for a capability study, and an individuals study wants "
+                f"as many points.",
+            )
         )
 
     if normality is None:
@@ -404,10 +426,13 @@ def _warnings(
         # is skipped entirely, while every index in the report goes on assuming
         # a normal process (T-0070).
         messages.append(
-            f"n={n * subgroups} is below the {AD_MIN_SAMPLE_SIZE} observations "
-            f"the normality assessment needs, so none was made. Every index "
-            f"here still assumes a normal process -- that assumption is "
-            f"untested, not confirmed."
+            Caveat(
+                "capability.normality-untested",
+                f"n={n * subgroups} is below the {AD_MIN_SAMPLE_SIZE} observations "
+                f"the normality assessment needs, so none was made. Every index "
+                f"here still assumes a normal process -- that assumption is "
+                f"untested, not confirmed.",
+            )
         )
 
     return tuple(messages)

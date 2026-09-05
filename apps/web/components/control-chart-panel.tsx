@@ -206,7 +206,9 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
           {state.chart.warnings.length > 0 && (
             <ul className="list-disc space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 pl-8 text-sm text-amber-800 dark:text-amber-200/90">
               {state.chart.warnings.map((w, i) => (
-                <li key={i}>{w}</li>
+                <li key={i} data-code={w.code}>
+                  {w.message}
+                </li>
               ))}
             </ul>
           )}

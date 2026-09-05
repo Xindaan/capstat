@@ -47,6 +47,7 @@ import numpy as np
 import numpy.typing as npt
 
 from capstat_core._validation import as_sample
+from capstat_core.caveats import Caveat
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, MAX_SUBGROUP_SIZE, c4, d2
 
 __all__ = [
@@ -116,7 +117,7 @@ class ChartPair:
     sigma_within: float
     subgroup_size: int
     subgroups: int
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def in_control(self) -> bool:
@@ -148,38 +149,50 @@ def _pair_warnings(
     dispersion: ControlChart,
     subgroups: int,
     lower_limit_is_floored: bool,
-    extra: tuple[str, ...] = (),
-) -> tuple[str, ...]:
-    messages: list[str] = []
+    extra: tuple[Caveat, ...] = (),
+) -> tuple[Caveat, ...]:
+    messages: list[Caveat] = []
 
     if not dispersion.in_control:
         messages.append(
-            f"the {dispersion.name} chart is out of control at "
-            f"{list(dispersion.violations)}. Judge this first: the "
-            f"{location.name} limits are computed from the dispersion estimate, "
-            f"so while the spread is unstable those limits -- and any verdict "
-            f"drawn from them -- mean nothing. Fix the spread, then re-chart."
+            Caveat(
+                "control-chart.dispersion-out-of-control",
+                f"the {dispersion.name} chart is out of control at "
+                f"{list(dispersion.violations)}. Judge this first: the "
+                f"{location.name} limits are computed from the dispersion estimate, "
+                f"so while the spread is unstable those limits -- and any verdict "
+                f"drawn from them -- mean nothing. Fix the spread, then re-chart.",
+            )
         )
     elif not location.in_control:
         messages.append(
-            f"the {location.name} chart is out of control at "
-            f"{list(location.violations)}, while the spread is stable. The "
-            f"process centre has moved."
+            Caveat(
+                "control-chart.location-out-of-control",
+                f"the {location.name} chart is out of control at "
+                f"{list(location.violations)}, while the spread is stable. The "
+                f"process centre has moved.",
+            )
         )
 
     if lower_limit_is_floored:
         messages.append(
-            "the lower limit of the dispersion chart is zero (the unclamped value "
-            "is negative for a subgroup this small). The chart therefore cannot "
-            "signal an *improvement* in spread -- there is no lower limit to "
-            "cross. Larger subgroups would restore that ability."
+            Caveat(
+                "control-chart.floored-lower-limit",
+                "the lower limit of the dispersion chart is zero (the unclamped value "
+                "is negative for a subgroup this small). The chart therefore cannot "
+                "signal an *improvement* in spread -- there is no lower limit to "
+                "cross. Larger subgroups would restore that ability.",
+            )
         )
 
     if subgroups < 20:
         messages.append(
-            f"only {subgroups} subgroups: these are Phase I trial limits estimated "
-            f"from the data being plotted, and with this few they are unstable. "
-            f"Montgomery recommends 20-25 before trusting them."
+            Caveat(
+                "control-chart.few-subgroups",
+                f"only {subgroups} subgroups: these are Phase I trial limits estimated "
+                f"from the data being plotted, and with this few they are unstable. "
+                f"Montgomery recommends 20-25 before trusting them.",
+            )
         )
 
     messages.extend(extra)
@@ -229,12 +242,15 @@ def xbar_r_chart(subgroups: npt.ArrayLike) -> ChartPair:
         ControlLimits(center=rbar, lower=D3(n) * rbar, upper=D4(n) * rbar),
     )
 
-    extra: tuple[str, ...] = ()
+    extra: tuple[Caveat, ...] = ()
     if n > 10:
         extra = (
-            f"subgroup size {n}: the range is an inefficient scale estimator this "
-            f"large, because it uses only two of the {n} observations. Prefer "
-            f"xbar_s_chart().",
+            Caveat(
+                "control-chart.range-inefficient",
+                f"subgroup size {n}: the range is an inefficient scale estimator this "
+                f"large, because it uses only two of the {n} observations. Prefer "
+                f"xbar_s_chart().",
+            ),
         )
 
     return ChartPair(
@@ -347,9 +363,12 @@ def i_mr_chart(data: npt.ArrayLike) -> ChartPair:
         subgroups=n,
         lower_limit_is_floored=D3(2) == 0.0,
         extra=(
-            "individuals chart: the limits rest on the moving range, which assumes "
-            "the data are in time order. If they are not, these limits are "
-            "meaningless -- and nothing about them will look wrong.",
+            Caveat(
+                "control-chart.time-order-assumed",
+                "individuals chart: the limits rest on the moving range, which assumes "
+                "the data are in time order. If they are not, these limits are "
+                "meaningless -- and nothing about them will look wrong.",
+            ),
         ),
     )
 

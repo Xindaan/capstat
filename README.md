@@ -95,6 +95,7 @@ report = assess_normality(measurements)
 report.normal            # False -- True only if BOTH tests fail to reject
 report.recommendation    # what to do next, in words
 report.warnings          # why the verdict might be wrong; () means "take it at face value"
+report.warnings[0].code  # e.g. "normality.autocorrelation" -- stable, unlike the prose
 ```
 
 On the NIST `Mavro` dataset (50 filter-transmittance readings) it reports
@@ -439,7 +440,11 @@ curl -s http://127.0.0.1:8000/compute/capability \
 
 Every response mirrors a core dataclass faithfully — the `warnings` arrays and
 the nullable capability indices survive serialisation rather than being
-flattened away. Endpoints: `/compute/descriptive`, `/compute/capability`,
+flattened away. A warning crosses the wire as `{"code", "message"}`: the code
+is what a program branches on (`capability.unstable-process`, stable across
+rewordings), the message is what a person reads. In Python a warning *is* its
+sentence — `Caveat` is a `str` subclass — so `"drift" in warning` still works
+and the code rides alongside as `warning.code`. Endpoints: `/compute/descriptive`, `/compute/capability`,
 `/compute/capability/analyze`, `/compute/control-chart/{i-mr,xbar-r,xbar-s,ewma,cusum}`,
 `/compute/rules/{nelson,western-electric}`, `/compute/gage-rr`,
 `/compute/{bias,linearity,stability}`,

@@ -169,7 +169,9 @@ export function UploadPanel({
               </p>
               <ul className="list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-200/90">
                 {result.warnings.map((w, i) => (
-                  <li key={i}>{w}</li>
+                  <li key={i} data-code={w.code}>
+                    {w.message}
+                  </li>
                 ))}
               </ul>
               {result.ignored_columns.length > 0 && (

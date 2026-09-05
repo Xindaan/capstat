@@ -12,7 +12,12 @@ const INGEST = {
   n_rows: VALUES.length,
   columns: [{ name: "measurement", values: VALUES, dropped_missing: 0 }],
   ignored_columns: ["operator"],
-  warnings: ["Ignored non-numeric column(s): operator."],
+  warnings: [
+    {
+      code: "ingest.non-numeric-columns-ignored",
+      message: "Ignored non-numeric column(s): operator.",
+    },
+  ],
 };
 
 const CAPABILITY = {
@@ -70,7 +75,12 @@ const CAPABILITY_PERCENTILE = {
   },
   rationale:
     "the normal model was rejected and Box-Cox failed to fix it, so the ISO 22514 percentile method was used instead.",
-  warnings: ["the percentile method yields long-term (Pp/Ppk) indices only."],
+  warnings: [
+    {
+      code: "nonnormal.percentile-no-cpk",
+      message: "the percentile method yields long-term (Pp/Ppk) indices only.",
+    },
+  ],
 };
 
 // A realistic spreadsheet: the row number comes first, the measurement second.
@@ -238,6 +248,30 @@ test("an index with no value says why, instead of showing a bare dash", async ({
   );
   // Ppk is defined by one limit, so it still shows a number.
   await expect(cards.filter({ hasText: "Ppk" }).first()).toContainText("0.942");
+});
+
+test("a warning arrives with the code a program can act on", async ({
+  page,
+}) => {
+  // The point of T-0074, end to end: the code is set in capstat-core, survives
+  // the HTTP contract as {code, message}, and reaches the DOM. Before it, a
+  // consumer wanting to react to "this path has no Cpk" had to match English
+  // prose, so rewording a sentence broke it silently.
+  await mockApi(page, CAPABILITY_PERCENTILE);
+  await gotoReady(page, "/");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+  await page.getByLabel("USL").fill("10.3");
+  await page.getByRole("button", { name: "Compute capability" }).click();
+
+  const warning = page.locator("li[data-code='nonnormal.percentile-no-cpk']");
+  await expect(warning).toHaveCount(1);
+  // Both halves survive: the person still reads the sentence.
+  await expect(warning).toContainText("long-term (Pp/Ppk) indices only");
 });
 
 test("a row-index column is neither auto-selected nor silently analysed", async ({
