@@ -131,6 +131,42 @@ export function gageRR(data: number[][][], opts: GageRROptions) {
   });
 }
 
+/**
+ * Capability from subgroups (`/compute/capability`).
+ *
+ * The decision path is deliberately not available here: `analyze_capability`
+ * takes a flat sample, because Box-Cox and the percentile fit both work on one.
+ * With subgroups you get the classic report instead -- and a genuine
+ * within-subgroup sigma, which is the whole reason to subgroup (T-0075).
+ */
+export function capabilityFromSubgroups(
+  subgroups: number[][],
+  limits: SpecLimits,
+) {
+  return api.POST("/compute/capability", {
+    body: {
+      data: subgroups,
+      lsl: limits.lsl,
+      usl: limits.usl,
+      target: limits.target,
+      // openapi-typescript types defaulted fields as required; the UI does not
+      // expose the estimator, so pass the server default explicitly.
+      within_method: null,
+      alpha: limits.alpha ?? 0.05,
+    },
+  });
+}
+
+/** X-bar and R charts: subgroup averages, spread from the range. */
+export function xbarRChart(subgroups: number[][]) {
+  return api.POST("/compute/control-chart/xbar-r", { body: { subgroups } });
+}
+
+/** X-bar and s charts: subgroup averages, spread from the standard deviation. */
+export function xbarSChart(subgroups: number[][]) {
+  return api.POST("/compute/control-chart/xbar-s", { body: { subgroups } });
+}
+
 export function analyzeCapability(data: number[], limits: SpecLimits) {
   return api.POST("/compute/capability/analyze", {
     body: {

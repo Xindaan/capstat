@@ -62,14 +62,14 @@ const STABILITY = {
     subgroups: POINTS.length,
     warnings: [],
     location: {
-      name: "Individuals",
+      name: "individuals",
       points: POINTS,
       limits: { center: 10.01, lower: 9.95, upper: 10.07 },
       violations: [18, 19],
       in_control: false,
     },
     dispersion: {
-      name: "Moving range",
+      name: "moving range",
       points: POINTS.slice(1).map(() => 0.01),
       limits: { center: 0.01, lower: 0, upper: 0.03 },
       violations: [],
