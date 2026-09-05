@@ -3,8 +3,19 @@
 ## [0.3.0](https://github.com/Xindaan/capstat/compare/v0.2.1...v0.3.0) (2026-09-05)
 
 
+### ⚠ BREAKING CHANGES
+
+* **core,api,web:** every warning carries a code (T-0074). A warning crosses
+  the HTTP contract as `{code, message}` rather than a bare string, and
+  `capstat-core`'s `warnings` tuples hold `Caveat` rather than `str`.
+  `Caveat` is a `str` subclass, so printing, joining and `"text" in warning`
+  are unaffected; a client reading `warnings` as JSON strings is not.
+  ([e3abe9f](https://github.com/Xindaan/capstat/commit/e3abe9f9dadadd9e00a1f61e8eb5581905324aeb))
+
+
 ### Features
 
+* **core,api,web:** every warning carries a code (T-0074) ([e3abe9f](https://github.com/Xindaan/capstat/commit/e3abe9f9dadadd9e00a1f61e8eb5581905324aeb))
 * **api:** a local CLI over the same parser and the same core (T-0077) ([05fc732](https://github.com/Xindaan/capstat/commit/05fc732d223c2ca602747f138a8dff52626c28bf))
 * **api:** cap the compute request body at 10 MB (T-0063) ([d1473ad](https://github.com/Xindaan/capstat/commit/d1473ad257a79702ca21f46212641fbe17336977))
 * **core,api,web:** judge new data against a known baseline (T-0076) ([9129626](https://github.com/Xindaan/capstat/commit/9129626798664e2d84c2034f6e57a24f3aaac842))
