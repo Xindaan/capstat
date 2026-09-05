@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   imrChart,
   nelsonRules,
+  xbarRChart,
+  xbarSChart,
   rulesCatalogue,
   type ChartPair,
   type IngestColumn,
@@ -12,6 +14,7 @@ import {
 } from "@/lib/api-client";
 import { callApi } from "@/lib/call-api";
 import { describeRuleSelection } from "@/lib/rules";
+import { chartForSize, intoSubgroups } from "@/lib/subgroups";
 import { ControlChart } from "./control-chart";
 import { ErrorAlert } from "./error-alert";
 
@@ -28,9 +31,35 @@ type State =
  * which is the point of this control, but they are not the default.
  */
 const DEFAULT_RULES = [1, 2, 3, 4];
+
+/** "individuals" -> "Individuals"; "X-bar" is already how the core writes it. */
+function titleCase(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/**
+ * The pair's name, derived from the charts themselves rather than restated.
+ *
+ * "I-MR" is what everyone calls the individuals pair, so it keeps that name;
+ * the subgroup pairs are named by their two charts. Either way the label comes
+ * from what was actually computed, so it cannot announce a chart the panel is
+ * not showing.
+ */
+function chartPairName(chart: ChartPair): string {
+  return chart.location.name === "individuals"
+    ? "I-MR"
+    : `${chart.location.name} / ${chart.dispersion.name}`;
+}
 const ALL_RULES = [1, 2, 3, 4, 5, 6, 7, 8];
 
-export function ControlChartPanel({ column }: { column: IngestColumn }) {
+export function ControlChartPanel({
+  column,
+  subgroupSize,
+}: {
+  column: IngestColumn;
+  /** 1 = an I-MR chart; anything more charts subgroup averages. */
+  subgroupSize: number;
+}) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [selected, setSelected] = useState<number[]>(DEFAULT_RULES);
   // Violations are stored with the chart they were computed from. Without that
@@ -59,8 +88,19 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Which pair of charts suits the data is a consequence of the subgroup
+      // size, not a separate choice: the range discards all but two values per
+      // subgroup, so above 10 the s chart is the better estimator. The panel
+      // picks and then says which it picked, rather than making the user know.
+      const request = () => {
+        if (subgroupSize <= 1) return imrChart(column.values);
+        const { subgroups } = intoSubgroups(column.values, subgroupSize);
+        return chartForSize(subgroupSize) === "xbar-r"
+          ? xbarRChart(subgroups)
+          : xbarSChart(subgroups);
+      };
       const outcome = await callApi(
-        () => imrChart(column.values),
+        request,
         "The control chart could not be computed.",
       );
       if (cancelled) return;
@@ -73,7 +113,7 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
     return () => {
       cancelled = true;
     };
-  }, [column.values]);
+  }, [column.values, subgroupSize]);
 
   // Run-rules read their sigma zones from the individuals chart's own limits,
   // so this waits for the chart and re-runs whenever the selection changes.
@@ -156,7 +196,8 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
     <section className="flex flex-col gap-4" aria-label="Control chart">
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-medium text-foreground/70">
-          Control chart (I-MR)
+          Control chart (
+          {state.kind === "done" ? chartPairName(state.chart) : "…"})
         </h2>
         {state.kind === "done" && (
           <span
@@ -182,7 +223,7 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
         <div className="flex flex-col gap-4">
           <div className="rounded-lg border border-foreground/15 p-4">
             <ControlChart
-              title="Individuals"
+              title={titleCase(state.chart.location.name)}
               points={state.chart.location.points}
               center={state.chart.location.limits.center}
               lower={state.chart.location.limits.lower}
@@ -194,7 +235,7 @@ export function ControlChartPanel({ column }: { column: IngestColumn }) {
           </div>
           <div className="rounded-lg border border-foreground/15 p-4">
             <ControlChart
-              title="Moving range"
+              title={titleCase(state.chart.dispersion.name)}
               points={state.chart.dispersion.points}
               center={state.chart.dispersion.limits.center}
               lower={state.chart.dispersion.limits.lower}

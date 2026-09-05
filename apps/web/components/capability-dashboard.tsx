@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 
 import {
   analyzeCapability,
+  capabilityFromSubgroups,
   type CapabilityAnalysis,
+  type CapabilityReport,
   type IngestColumn,
 } from "@/lib/api-client";
 import { callApi } from "@/lib/call-api";
@@ -14,13 +16,27 @@ import {
   parseRequiredIndex,
   type CapabilityBand,
 } from "@/lib/capability";
+import { intoSubgroups } from "@/lib/subgroups";
 import { CapabilityHistogram, type NormalFit } from "./capability-histogram";
 import { ErrorAlert } from "./error-alert";
+
+/**
+ * The two shapes a capability answer comes in.
+ *
+ * Individuals go through `analyze_capability`, which chooses normal / Box-Cox /
+ * percentile and says why. Subgroups go through `capability`, which has no
+ * decision path -- Box-Cox and the percentile fit both work on a flat sample --
+ * but does give a genuine within-subgroup sigma, which is the reason to
+ * subgroup at all (T-0075).
+ */
+type Answer =
+  | { kind: "analysis"; analysis: CapabilityAnalysis }
+  | { kind: "report"; report: CapabilityReport };
 
 type Status =
   | { kind: "idle" }
   | { kind: "computing" }
-  | { kind: "done"; result: CapabilityAnalysis }
+  | { kind: "done"; answer: Answer }
   | { kind: "error"; message: string };
 
 const PATH_LABEL: Record<CapabilityAnalysis["path"], string> = {
@@ -41,7 +57,14 @@ const BAND_TONE: Record<CapabilityBand, string> = {
   unjudged: "text-muted",
 };
 
-export function CapabilityDashboard({ column }: { column: IngestColumn }) {
+export function CapabilityDashboard({
+  column,
+  subgroupSize,
+}: {
+  column: IngestColumn;
+  /** 1 = individuals; anything more groups consecutive rows. */
+  subgroupSize: number;
+}) {
   const [lsl, setLsl] = useState("");
   const [usl, setUsl] = useState("");
   const [target, setTarget] = useState("");
@@ -67,47 +90,82 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
   const compute = async () => {
     if (!parsed.valid) return;
     setStatus({ kind: "computing" });
+    const limits = { lsl: parsed.l, usl: parsed.u, target: parsed.t };
+    if (subgroupSize > 1) {
+      const { subgroups } = intoSubgroups(column.values, subgroupSize);
+      const outcome = await callApi(
+        () => capabilityFromSubgroups(subgroups, limits),
+        "Capability could not be computed.",
+      );
+      if (!outcome.ok) {
+        setStatus({ kind: "error", message: outcome.message });
+        return;
+      }
+      setStatus({
+        kind: "done",
+        answer: { kind: "report", report: outcome.data },
+      });
+      return;
+    }
     const outcome = await callApi(
-      () =>
-        analyzeCapability(column.values, {
-          lsl: parsed.l,
-          usl: parsed.u,
-          target: parsed.t,
-        }),
+      () => analyzeCapability(column.values, limits),
       "Capability could not be computed.",
     );
     if (!outcome.ok) {
       setStatus({ kind: "error", message: outcome.message });
       return;
     }
-    setStatus({ kind: "done", result: outcome.data });
+    setStatus({
+      kind: "done",
+      answer: { kind: "analysis", analysis: outcome.data },
+    });
   };
 
-  const result = status.kind === "done" ? status.result : null;
-  // The within-based report (Cp/Cpk) for the active path: the normal fit, or
-  // the Box-Cox fit on the transformed scale. The percentile path has no
-  // within/overall split, hence no Cp/Cpk.
-  const report =
-    result?.path === "normal"
-      ? result.normal
-      : result?.path === "box-cox"
-        ? (result.box_cox?.capability ?? null)
-        : null;
+  const answer = status.kind === "done" ? status.answer : null;
+  const analysis = answer?.kind === "analysis" ? answer.analysis : null;
+  // The within-based report (Cp/Cpk). On the individuals path that is whichever
+  // branch the decision path took -- the normal fit, or the Box-Cox fit on the
+  // transformed scale. With subgroups it is the report itself.
+  const within =
+    answer?.kind === "report"
+      ? answer.report
+      : analysis?.path === "normal"
+        ? analysis.normal
+        : analysis?.path === "box-cox"
+          ? (analysis.box_cox?.capability ?? null)
+          : null;
   // The percentile method reads percentiles off the overall fitted distribution
   // and has no within/between subgroup split, so Cp and Cpk do not exist there
   // at all -- as opposed to merely being undefined for a one-sided spec. Saying
   // which is which is the whole point: an empty card otherwise reads as "your
   // input was wrong".
   const withinUnavailable =
-    result?.path === "percentile"
+    analysis?.path === "percentile"
       ? "not defined on the percentile path"
       : undefined;
-  // Only the normal path gets a fitted curve; a Box-Cox normal lives in the
-  // transformed space and would be wrong drawn over the original-scale bars.
+  const headline =
+    answer?.kind === "report"
+      ? { pp: answer.report.pp, ppk: answer.report.ppk }
+      : { pp: analysis?.pp ?? null, ppk: analysis?.ppk ?? null };
+  const warnings =
+    answer?.kind === "report"
+      ? answer.report.warnings
+      : (analysis?.warnings ?? []);
+  const normality =
+    answer?.kind === "report"
+      ? answer.report.normality
+      : (analysis?.normality ?? null);
+  // A fitted curve is drawn only where it belongs on the original scale: the
+  // normal path, or a subgroup report whose normal model was not rejected. A
+  // Box-Cox normal lives in the transformed space and would be wrong here.
   const fit: NormalFit | null =
-    result?.path === "normal" && result.normal
-      ? { mean: result.normal.mean, sigma: result.normal.sigma_overall }
-      : null;
+    answer?.kind === "report"
+      ? answer.report.normality?.normal
+        ? { mean: answer.report.mean, sigma: answer.report.sigma_overall }
+        : null
+      : analysis?.path === "normal" && analysis.normal
+        ? { mean: analysis.normal.mean, sigma: analysis.normal.sigma_overall }
+        : null;
 
   return (
     <section className="flex flex-col gap-5" aria-label="Capability analysis">
@@ -150,30 +208,30 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
 
       {status.kind === "error" && <ErrorAlert message={status.message} />}
 
-      {result && (
+      {answer && (
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <IndexCard
               label="Pp"
-              value={result.pp}
+              value={headline.pp}
               required={requiredIndex}
               unavailable="needs both spec limits"
             />
             <IndexCard
               label="Ppk"
-              value={result.ppk}
+              value={headline.ppk}
               required={requiredIndex}
               emphasize
             />
             <IndexCard
               label="Cp"
-              value={report?.cp}
+              value={within?.cp}
               required={requiredIndex}
               unavailable={withinUnavailable ?? "needs both spec limits"}
             />
             <IndexCard
               label="Cpk"
-              value={report?.cpk}
+              value={within?.cpk}
               required={requiredIndex}
               emphasize
               unavailable={withinUnavailable}
@@ -192,19 +250,27 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
           <div className="rounded-lg border border-foreground/15 p-4">
             <div className="mb-2 flex items-center gap-2">
               <span className="rounded bg-foreground/10 px-2 py-0.5 text-xs font-medium">
-                Path: {PATH_LABEL[result.path]}
+                {analysis
+                  ? `Path: ${PATH_LABEL[analysis.path]}`
+                  : `Subgroups of ${subgroupSize}`}
               </span>
-              <NormalityBadge normal={result.normality.normal} />
+              {normality && <NormalityBadge normal={normality.normal} />}
             </div>
-            <p className="text-sm text-foreground/70">{result.rationale}</p>
-            <p className="mt-2 text-xs text-muted">
-              {result.normality.recommendation}
+            <p className="text-sm text-foreground/70">
+              {analysis
+                ? analysis.rationale
+                : `Cp and Cpk here rest on a within-subgroup sigma estimated from ${within?.subgroups ?? 0} subgroups of ${subgroupSize}, which is what subgrouping buys. The normal/Box-Cox/percentile decision path is not run on subgrouped data — it works on a flat sample — so if the normal model is in doubt, read the warnings below and re-run at subgroup size 1 to have the path choose.`}
             </p>
+            {normality && (
+              <p className="mt-2 text-xs text-muted">
+                {normality.recommendation}
+              </p>
+            )}
           </div>
 
-          {result.warnings.length > 0 && (
+          {warnings.length > 0 && (
             <ul className="list-disc space-y-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 pl-8 text-sm text-amber-800 dark:text-amber-200/90">
-              {result.warnings.map((w, i) => (
+              {warnings.map((w, i) => (
                 <li key={i} data-code={w.code}>
                   {w.message}
                 </li>

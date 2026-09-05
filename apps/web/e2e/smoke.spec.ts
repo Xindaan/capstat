@@ -44,14 +44,14 @@ const CHART = {
   subgroups: VALUES.length,
   warnings: [],
   location: {
-    name: "Individuals",
+    name: "individuals",
     points: VALUES,
     limits: { center: 10, lower: 9.8, upper: 10.2 },
     violations: [],
     in_control: true,
   },
   dispersion: {
-    name: "Moving range",
+    name: "moving range",
     points: VALUES.slice(1).map((v, i) => Math.abs(v - VALUES[i])),
     limits: { center: 0.06, lower: 0, upper: 0.2 },
     violations: [],
@@ -98,6 +98,79 @@ const INGEST_WITH_ROW_INDEX = {
   ],
   ignored_columns: [],
   warnings: [],
+};
+
+// Subgrouped answers (T-0075). `capability` returns a report, not the decision
+// path -- Box-Cox and the percentile fit both work on a flat sample, so there
+// is no path to choose with subgroups.
+const CAPABILITY_SUBGROUPS = {
+  n: 30,
+  subgroup_size: 5,
+  subgroups: 6,
+  mean: 10,
+  sigma_within: 0.04,
+  sigma_overall: 0.058,
+  within_method: "pooled",
+  lsl: 9.7,
+  usl: 10.3,
+  target: null,
+  cp: 2.5,
+  cpl: 2.5,
+  cpu: 2.5,
+  cpk: 2.5,
+  cpm: null,
+  pp: 1.72,
+  ppl: 1.72,
+  ppu: 1.72,
+  ppk: 1.72,
+  normality: {
+    n: 30,
+    alpha: 0.05,
+    normal: true,
+    recommendation: "Normal model not rejected.",
+    warnings: [],
+    lag1_autocorrelation: 0.1,
+    anderson_darling: {
+      test: "anderson-darling",
+      n: 30,
+      statistic: 0.3,
+      p_value: 0.5,
+      alpha: 0.05,
+      normal: true,
+    },
+    shapiro_wilk: {
+      test: "shapiro-wilk",
+      n: 30,
+      statistic: 0.98,
+      p_value: 0.6,
+      alpha: 0.05,
+      normal: true,
+    },
+  },
+  warnings: [],
+  stability_ratio: 1.45,
+};
+
+const XBAR_R = {
+  in_control: true,
+  sigma_within: 0.04,
+  subgroup_size: 5,
+  subgroups: 6,
+  warnings: [],
+  location: {
+    name: "X-bar",
+    points: [10.0, 10.02, 9.99, 10.01, 10.0, 9.98],
+    limits: { center: 10, lower: 9.94, upper: 10.06 },
+    violations: [],
+    in_control: true,
+  },
+  dispersion: {
+    name: "R",
+    points: [0.1, 0.12, 0.09, 0.11, 0.1, 0.08],
+    limits: { center: 0.1, lower: 0, upper: 0.21 },
+    violations: [],
+    in_control: true,
+  },
 };
 
 async function mockApi(
@@ -171,6 +244,87 @@ test("upload -> capability -> control chart", async ({ page }) => {
     page.locator('[aria-label="Capability analysis"] svg'),
   ).toHaveCount(1);
   await expect(page.locator('[aria-label="Control chart"] svg')).toHaveCount(2);
+});
+
+test("a subgroup size reaches the subgrouped endpoints, not the individuals ones", async ({
+  page,
+}) => {
+  // The point of T-0075. capstat-core has taken subgroups since T-0005 and
+  // xbar_r_chart has existed since T-0007; neither was reachable from the page,
+  // so every Cp/Cpk the app showed rested on a moving-range sigma -- the
+  // fallback the library warns about on every such report.
+  const called: string[] = [];
+  await mockApi(page);
+  await page.route("**/compute/capability", (r) => {
+    called.push("capability");
+    return r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(CAPABILITY_SUBGROUPS),
+    });
+  });
+  await page.route("**/control-chart/xbar-r", (r) => {
+    called.push("xbar-r");
+    return r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(XBAR_R),
+    });
+  });
+  await gotoReady(page, "/");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+
+  // 30 values, subgroups of 5: six complete subgroups and nothing left over.
+  await page.getByLabel("Subgroup size").fill("5");
+  await expect(
+    page.getByText(/6 subgroups from 30 measurements/),
+  ).toBeVisible();
+  await expect(page.getByTestId("subgroup-leftover")).toHaveCount(0);
+
+  // The chart pair switched, and its name comes from what was computed.
+  await expect(page.getByText("Control chart (X-bar / R)")).toBeVisible();
+
+  await page.getByLabel("LSL").fill("9.7");
+  await page.getByLabel("USL").fill("10.3");
+  await page.getByRole("button", { name: "Compute capability" }).click();
+
+  // Cp/Cpk now come from a within-subgroup sigma rather than a moving range.
+  await expect(page.getByText("2.500").first()).toBeVisible();
+  await expect(page.getByText(/Subgroups of 5/)).toBeVisible();
+  await expect(
+    page.getByText(/decision path is not run on subgrouped data/),
+  ).toBeVisible();
+
+  expect(called).toContain("capability");
+  expect(called).toContain("xbar-r");
+  // And the individuals endpoints were not used.
+  expect(called).not.toContain("analyze");
+});
+
+test("a column that does not divide evenly says which values are left out", async ({
+  page,
+}) => {
+  // Silently analysing 28 of 30 measurements would be a different study with
+  // nothing on screen to say so.
+  await mockApi(page);
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n"),
+  });
+
+  await page.getByLabel("Subgroup size").fill("4");
+  const note = page.getByTestId("subgroup-leftover");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText(
+    "the last 2 values are not part of any subgroup",
+  );
 });
 
 test("the capability colouring follows the requirement you state, not 1.33", async ({
