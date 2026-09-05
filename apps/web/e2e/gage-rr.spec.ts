@@ -33,7 +33,11 @@ const REPORT = {
   verdict: "unacceptable",
   ndc_adequate: false,
   warnings: [
-    "gage R&R is 33.1% of study variation (> 30%): the measurement system is unacceptable",
+    {
+      code: "mock.gage-r-r-is-33-1-of-study-variation-30-t",
+      message:
+        "gage R&R is 33.1% of study variation (> 30%): the measurement system is unacceptable",
+    },
   ],
 };
 

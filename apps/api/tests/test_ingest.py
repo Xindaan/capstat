@@ -20,6 +20,13 @@ def _xlsx(frame: pd.DataFrame) -> bytes:
     return buffer.getvalue()
 
 
+def _messages(body: dict[str, object]) -> list[str]:
+    """The prose half of each warning (T-0074 made them {code, message})."""
+    warnings = body["warnings"]
+    assert isinstance(warnings, list)
+    return [w["message"] for w in warnings]
+
+
 def test_csv_extracts_numeric_columns(client: TestClient) -> None:
     resp = client.post("/ingest", files={"file": ("data.csv", CSV, "text/csv")})
     assert resp.status_code == 200
@@ -31,7 +38,7 @@ def test_csv_extracts_numeric_columns(client: TestClient) -> None:
     assert width["values"] == [1.0, 3.0, 5.0]
     # The text column is named as ignored, not silently gone.
     assert body["ignored_columns"] == ["label"]
-    assert any("label" in w for w in body["warnings"])
+    assert any("label" in w for w in _messages(body))
 
 
 def test_csv_counts_dropped_missing(client: TestClient) -> None:
@@ -42,7 +49,7 @@ def test_csv_counts_dropped_missing(client: TestClient) -> None:
     x = next(c for c in body["columns"] if c["name"] == "x")
     assert x["values"] == [1.0, 5.0]
     assert x["dropped_missing"] == 1
-    assert any("dropped" in w for w in body["warnings"])
+    assert any("dropped" in w for w in _messages(body))
 
 
 def test_xlsx_round_trip(client: TestClient) -> None:
@@ -71,7 +78,7 @@ def test_all_text_yields_no_columns_warning(client: TestClient) -> None:
         "/ingest", files={"file": ("t.csv", b"a,b\nx,y\n", "text/csv")}
     ).json()
     assert body["columns"] == []
-    assert any("No numeric columns" in w for w in body["warnings"])
+    assert any("No numeric columns" in w for w in _messages(body))
 
 
 def test_oversized_file_is_413(
@@ -161,8 +168,8 @@ def test_a_german_excel_csv_is_read_rather_than_ignored(client: TestClient) -> N
     assert values["charge"] == [1.0, 2.0, 3.0]
     assert body["ignored_columns"] == []
     # And it says what it detected rather than fixing things behind the back.
-    assert any("semicolon" in w for w in body["warnings"])
-    assert any("decimal comma" in w and "durchmesser" in w for w in body["warnings"])
+    assert any("semicolon" in w for w in _messages(body))
+    assert any("decimal comma" in w and "durchmesser" in w for w in _messages(body))
 
 
 def test_a_decimal_comma_survives_a_comma_separated_file(client: TestClient) -> None:
@@ -177,7 +184,7 @@ def test_a_decimal_comma_survives_a_comma_separated_file(client: TestClient) -> 
     values = {c["name"]: c["values"] for c in body["columns"]}
     assert values["diameter"] == [9.71, 9.80, 9.75]
     assert values["batch"] == [1.0, 2.0, 3.0]
-    assert any("decimal comma" in w for w in body["warnings"])
+    assert any("decimal comma" in w for w in _messages(body))
 
 
 def test_a_cp1252_file_is_read_and_the_encoding_is_named(client: TestClient) -> None:
@@ -186,7 +193,7 @@ def test_a_cp1252_file_is_read_and_the_encoding_is_named(client: TestClient) -> 
     body = client.post("/ingest", files={"file": ("e.csv", csv, "text/csv")}).json()
 
     assert [c["name"] for c in body["columns"]] == ["größe", "wert"]
-    assert any("cp1252" in w for w in body["warnings"])
+    assert any("cp1252" in w for w in _messages(body))
 
 
 def test_a_utf8_bom_does_not_stick_to_the_first_column_name(
@@ -216,7 +223,7 @@ def test_a_multi_sheet_workbook_says_which_sheet_it_read(client: TestClient) -> 
         files={"file": ("w.xlsx", buffer.getvalue(), "application/vnd.ms-excel")},
     ).json()
     assert [c["name"] for c in body["columns"]] == ["m"]
-    assert any("2 sheets" in w and "measurements" in w for w in body["warnings"])
+    assert any("2 sheets" in w and "measurements" in w for w in _messages(body))
 
 
 def test_a_text_column_holding_commas_is_not_turned_into_numbers(
@@ -233,7 +240,7 @@ def test_a_text_column_holding_commas_is_not_turned_into_numbers(
 
     assert body["ignored_columns"] == ["label"]
     assert [c["name"] for c in body["columns"]] == ["value"]
-    assert not any("decimal comma" in w for w in body["warnings"])
+    assert not any("decimal comma" in w for w in _messages(body))
 
 
 def test_a_file_that_is_text_in_no_encoding_capstat_reads_is_422(

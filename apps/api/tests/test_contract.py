@@ -116,3 +116,17 @@ def test_exporter_check_flags_missing_file(
 ) -> None:
     monkeypatch.setattr(export_openapi, "SCHEMA_PATH", tmp_path / "absent.json")
     assert main(["--check"]) == 1
+
+
+def test_an_already_split_caveat_passes_through(client: TestClient) -> None:
+    """The wire form validates as itself, not only the core's str subclass.
+
+    `_as_caveat` has to be idempotent: the API re-validates its own models in
+    places (nested reports), and a dict arriving there must not be rewrapped.
+    """
+    from capstat_api.schemas import CaveatOut, _as_caveat
+
+    already = {"code": "capability.no-target", "message": "no target was given"}
+    assert _as_caveat(already) is already
+    model = CaveatOut.model_validate(already)
+    assert model.code == "capability.no-target"

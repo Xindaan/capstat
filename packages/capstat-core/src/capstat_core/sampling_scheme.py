@@ -49,6 +49,8 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
+from capstat_core.caveats import Caveat
+
 __all__ = [
     "InspectionSeverity",
     "LotResult",
@@ -155,7 +157,7 @@ class SchemeHistory:
     steps: tuple[SchemeStep, ...]
     final_severity: InspectionSeverity
     rules: SwitchingRules
-    warnings: tuple[str, ...] = field(default_factory=tuple)
+    warnings: tuple[Caveat, ...] = field(default_factory=tuple)
 
     @property
     def switches(self) -> tuple[SchemeStep, ...]:
@@ -301,60 +303,84 @@ def _scheme_warnings(
     authorised: bool,
     scored_any_lot: bool,
     tighter_aql_answered: bool,
-) -> list[str]:
+) -> list[Caveat]:
     """What the severities do not say."""
-    out: list[str] = [
-        "these outcomes are read as original inspection only. A lot resubmitted "
-        "after screening counts towards none of the rules, and capstat cannot "
-        "tell one from the other -- if resubmissions were included, the "
-        "severities below are wrong.",
-        "the switching rules are applied per class of nonconformities. A series "
-        "mixing classes together is not the scheme the standard describes; run "
-        "one series per class.",
+    out: list[Caveat] = [
+        Caveat(
+            "scheme.original-inspection-only",
+            "these outcomes are read as original inspection only. A lot resubmitted "
+            "after screening counts towards none of the rules, and capstat cannot "
+            "tell one from the other -- if resubmissions were included, the "
+            "severities below are wrong.",
+        ),
+        Caveat(
+            "scheme.per-class-of-nonconformities",
+            "the switching rules are applied per class of nonconformities. A series "
+            "mixing classes together is not the scheme the standard describes; run "
+            "one series per class.",
+        ),
     ]
     if any(step.severity == "normal" for step in steps) and not authorised:
         out.append(
-            "reduced inspection was never entered because it was not "
-            "authorised. That is the default on purpose: the standard also "
-            "requires steady production and the responsible authority judging "
-            "reduced inspection desirable, and neither is something capstat can "
-            "observe."
+            Caveat(
+                "scheme.reduced-not-authorised",
+                "reduced inspection was never entered because it was not "
+                "authorised. That is the default on purpose: the standard also "
+                "requires steady production and the responsible authority judging "
+                "reduced inspection desirable, and neither is something capstat can "
+                "observe.",
+            )
         )
     if scored_any_lot and not tighter_aql_answered:
         out.append(
-            "every lot was scored on the Ac <= 1 rule (+2), because no lot said "
-            "whether it would still have been accepted one AQL step tighter. "
-            "That under-counts the score for plans with an acceptance number of "
-            "2 or more, so reduced inspection is reached later than the "
-            "standard would reach it -- the safe direction, but not the "
-            "standard's."
+            Caveat(
+                "scheme.conservative-switching-score",
+                "every lot was scored on the Ac <= 1 rule (+2), because no lot said "
+                "whether it would still have been accepted one AQL step tighter. "
+                "That under-counts the score for plans with an acceptance number of "
+                "2 or more, so reduced inspection is reached later than the "
+                "standard would reach it -- the safe direction, but not the "
+                "standard's.",
+            )
         )
     if final_severity == "tightened":
         out.append(
-            "the series ends on tightened inspection: the supplier has not yet "
-            "earned normal inspection back. Reporting the last lot's result "
-            "without its severity would overstate what was accepted."
+            Caveat(
+                "scheme.ends-tightened",
+                "the series ends on tightened inspection: the supplier has not yet "
+                "earned normal inspection back. Reporting the last lot's result "
+                "without its severity would overstate what was accepted.",
+            )
         )
     if final_severity == "discontinued":
         out.append(
-            "inspection was discontinued. The standard's remedy is not a "
-            "smaller sample but a better process: acceptance does not resume "
-            "until the supplier has acted and the responsible authority accepts "
-            "that the action will work -- and it then resumes on *tightened* "
-            "inspection, not normal."
+            Caveat(
+                "scheme.discontinued",
+                "inspection was discontinued. The standard's remedy is not a "
+                "smaller sample but a better process: acceptance does not resume "
+                "until the supplier has acted and the responsible authority accepts "
+                "that the action will work -- and it then resumes on *tightened* "
+                "inspection, not normal.",
+            )
         )
     if final_severity == "reduced":
         out.append(
-            "the series ends on reduced inspection, which samples fewer items. "
-            "It rests on the authorisation you gave, not on anything capstat "
-            "verified: if production is no longer steady, the standard's answer "
-            "is to return to normal inspection."
+            Caveat(
+                "scheme.ends-reduced",
+                "the series ends on reduced inspection, which samples fewer items. "
+                "It rests on the authorisation you gave, not on anything capstat "
+                "verified: if production is no longer steady, the standard's answer "
+                "is to return to normal inspection.",
+            )
         )
     if steps and not any(step.switched for step in steps):
         out.append(
-            "no switch occurred in this series, so these lots were all judged at "
-            "one severity. That is a result, not a reason to stop applying the "
-            "rules: the protection comes from switching when the evidence "
-            "demands it."
+            Caveat(
+                "scheme.no-switch",
+                "no switch occurred in this series, so these lots were all judged at "
+                "one severity. That is a result, not a reason to stop applying the "
+                "rules: the protection comes from switching when the evidence "
+                "demands it.",
+            )
         )
     return out

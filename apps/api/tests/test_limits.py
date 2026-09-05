@@ -9,11 +9,13 @@ readable by the browser that provoked it.
 
 from __future__ import annotations
 
+import asyncio
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, MutableMapping
+from typing import Any
 
 import pytest
-from capstat_api.limits import DEFAULT_MAX_COMPUTE_BYTES
+from capstat_api.limits import DEFAULT_MAX_COMPUTE_BYTES, ComputeBodyLimit
 from capstat_api.main import _max_compute_bytes, create_app
 from fastapi.testclient import TestClient
 
@@ -133,3 +135,60 @@ def test_a_configured_ceiling_actually_applies(monkeypatch: pytest.MonkeyPatch) 
     configured = TestClient(create_app())
     resp = configured.post("/compute/descriptive", json={"data": [1.0] * 500})
     assert resp.status_code == 413
+
+
+# --- The ASGI paths a TestClient request never takes -------------------------
+# Driven directly, because they are about what happens when the *transport*
+# misbehaves: a client that hangs up mid-body, and an app that reads the body
+# twice. Both are reachable in production and neither is reachable through a
+# well-behaved HTTP client. Run with asyncio.run rather than an async test
+# plugin -- two coroutines do not justify a new dev dependency.
+
+Message = MutableMapping[str, Any]
+
+
+def _drive(app: ComputeBodyLimit, messages: list[Message]) -> list[Message]:
+    """Feed `messages` to `app` and return what the inner app received."""
+    received: list[Message] = []
+    stream = iter(messages)
+
+    async def receive() -> Message:
+        return next(stream)
+
+    async def send(message: Message) -> None:
+        return None
+
+    async def inner(scope: Message, rcv: object, snd: object) -> None:
+        received.append(await rcv())  # type: ignore[operator]
+        # A second read must report the end of the stream, not repeat the body.
+        received.append(await rcv())  # type: ignore[operator]
+
+    app.app = inner
+    scope: Message = {"type": "http", "path": "/compute/descriptive", "headers": []}
+    asyncio.run(app(scope, receive, send))
+    return received
+
+
+def test_a_client_hanging_up_mid_body_is_passed_on() -> None:
+    """A disconnect is the server's business, not a size verdict."""
+    limit = ComputeBodyLimit(lambda *_: None, max_bytes=1024)  # type: ignore[arg-type]
+    received = _drive(limit, [{"type": "http.disconnect"}])
+    assert received[0] == {"type": "http.disconnect"}
+
+
+def test_a_body_arriving_in_several_chunks_is_reassembled() -> None:
+    """The under-limit multi-chunk path: counted, buffered, handed on whole."""
+    limit = ComputeBodyLimit(lambda *_: None, max_bytes=1024)  # type: ignore[arg-type]
+    received = _drive(
+        limit,
+        [
+            {"type": "http.request", "body": b'{"a":', "more_body": True},
+            {"type": "http.request", "body": b" 1}", "more_body": False},
+        ],
+    )
+    assert received[0] == {
+        "type": "http.request",
+        "body": b'{"a": 1}',
+        "more_body": False,
+    }
+    assert received[1] == {"type": "http.disconnect"}

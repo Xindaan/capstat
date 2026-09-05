@@ -45,6 +45,37 @@ class _CoreModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CaveatOut(_CoreModel):
+    """One warning: the code a program branches on, the prose a person reads.
+
+    The core's ``Caveat`` is a ``str`` subclass, so a Python caller still sees
+    a sentence. Over HTTP that would flatten to a bare string and the code
+    would be lost -- which is the half a client needs to react to a warning
+    rather than merely display it (T-0074).
+    """
+
+    code: str
+    message: str
+
+
+def _as_caveat(value: object) -> object:
+    """Split a core ``Caveat`` into its two halves.
+
+    It arrives as a string, so pydantic would otherwise try to validate the
+    sentence *as* the model. A plain string with no code is not expected -- the
+    core has a test forbidding it -- and is passed through with an empty code
+    rather than raising, because a 500 on an uncoded warning would hide the
+    report a caller asked for behind a defect in its footnotes.
+    """
+    if isinstance(value, str):
+        return {"code": getattr(value, "code", ""), "message": str(value)}
+    return value
+
+
+#: A warning as it crosses the wire.
+CaveatField = Annotated[CaveatOut, BeforeValidator(_as_caveat)]
+
+
 # ---------------------------------------------------------------------------
 # normality.py
 # ---------------------------------------------------------------------------
@@ -66,7 +97,7 @@ class NormalityAssessmentOut(_CoreModel):
     shapiro_wilk: NormalityTestResultOut
     lag1_autocorrelation: SafeFloat
     normal: bool
-    warnings: list[str]
+    warnings: list[CaveatField]
     recommendation: str
 
 
@@ -120,7 +151,7 @@ class CapabilityReportOut(_CoreModel):
     ppu: float | None
     ppk: float | None
     normality: NormalityAssessmentOut | None
-    warnings: list[str]
+    warnings: list[CaveatField]
     # Derived property on the core dataclass; read via from_attributes.
     stability_ratio: SafeFloat
 
@@ -150,7 +181,7 @@ class ChartPairOut(_CoreModel):
     sigma_within: float
     subgroup_size: int
     subgroups: int
-    warnings: list[str]
+    warnings: list[CaveatField]
     in_control: bool
 
 
@@ -179,7 +210,7 @@ class PercentileCapabilityOut(_CoreModel):
     ppl: float | None
     ppu: float | None
     ppk: float | None
-    warnings: list[str]
+    warnings: list[CaveatField]
 
 
 class BoxCoxCapabilityOut(_CoreModel):
@@ -194,7 +225,7 @@ class BoxCoxCapabilityOut(_CoreModel):
     normality_after: NormalityAssessmentOut
     transform_successful: bool
     capability: CapabilityReportOut
-    warnings: list[str]
+    warnings: list[CaveatField]
 
 
 CapabilityPath = Literal["normal", "box-cox", "percentile"]
@@ -209,7 +240,7 @@ class CapabilityAnalysisOut(_CoreModel):
     percentile: PercentileCapabilityOut | None
     pp: float | None
     ppk: float | None
-    warnings: list[str]
+    warnings: list[CaveatField]
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +269,7 @@ class GageRRReportOut(_CoreModel):
     var_part: float
     study_var_multiplier: float
     tolerance: float | None
-    warnings: list[str]
+    warnings: list[CaveatField]
     # Derived properties on the core dataclass; read via from_attributes. The
     # percentages are nan (-> null) when the sample has no variation at all.
     var_reproducibility: float
@@ -280,7 +311,7 @@ class BiasReportOut(_CoreModel):
     alpha: float
     ci_lower: float
     ci_upper: float
-    warnings: list[str]
+    warnings: list[CaveatField]
     bias_significant: bool
 
 
@@ -300,13 +331,13 @@ class LinearityReportOut(_CoreModel):
     linearity: float | None
     references: list[float]
     part_mean_biases: list[float]
-    warnings: list[str]
+    warnings: list[CaveatField]
     linearity_significant: bool
 
 
 class StabilityReportOut(_CoreModel):
     chart: ChartPairOut
-    warnings: list[str]
+    warnings: list[CaveatField]
     stable: bool
 
 
@@ -338,7 +369,7 @@ class EwmaChartOut(_CoreModel):
     lower: list[float]
     steady_state_limits: tuple[float, float]
     violations: list[int]
-    warnings: list[str]
+    warnings: list[CaveatField]
     in_control: bool
 
 
@@ -352,7 +383,7 @@ class CusumChartOut(_CoreModel):
     upper: list[float]
     lower: list[float]
     violations: list[int]
-    warnings: list[str]
+    warnings: list[CaveatField]
     in_control: bool
 
 
@@ -390,7 +421,7 @@ class LotDecisionOut(_CoreModel):
     defectives: int
     accepted: bool
     sample_fraction_defective: float
-    warnings: list[str]
+    warnings: list[CaveatField]
 
 
 class SamplingPlanReportOut(_CoreModel):
@@ -410,7 +441,7 @@ class SamplingPlanReportOut(_CoreModel):
     # a finite lot, and "not applicable" is not the same as zero.
     aoql: AOQLimitOut | None
     ati_at_aql: float | None
-    warnings: list[str]
+    warnings: list[CaveatField]
 
 
 # ---------------------------------------------------------------------------
@@ -446,4 +477,4 @@ class SchemeHistoryOut(_CoreModel):
     steps: list[SchemeStepOut]
     final_severity: InspectionSeverity
     rules: SwitchingRulesOut
-    warnings: list[str]
+    warnings: list[CaveatField]

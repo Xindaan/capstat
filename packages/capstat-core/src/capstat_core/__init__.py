@@ -41,6 +41,7 @@ from capstat_core.capability import (
     CapabilityReport,
     capability,
 )
+from capstat_core.caveats import Caveat
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, E2, c4, d2, d2_star, d3
 from capstat_core.control_charts import (
     ChartPair,
@@ -137,6 +138,7 @@ __all__ = [
     "BoxCoxCapability",
     "CapabilityAnalysis",
     "CapabilityReport",
+    "Caveat",
     "ChartPair",
     "ControlChart",
     "ControlLimits",

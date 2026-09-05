@@ -179,7 +179,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -334,7 +334,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -429,7 +429,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -630,7 +630,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -759,6 +759,25 @@
         "title": "CapabilityRequest",
         "type": "object"
       },
+      "CaveatOut": {
+        "description": "One warning: the code a program branches on, the prose a person reads.\n\nThe core's ``Caveat`` is a ``str`` subclass, so a Python caller still sees\na sentence. Over HTTP that would flatten to a bare string and the code\nwould be lost -- which is the half a client needs to react to a warning\nrather than merely display it (T-0074).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "CaveatOut",
+        "type": "object"
+      },
       "ChartPairOut": {
         "properties": {
           "dispersion": {
@@ -785,7 +804,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -941,7 +960,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -1196,7 +1215,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -1492,7 +1511,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -1665,7 +1684,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -1785,7 +1804,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -1878,7 +1897,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -1987,7 +2006,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -2235,7 +2254,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -2527,7 +2546,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -2575,7 +2594,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"
@@ -2658,7 +2677,7 @@
           },
           "warnings": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CaveatOut"
             },
             "title": "Warnings",
             "type": "array"

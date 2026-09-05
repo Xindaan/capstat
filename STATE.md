@@ -18,9 +18,9 @@ M5 MSA, M6 release (report, deployment, docs, release).
   normality, capability incl. non-normal, chart constants, Shewhart charts,
   EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
   CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **609 Python tests (core + API) at 100 % coverage on both packages**, mypy
+- **653 Python tests (core + API) at 100 % coverage on both packages**, mypy
   strict, ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-  Web: 65 vitest, 34 Playwright, eslint/prettier/build green.
+  Web: 72 vitest, 36 Playwright, eslint/prettier/build green.
 - **Acceptance sampling (T-0035 + T-0036 + T-0037) landed after v0.1.0 and is
   end-to-end**, ISO 2859-1's switching scheme included. Single sampling plans by
   attributes: OC curve (binomial / hypergeometric / Poisson), AOQ, AOQL, ATI,
@@ -146,17 +146,33 @@ up. Filed and fixed as T-0064..T-0072:
 - **T-0072** closed the gap between the steering files and the code -- including
   a `TASK.md` block that appeared twice, byte-identical.
 
+**All three open decisions were taken on 2026-09-02, and all three are
+implemented** (T-0063, T-0073, T-0074):
+
+1. **Compute body limit: middleware, not schema.** 10 MB, 413, mirroring
+   `/ingest`. `openapi.json` is unchanged, which was the point of the choice;
+   the price -- an invisible limit a client learns by hitting it -- is in the
+   README.
+2. **Capability colouring: a stated requirement.** The customer's required
+   index is an input (default 1.33). 1.00 stays in code because it is
+   arithmetic, not convention. The core still asserts no capability threshold.
+3. **Warning codes first, then the rest.** Every warning now carries a stable
+   `subject.what-happened` code. `Caveat` is a `str` subclass, which is why the
+   537 core tests passed unchanged through a 64-site conversion. Over HTTP a
+   warning is `{"code", "message"}` -- a deliberate breaking contract change.
+
 **Next actions:**
 
-1. **T-0063 is still the open decision, and it is yours** (a cap on `/compute/*`
-   body size). Unchanged since 2026-08-23: it changes the published OpenAPI, so
-   it wants a number chosen deliberately -- what is the largest legitimate SPC
-   series, does the cap belong per-field or in middleware, and what does the
-   caller get told.
-2. **The capability colouring question is still open** (below): the UI states a
-   verdict on Cp/Cpk that the core declines to assert.
-3. Commit and open a PR for T-0064..T-0072. One commit per T-number keeps
-   `git log` answering each finding separately, as with the first review.
+1. **Open a PR for the branch `fix/review-followups-t0064`** (12 commits, one
+   per finding or decision). Nothing is pushed yet.
+2. **The three deferred features, in the order the decision implies:**
+   subgroups in the app (uses core and API that already exist and are
+   unreachable from the UI -- the largest fachlich gain, ~1 day), Phase-II
+   limits, and the CLI. The codes landing first is what makes each of them
+   cheaper now than it would have been.
+3. `capstat-core`'s public API changed (warnings are `Caveat`, not `str`).
+   Harmless for anyone printing them; worth a minor version and a changelog
+   line when the next release goes out.
 
 **T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
 carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are

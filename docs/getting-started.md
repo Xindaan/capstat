@@ -72,7 +72,9 @@ curl -s http://127.0.0.1:8000/compute/capability \
 ```
 
 Every response mirrors a core dataclass exactly — the `warnings` arrays and the
-nullable indices survive serialisation instead of being flattened away.
+nullable indices survive serialisation instead of being flattened away. Each
+warning arrives as `{"code", "message"}`, so a client can react to
+`capability.unstable-process` without matching English prose.
 
 !!! note "Developing against the core"
     `--reload` watches `apps/api` only. If you are editing `capstat-core` while

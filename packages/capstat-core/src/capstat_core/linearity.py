@@ -40,6 +40,7 @@ import numpy.typing as npt
 from scipy import stats
 
 from capstat_core._validation import as_sample
+from capstat_core.caveats import Caveat
 
 __all__ = [
     "LinearityReport",
@@ -71,7 +72,7 @@ class LinearityReport:
     linearity: float | None
     references: tuple[float, ...]
     part_mean_biases: tuple[float, ...]
-    warnings: tuple[str, ...]
+    warnings: tuple[Caveat, ...]
 
     @property
     def linearity_significant(self) -> bool:
@@ -152,7 +153,7 @@ def linearity(
     ss_tot = float(((y - y_mean) ** 2).sum())
     df = n - 2
 
-    warnings: list[str] = []
+    warnings: list[Caveat] = []
 
     # r^2 is the fraction of bias variation the line explains; undefined when the
     # bias never varies (a perfectly flat, zero-scatter study).
@@ -169,8 +170,11 @@ def linearity(
         slope_t = math.copysign(math.inf, slope) if slope != 0.0 else math.nan
         slope_p = 0.0 if slope != 0.0 else math.nan
         warnings.append(
-            "the readings fall exactly on a line (no residual scatter); the "
-            "slope test is degenerate"
+            Caveat(
+                "linearity.exact-fit",
+                "the readings fall exactly on a line (no residual scatter); the "
+                "slope test is degenerate",
+            )
         )
 
     percent_linearity = abs(slope) * 100.0
@@ -180,8 +184,11 @@ def linearity(
 
     if slope_p < alpha:
         warnings.append(
-            f"bias changes across the range (slope {slope:.4g}, p = {slope_p:.3g}); "
-            "the measurement system is not linear"
+            Caveat(
+                "linearity.significant-slope",
+                f"bias changes across the range (slope {slope:.4g}, "
+                f"p = {slope_p:.3g}); the measurement system is not linear",
+            )
         )
 
     return LinearityReport(

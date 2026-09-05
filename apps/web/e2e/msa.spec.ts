@@ -36,7 +36,11 @@ const LINEARITY = {
   references: [7, 9, 11, 13, 15],
   part_mean_biases: [0.49, 0.16, 0.02, -0.28, -0.61],
   warnings: [
-    "bias changes across the range; the measurement system is not linear",
+    {
+      code: "mock.bias-changes-across-the-range-the-measur",
+      message:
+        "bias changes across the range; the measurement system is not linear",
+    },
   ],
   linearity_significant: true,
 };
@@ -44,7 +48,13 @@ const LINEARITY = {
 const POINTS = Array.from({ length: 20 }, (_, i) => 10 + (i % 3) * 0.01);
 const STABILITY = {
   stable: false,
-  warnings: ["the measurement system is not stable: 2 out-of-control point(s)"],
+  warnings: [
+    {
+      code: "stability.not-stable",
+      message:
+        "the measurement system is not stable: 2 out-of-control point(s)",
+    },
+  ],
   chart: {
     in_control: false,
     sigma_within: 0.02,

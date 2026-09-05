@@ -27,8 +27,16 @@ const REPORT = {
   aoql: { aoql: 0.0182, at_fraction_defective: 0.0243 },
   ati_at_aql: 218.5,
   warnings: [
-    "AOQ, the AOQL and ATI describe rectifying inspection -- rejected lots screened 100 % and their defectives replaced. Without that screening they do not apply.",
-    "the AOQL (0.0182) is the worst *average* outgoing quality over a stream of lots. Individual outgoing lots can be worse; it bounds no single lot.",
+    {
+      code: "mock.aoq-the-aoql-and-ati-describe-rectifying",
+      message:
+        "AOQ, the AOQL and ATI describe rectifying inspection -- rejected lots screened 100 % and their defectives replaced. Without that screening they do not apply.",
+    },
+    {
+      code: "mock.the-aoql-0-0182-is-the-worst-average-out",
+      message:
+        "the AOQL (0.0182) is the worst *average* outgoing quality over a stream of lots. Individual outgoing lots can be worse; it bounds no single lot.",
+    },
   ],
 };
 
@@ -45,7 +53,11 @@ const DECISION = {
   accepted: true,
   sample_fraction_defective: 0.0139,
   warnings: [
-    "accepting this lot is a decision about a stream of lots, not evidence that this lot is good: a plan is chosen so that lots as bad as the LTPD are usually caught, and 'usually' is the whole guarantee.",
+    {
+      code: "mock.accepting-this-lot-is-a-decision-about-a",
+      message:
+        "accepting this lot is a decision about a stream of lots, not evidence that this lot is good: a plan is chosen so that lots as bad as the LTPD are usually caught, and 'usually' is the whole guarantee.",
+    },
   ],
 };
 
@@ -287,7 +299,11 @@ const SCHEME = {
     reduce_at_switching_score: 30,
   },
   warnings: [
-    "these outcomes are read as original inspection only. A lot resubmitted after screening counts towards none of the rules, and capstat cannot tell one from the other -- if resubmissions were included, the severities below are wrong.",
+    {
+      code: "mock.these-outcomes-are-read-as-original-insp",
+      message:
+        "these outcomes are read as original inspection only. A lot resubmitted after screening counts towards none of the rules, and capstat cannot tell one from the other -- if resubmissions were included, the severities below are wrong.",
+    },
   ],
 };
 
