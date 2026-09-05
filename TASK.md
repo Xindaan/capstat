@@ -107,23 +107,28 @@
   reset case so the next outside reader does not have to ask.
 - ~~T-0050 Next-generated agent files~~ -- **done 2026-08-16**: gitignored,
   and the useful part rewritten into the root `AGENTS.md`. See `## Done`.
-- T-0049 e2e flake: `acceptance-sampling.spec.ts:318` ("switching rules: what
-  reaches the API is the parsed series"). Seen 2026-08-16 on PR #10's rebased
-  run -- failed on the first attempt *and* on CI's automatic retry, then passed
-  on a full re-run of the job. So it is not a one-in-a-hundred blip, but it is
-  also not deterministic; something about that job's load made it reproducible
-  twice in a row.
-  The assertion is `expect.poll(() => requested.at(-1)?.lots).toEqual([...])`
-  with a 5s timeout, i.e. it waits for an intercepted request to arrive. The
-  failure mode is the request not having landed in time, not the payload being
-  wrong -- which points at the wait, not at the app.
-  This is the **second** e2e flake of the same shape (see T-0038's note on
-  `smoke.spec.ts` run-rules, which raced Next compiling a route under parallel
-  load). Two instances make it a pattern worth fixing at the source rather than
-  per-test: prefer waiting on an observable condition over polling a captured
-  array, or raise the timeout where a cold compile can precede the request.
-  Acceptance: the spec passes 10 consecutive runs under `--repeat-each`, or the
-  wait is restructured so a slow compile cannot decide the outcome.
+- ~~T-0049 e2e flake: the switching-rules request assertion~~ -- **done
+  2026-09-02.** It fired again on PR #26, on the first attempt *and* CI's
+  retry, which is what forced the issue rather than another re-run.
+  The cause was the shape of the wait, not the app. Three tests pushed each
+  intercepted body into a local array and then `expect.poll`-ed it. Polling was
+  already the *second* attempt -- reading the array once lost about one run in
+  three, because the label under test renders from component state and so
+  appears before the request necessarily has -- but a poll carries a fixed 5 s
+  budget, and under parallel load with a cold `next dev` compile that budget is
+  what expired. Twice, in the same shape: T-0038, then this.
+  Fixed at the source with `requestDuring` in `e2e/support.ts`, which arms
+  `page.waitForRequest` *before* the action and resolves on the request event.
+  No fixed budget, no window in which the request can be missed.
+  **Applied where one action causes one request** -- the two acceptance-sampling
+  tests. Deliberately *not* applied to the run-rule selection in `smoke.spec`:
+  that assertion is about where several toggles come to rest, and polling the
+  last captured body is the right tool for a settled end state. Using an event
+  wait there would race the earlier toggles' requests.
+  Verified: 140 runs of the spec (`--repeat-each 10 --workers 4`) green, which
+  is the acceptance criterion this task set itself. Negative probe: making the
+  panel send every lot as accepted fails the test, so it still asserts the
+  payload rather than merely the arrival.
 - T-0047 **changed 2026-08-16, but not yet proven.** `publish.yml` now names
   `actions/checkout@v7` and `astral-sh/setup-uv@v7`, matching `ci.yml`, with the
   setup-uv reasoning referenced rather than restated. The risk is low because
