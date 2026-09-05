@@ -21,9 +21,12 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command:
-        "uv run uvicorn capstat_api.main:app --port 8000 " +
-        "--reload-dir ../../packages/capstat-core/src",
+      // No --reload: this server is started once, shot, and killed. The
+      // config used to pass --reload-dir without --reload, which uvicorn
+      // answers with "Current configuration will not reload as not all
+      // conditions are met" on every capture -- a warning about a flag that
+      // was doing nothing.
+      command: "uv run uvicorn capstat_api.main:app --port 8000",
       cwd: "../api",
       url: "http://127.0.0.1:8000/health",
       reuseExistingServer: true,
