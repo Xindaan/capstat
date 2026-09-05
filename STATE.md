@@ -1,12 +1,12 @@
 # STATE.md — capstat
 
-Date: 2026-09-02
+Date: 2026-09-05
 
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.2.1;
-`capstat-core` is on PyPI.
+Next.js frontend as a professional MIT open-source project. Released: v0.3.0;
+`capstat-core` is on PyPI (0.2.1 there until the 0.3.0 publish is approved).
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -183,16 +183,24 @@ the warning-codes decision implied:
 
 **Next actions:**
 
-1. **T-0078 is the new open item** (backlog): the core quotes 0-based point
-   indices in its warnings while the app and the CLI count from 1, and the
-   CLI's output now shows both in one block. Pre-existing, deliberately not
-   fixed as a rider on a feature.
-2. `capstat-core`'s public API changed (warnings are `Caveat`, not `str`), and
-   `ChartPair` gained `phase`. Harmless for anyone printing warnings; worth a
-   minor version and a changelog line when the next release goes out.
-3. The screenshots in `docs/images/` predate the subgroup control and the
-   required-index field. Re-run `npm run screenshots` before the next release
-   so the README does not show a UI that no longer exists.
+1. **The PyPI publish for v0.3.0 is dispatched and waiting on the `pypi`
+   environment's approval.** Nothing runs before it -- the environment is
+   declared at job level. Approve it in Actions, or reject it: `capstat-core`
+   stays at 0.2.1 on PyPI until then, which is a *stale* contract for anyone
+   installing it (0.2.1 has no `Caveat`, so `warning.code` does not exist there
+   while the README documents it).
+2. **T-0081 is new and will recur**: release-please dropped the breaking change
+   from the 0.3.0 notes. Corrected by hand before the tag, but the next breaking
+   commit hits it again. Mitigation until diagnosed: a single-word scope on a
+   breaking commit.
+3. **T-0078 is still open**: the core quotes 0-based point indices in its
+   warnings while the app and the CLI count from 1. Now visible in the README
+   screenshot, which is a fair place for it to be seen.
+4. Everything else that was open is closed: the second review (T-0064..T-0074),
+   the three decisions, the three deferred features (T-0075..T-0077), the
+   screenshots (T-0079), the dependency sweep (T-0080) and the e2e flake
+   (T-0049).
+
 
 **T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
 carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are
