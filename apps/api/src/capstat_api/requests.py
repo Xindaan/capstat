@@ -52,11 +52,23 @@ class AnalyzeCapabilityRequest(_Request):
     alpha: float = 0.05
 
 
-class IMRRequest(_Request):
+class _Baseline(_Request):
+    """A known in-control centre and sigma, for a Phase II chart.
+
+    Both or neither (T-0076). One without the other mixes a parameter from a
+    stable period with one estimated from the data under test, which is neither
+    phase; the core rejects it with its own message.
+    """
+
+    center: float | None = None
+    sigma: float | None = None
+
+
+class IMRRequest(_Baseline):
     data: list[float] = Series
 
 
-class SubgroupRequest(_Request):
+class SubgroupRequest(_Baseline):
     # Rows are subgroups, columns are observations within a subgroup.
     subgroups: list[list[float]] = Field(min_length=1)
 

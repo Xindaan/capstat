@@ -423,3 +423,137 @@ def test_charts_are_immutable() -> None:
         pair.sigma_within = 1.0  # type: ignore[misc]
     with pytest.raises(AttributeError):
         pair.location.limits.center = 0.0  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Phase II: limits from a known in-control period (T-0076)
+# ---------------------------------------------------------------------------
+
+
+def test_phase_two_limits_reduce_to_phase_one_when_given_the_same_baseline() -> None:
+    """The identity that makes one code path safe for both phases.
+
+    Hand a chart exactly the centre and sigma it would have estimated, and the
+    limits must be the ones it estimates. That holds for every dataset, which
+    is worth more here than any single published pair of limits -- and it is
+    what says the Phase II arithmetic is the Phase I arithmetic.
+    """
+    rng = np.random.default_rng(17)
+    groups = rng.normal(10.0, 1.0, size=(25, 5))
+
+    estimated = xbar_r_chart(groups)
+    supplied = xbar_r_chart(
+        groups,
+        center=estimated.location.limits.center,
+        sigma=estimated.sigma_within,
+    )
+
+    assert supplied.phase == "II"
+    assert estimated.phase == "I"
+    for got, want in (
+        (supplied.location.limits, estimated.location.limits),
+        (supplied.dispersion.limits, estimated.dispersion.limits),
+    ):
+        assert got.center == pytest.approx(want.center, rel=1e-12)
+        assert got.lower == pytest.approx(want.lower, rel=1e-12)
+        assert got.upper == pytest.approx(want.upper, rel=1e-12)
+    assert supplied.sigma_within == pytest.approx(estimated.sigma_within, rel=1e-12)
+
+    # The same identity for the other two pairs.
+    imr = i_mr_chart(groups.ravel())
+    same = i_mr_chart(
+        groups.ravel(), center=imr.location.limits.center, sigma=imr.sigma_within
+    )
+    assert same.location.limits.upper == pytest.approx(
+        imr.location.limits.upper, rel=1e-12
+    )
+    xbar_s = xbar_s_chart(groups)
+    same_s = xbar_s_chart(
+        groups, center=xbar_s.location.limits.center, sigma=xbar_s.sigma_within
+    )
+    assert same_s.dispersion.limits.upper == pytest.approx(
+        xbar_s.dispersion.limits.upper, rel=1e-12
+    )
+
+
+def test_a_phase_two_excursion_cannot_move_the_limits_meant_to_catch_it() -> None:
+    """The reason Phase II exists -- and it is worse than "the shift is missed".
+
+    Phase I limits are estimated from the data being plotted, so a sustained
+    shift drags the centre line towards itself. Measured here: the centre moves
+    from 9.98 to 11.18, which does not merely soften the signal on the shifted
+    subgroups -- it condemns seven *stable* ones for sitting too far below a
+    centre the shift invented. The chart misattributes the fault.
+
+    Against a known baseline neither happens: exactly the five shifted
+    subgroups signal, and nothing else.
+    """
+    rng = np.random.default_rng(19)
+    stable = rng.normal(10.0, 1.0, size=(25, 5))
+    baseline = xbar_r_chart(stable)
+
+    disturbed = stable.copy()
+    disturbed[20:] += 6.0  # a sustained shift over the last five subgroups
+    shifted = {20, 21, 22, 23, 24}
+
+    phase_one = xbar_r_chart(disturbed)
+    phase_two = xbar_r_chart(
+        disturbed,
+        center=baseline.location.limits.center,
+        sigma=baseline.sigma_within,
+    )
+
+    # Phase I moved its own centre line towards the shift...
+    assert phase_one.location.limits.center > baseline.location.limits.center + 1.0
+    # ...and then flagged stable subgroups against it.
+    assert set(phase_one.location.violations) - shifted
+
+    # Phase II held the baseline exactly, so the shift is all it reports.
+    assert phase_two.location.limits.center == pytest.approx(
+        baseline.location.limits.center, rel=1e-12
+    )
+    assert set(phase_two.location.violations) == shifted
+
+
+def test_phase_two_replaces_the_trial_limit_caveat_rather_than_adding_to_it() -> None:
+    """The Phase I warning is about estimating from the data under test.
+
+    On a Phase II chart it is simply untrue, so it must not fire -- and the
+    caveat that *does* apply is a different one.
+    """
+    rng = np.random.default_rng(23)
+    short = rng.normal(10.0, 1.0, size=(6, 5))
+
+    phase_one = xbar_r_chart(short)
+    assert any(w.code == "control-chart.few-subgroups" for w in phase_one.warnings)
+    assert not any(w.code == "control-chart.phase-two" for w in phase_one.warnings)
+
+    phase_two = xbar_r_chart(short, center=10.0, sigma=1.0)
+    assert not any(w.code == "control-chart.few-subgroups" for w in phase_two.warnings)
+    assert any(w.code == "control-chart.phase-two" for w in phase_two.warnings)
+
+
+def test_a_baseline_needs_both_halves_or_neither() -> None:
+    """A known centre with an estimated sigma is neither phase.
+
+    The limits would mix a parameter from a stable period with one taken from
+    the data under test, and belong to no defensible chart at all.
+    """
+    rng = np.random.default_rng(29)
+    groups = rng.normal(10.0, 1.0, size=(10, 4))
+
+    for kwargs in ({"center": 10.0}, {"sigma": 1.0}):
+        with pytest.raises(ValueError, match="both center and sigma"):
+            xbar_r_chart(groups, **kwargs)
+        with pytest.raises(ValueError, match="both center and sigma"):
+            i_mr_chart(groups.ravel(), **kwargs)
+        with pytest.raises(ValueError, match="both center and sigma"):
+            xbar_s_chart(groups, **kwargs)
+
+
+def test_a_baseline_sigma_must_be_positive() -> None:
+    rng = np.random.default_rng(31)
+    groups = rng.normal(10.0, 1.0, size=(10, 4))
+    for bad in (0.0, -1.0):
+        with pytest.raises(ValueError, match="strictly positive"):
+            xbar_r_chart(groups, center=10.0, sigma=bad)

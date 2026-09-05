@@ -607,6 +607,11 @@ export interface components {
             /** In Control */
             in_control: boolean;
             location: components["schemas"]["ControlChartOut"];
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "I" | "II";
             /** Sigma Within */
             sigma_within: number;
             /** Subgroup Size */
@@ -877,8 +882,12 @@ export interface components {
         };
         /** IMRRequest */
         IMRRequest: {
+            /** Center */
+            center?: number | null;
             /** Data */
             data: number[];
+            /** Sigma */
+            sigma?: number | null;
         };
         /** IngestColumn */
         IngestColumn: {
@@ -1252,6 +1261,10 @@ export interface components {
         };
         /** SubgroupRequest */
         SubgroupRequest: {
+            /** Center */
+            center?: number | null;
+            /** Sigma */
+            sigma?: number | null;
             /** Subgroups */
             subgroups: number[][];
         };

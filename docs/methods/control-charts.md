@@ -32,6 +32,39 @@ discards information and loses efficiency as n grows. Beyond n = 10, prefer
     knowing — with small subgroups an R chart **cannot** signal that the spread
     has *improved*, because there is no lower limit to cross.
 
+## Phase I and Phase II
+
+By default the limits are estimated from the data being plotted. That is what
+you do when establishing a chart, and it has a cost worth stating: a sustained
+shift drags the centre line towards itself. On a 25-subgroup series with a
+shift over the last five, the centre moves from 9.98 to 11.18 — which does not
+merely soften the signal on the shifted subgroups, it flags seven *stable* ones
+for sitting too far below a centre the shift invented. The chart misattributes
+the fault.
+
+Once a process is known to be stable, pass the centre and within-subgroup sigma
+from that period:
+
+```python
+baseline = xbar_r_chart(stable_period)
+today = xbar_r_chart(new_data,
+                     center=baseline.location.limits.center,
+                     sigma=baseline.sigma_within)
+today.phase   # "II"
+```
+
+Now the limits cannot move, and only the genuinely shifted subgroups signal.
+
+!!! note "Both halves or neither"
+    A known centre combined with a sigma estimated from the data under test is
+    neither phase, so capstat refuses it rather than producing limits that
+    belong to no defensible chart.
+
+The arithmetic is the same in both phases — every limit follows from a centre
+and a sigma, and the only question is where those came from. Handed exactly
+what it would have estimated, a Phase II chart reproduces the Phase I limits;
+that identity is asserted for all three chart pairs.
+
 **Sources.** NIST/SEMATECH §6.3.2 and §6.3.2.1; Montgomery Appendix VI; ASTM
 E2587. See [Sources](../validation-sources.md#shewhart-control-charts).
 

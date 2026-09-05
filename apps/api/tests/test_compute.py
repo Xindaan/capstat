@@ -623,3 +623,36 @@ def test_a_contradictory_lot_outcome_is_a_422_not_a_500(client: TestClient) -> N
     )
     assert ok.status_code == 200
     assert [s["switching_score"] for s in ok.json()["steps"]] == [3, 0, 0]
+
+
+def test_a_chart_reports_its_phase_and_accepts_a_baseline(client: TestClient) -> None:
+    """Phase II over HTTP: the baseline goes in, the phase comes back (T-0076)."""
+    values = [10.0, 10.2, 9.8, 10.1, 9.9, 10.3, 9.7, 10.0, 10.1, 9.9]
+
+    estimated = client.post("/compute/control-chart/i-mr", json={"data": values})
+    assert estimated.status_code == 200
+    assert estimated.json()["phase"] == "I"
+
+    core = i_mr_chart(values, center=10.0, sigma=0.2)
+    supplied = client.post(
+        "/compute/control-chart/i-mr",
+        json={"data": values, "center": 10.0, "sigma": 0.2},
+    )
+    assert supplied.status_code == 200
+    body = supplied.json()
+    assert body["phase"] == "II"
+    assert body["location"]["limits"] == {
+        "center": core.location.limits.center,
+        "lower": core.location.limits.lower,
+        "upper": core.location.limits.upper,
+    }
+    assert_same_warnings(body["warnings"], core.warnings)
+
+
+def test_half_a_baseline_is_a_422_with_the_core_s_message(client: TestClient) -> None:
+    resp = client.post(
+        "/compute/control-chart/xbar-r",
+        json={"subgroups": [[1.0, 2.0], [1.5, 2.5], [1.2, 2.2]], "center": 2.0},
+    )
+    assert resp.status_code == 422
+    assert "both center and sigma" in resp.json()["detail"]

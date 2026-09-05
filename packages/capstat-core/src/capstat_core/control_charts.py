@@ -16,13 +16,23 @@ about the location chart is worthless. So the dispersion chart is judged first,
 and :attr:`ChartPair.in_control` is false if *either* chart signals. The pair
 warns explicitly when the dispersion chart is the one out of control.
 
-These are Phase I (trial) limits
+Phase I and Phase II
 --------------------------------
 The limits are estimated from the very data being plotted. That is what you do
 when establishing a chart, but it means a large excursion inflates the limits
 that are supposed to catch it. Once the process is shown to be stable, freeze
-the limits and use them to judge *future* data (Phase II). capstat computes
-Phase I limits; it does not pretend they are Phase II limits.
+the limits and use them to judge *future* data -- that is Phase II, and it is
+what ``center=`` and ``sigma=`` are for. Supply them and the chart judges the
+data against that history instead of against itself; leave them out and it
+estimates, which is what you do when establishing a chart. Either way
+:attr:`ChartPair.phase` says which happened, because the difference decides
+what a signal means.
+
+The Phase II arithmetic is the Phase I arithmetic: every limit follows from a
+centre and a within-subgroup sigma, and the only question is where those two
+came from. Handed exactly what it would have estimated, a Phase II chart
+reproduces the Phase I limits -- an identity the tests assert for all three
+pairs.
 
 What a violation here is, and is not
 -----------------------------------
@@ -42,6 +52,7 @@ NIST/SEMATECH e-Handbook of Statistical Methods, section 6.3.2.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -50,10 +61,14 @@ from capstat_core._validation import as_sample
 from capstat_core.caveats import Caveat
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, MAX_SUBGROUP_SIZE, c4, d2
 
+#: Which phase a chart is in. See :class:`ChartPair.phase`.
+Phase = Literal["I", "II"]
+
 __all__ = [
     "ChartPair",
     "ControlChart",
     "ControlLimits",
+    "Phase",
     "i_mr_chart",
     "xbar_r_chart",
     "xbar_s_chart",
@@ -117,11 +132,40 @@ class ChartPair:
     sigma_within: float
     subgroup_size: int
     subgroups: int
+    #: ``"I"`` when the limits were estimated from the very data being plotted,
+    #: ``"II"`` when they came from a known in-control period. The difference
+    #: decides what a signal *means*, so it is reported rather than assumed.
+    phase: Phase
     warnings: tuple[Caveat, ...]
 
     @property
     def in_control(self) -> bool:
         return self.location.in_control and self.dispersion.in_control
+
+
+def _resolve_baseline(
+    estimated_center: float,
+    estimated_sigma: float,
+    center: float | None,
+    sigma: float | None,
+) -> tuple[float, float, Phase]:
+    """Decide whether this chart judges against its own data or against history.
+
+    Both arguments together or neither: a centre from a stable period combined
+    with a sigma estimated from the data under test is neither phase, and the
+    resulting limits would belong to no defensible chart at all.
+    """
+    if (center is None) != (sigma is None):
+        raise ValueError(
+            "Phase II needs both center and sigma from the same in-control "
+            "period; one without the other mixes a known parameter with one "
+            "estimated from the data under test, which is neither phase"
+        )
+    if center is None or sigma is None:
+        return estimated_center, estimated_sigma, "I"
+    if sigma <= 0.0:
+        raise ValueError(f"sigma must be strictly positive, got {sigma}")
+    return center, sigma, "II"
 
 
 def _as_subgroups(x: npt.ArrayLike) -> npt.NDArray[np.float64]:
@@ -145,6 +189,7 @@ def _as_subgroups(x: npt.ArrayLike) -> npt.NDArray[np.float64]:
 
 def _pair_warnings(
     *,
+    phase: Phase,
     location: ControlChart,
     dispersion: ControlChart,
     subgroups: int,
@@ -185,7 +230,7 @@ def _pair_warnings(
             )
         )
 
-    if subgroups < 20:
+    if phase == "I" and subgroups < 20:
         messages.append(
             Caveat(
                 "control-chart.few-subgroups",
@@ -195,11 +240,34 @@ def _pair_warnings(
             )
         )
 
+    if phase == "II":
+        # The Phase I caveat does not apply -- these limits were not estimated
+        # from the data under test -- but a different one does, and it is the
+        # one people forget: the chart is now judging against history, so a
+        # signal can mean the process moved *or* that the baseline no longer
+        # describes it (T-0076).
+        messages.append(
+            Caveat(
+                "control-chart.phase-two",
+                "these are Phase II limits: they come from the centre and sigma "
+                "you supplied, not from the data plotted here, so a large "
+                "excursion cannot widen the limits meant to catch it. That is "
+                "the point -- but it also means a signal says the process no "
+                "longer matches the baseline, which is worth re-establishing "
+                "if the process has legitimately changed.",
+            )
+        )
+
     messages.extend(extra)
     return tuple(messages)
 
 
-def xbar_r_chart(subgroups: npt.ArrayLike) -> ChartPair:
+def xbar_r_chart(
+    subgroups: npt.ArrayLike,
+    *,
+    center: float | None = None,
+    sigma: float | None = None,
+) -> ChartPair:
     """X-bar and R charts: subgroup averages, with spread from the range.
 
     ``sigma_within = Rbar / d2(n)``. Limits::
@@ -223,9 +291,14 @@ def xbar_r_chart(subgroups: npt.ArrayLike) -> ChartPair:
     means = groups.mean(axis=1)
     ranges = groups.max(axis=1) - groups.min(axis=1)
 
-    grand_mean = float(means.mean())
-    rbar = float(ranges.mean())
-    sigma_within = rbar / d2(n)
+    grand_mean, sigma_within, phase = _resolve_baseline(
+        float(means.mean()), float(ranges.mean()) / d2(n), center, sigma
+    )
+    # Every limit below follows from the centre and the within-subgroup sigma,
+    # whichever they came from. Rbar is recovered from sigma rather than the
+    # other way round, so the Phase I and Phase II arithmetic is one path: given
+    # a sigma equal to what the data would have estimated, they coincide exactly.
+    rbar = sigma_within * d2(n)
 
     location = _chart(
         "X-bar",
@@ -259,7 +332,9 @@ def xbar_r_chart(subgroups: npt.ArrayLike) -> ChartPair:
         sigma_within=sigma_within,
         subgroup_size=n,
         subgroups=k,
+        phase=phase,
         warnings=_pair_warnings(
+            phase=phase,
             location=location,
             dispersion=dispersion,
             subgroups=k,
@@ -269,7 +344,12 @@ def xbar_r_chart(subgroups: npt.ArrayLike) -> ChartPair:
     )
 
 
-def xbar_s_chart(subgroups: npt.ArrayLike) -> ChartPair:
+def xbar_s_chart(
+    subgroups: npt.ArrayLike,
+    *,
+    center: float | None = None,
+    sigma: float | None = None,
+) -> ChartPair:
     """X-bar and s charts: subgroup averages, with spread from the standard
     deviation.
 
@@ -287,9 +367,10 @@ def xbar_s_chart(subgroups: npt.ArrayLike) -> ChartPair:
     means = groups.mean(axis=1)
     sds = groups.std(axis=1, ddof=1)
 
-    grand_mean = float(means.mean())
-    sbar = float(sds.mean())
-    sigma_within = sbar / c4(n)
+    grand_mean, sigma_within, phase = _resolve_baseline(
+        float(means.mean()), float(sds.mean()) / c4(n), center, sigma
+    )
+    sbar = sigma_within * c4(n)
 
     location = _chart(
         "X-bar",
@@ -312,7 +393,9 @@ def xbar_s_chart(subgroups: npt.ArrayLike) -> ChartPair:
         sigma_within=sigma_within,
         subgroup_size=n,
         subgroups=k,
+        phase=phase,
         warnings=_pair_warnings(
+            phase=phase,
             location=location,
             dispersion=dispersion,
             subgroups=k,
@@ -321,7 +404,12 @@ def xbar_s_chart(subgroups: npt.ArrayLike) -> ChartPair:
     )
 
 
-def i_mr_chart(data: npt.ArrayLike) -> ChartPair:
+def i_mr_chart(
+    data: npt.ArrayLike,
+    *,
+    center: float | None = None,
+    sigma: float | None = None,
+) -> ChartPair:
     """Individuals and moving-range charts, for data that come one at a time.
 
     ``sigma_within = MRbar / d2(2)``, where the moving ranges are the absolute
@@ -340,16 +428,17 @@ def i_mr_chart(data: npt.ArrayLike) -> ChartPair:
     n = values.size
 
     moving_ranges = np.abs(np.diff(values))
-    mrbar = float(moving_ranges.mean())
-    sigma_within = mrbar / d2(2)
 
-    center = float(values.mean())
+    centre, sigma_within, phase = _resolve_baseline(
+        float(values.mean()), float(moving_ranges.mean()) / d2(2), center, sigma
+    )
+    mrbar = sigma_within * d2(2)
     spread = 3.0 * sigma_within  # == E2(2) * mrbar
 
     location = _chart(
         "individuals",
         values,
-        ControlLimits(center=center, lower=center - spread, upper=center + spread),
+        ControlLimits(center=centre, lower=centre - spread, upper=centre + spread),
     )
     dispersion = _chart(
         "moving range",
@@ -358,6 +447,7 @@ def i_mr_chart(data: npt.ArrayLike) -> ChartPair:
     )
 
     warnings = _pair_warnings(
+        phase=phase,
         location=location,
         dispersion=dispersion,
         subgroups=n,
@@ -378,5 +468,6 @@ def i_mr_chart(data: npt.ArrayLike) -> ChartPair:
         sigma_within=sigma_within,
         subgroup_size=1,
         subgroups=n,
+        phase=phase,
         warnings=warnings,
     )

@@ -42,9 +42,27 @@ export type ControlChartData = components["schemas"]["ControlChartOut"];
 export type ControlLimits = components["schemas"]["ControlLimitsOut"];
 export type RuleViolation = components["schemas"]["RuleViolationOut"];
 
+/**
+ * A known in-control centre and sigma, from a stable period.
+ *
+ * Both or neither: one without the other mixes a parameter from history with
+ * one estimated from the data under test, which is neither phase. The API
+ * rejects that with the core's own message (T-0076).
+ */
+export interface Baseline {
+  center: number;
+  sigma: number;
+}
+
 /** Individuals + moving-range chart from ungrouped measurements. */
-export function imrChart(data: number[]) {
-  return api.POST("/compute/control-chart/i-mr", { body: { data } });
+export function imrChart(data: number[], baseline: Baseline | null = null) {
+  return api.POST("/compute/control-chart/i-mr", {
+    body: {
+      data,
+      center: baseline?.center ?? null,
+      sigma: baseline?.sigma ?? null,
+    },
+  });
 }
 
 /**
@@ -158,13 +176,31 @@ export function capabilityFromSubgroups(
 }
 
 /** X-bar and R charts: subgroup averages, spread from the range. */
-export function xbarRChart(subgroups: number[][]) {
-  return api.POST("/compute/control-chart/xbar-r", { body: { subgroups } });
+export function xbarRChart(
+  subgroups: number[][],
+  baseline: Baseline | null = null,
+) {
+  return api.POST("/compute/control-chart/xbar-r", {
+    body: {
+      subgroups,
+      center: baseline?.center ?? null,
+      sigma: baseline?.sigma ?? null,
+    },
+  });
 }
 
 /** X-bar and s charts: subgroup averages, spread from the standard deviation. */
-export function xbarSChart(subgroups: number[][]) {
-  return api.POST("/compute/control-chart/xbar-s", { body: { subgroups } });
+export function xbarSChart(
+  subgroups: number[][],
+  baseline: Baseline | null = null,
+) {
+  return api.POST("/compute/control-chart/xbar-s", {
+    body: {
+      subgroups,
+      center: baseline?.center ?? null,
+      sigma: baseline?.sigma ?? null,
+    },
+  });
 }
 
 export function analyzeCapability(data: number[], limits: SpecLimits) {

@@ -790,6 +790,14 @@
           "location": {
             "$ref": "#/components/schemas/ControlChartOut"
           },
+          "phase": {
+            "enum": [
+              "I",
+              "II"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
           "sigma_within": {
             "title": "Sigma Within",
             "type": "number"
@@ -816,6 +824,7 @@
           "sigma_within",
           "subgroup_size",
           "subgroups",
+          "phase",
           "warnings",
           "in_control"
         ],
@@ -1621,6 +1630,17 @@
       "IMRRequest": {
         "additionalProperties": false,
         "properties": {
+          "center": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Center"
+          },
           "data": {
             "items": {
               "type": "number"
@@ -1628,6 +1648,17 @@
             "minItems": 1,
             "title": "Data",
             "type": "array"
+          },
+          "sigma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma"
           }
         },
         "required": [
@@ -2726,6 +2757,28 @@
       "SubgroupRequest": {
         "additionalProperties": false,
         "properties": {
+          "center": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Center"
+          },
+          "sigma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sigma"
+          },
           "subgroups": {
             "items": {
               "items": {

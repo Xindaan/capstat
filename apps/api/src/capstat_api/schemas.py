@@ -175,12 +175,18 @@ class ControlChartOut(_CoreModel):
     in_control: bool
 
 
+Phase = Literal["I", "II"]
+
+
 class ChartPairOut(_CoreModel):
     location: ControlChartOut
     dispersion: ControlChartOut
     sigma_within: float
     subgroup_size: int
     subgroups: int
+    # "I" when the limits were estimated from the data plotted, "II" when they
+    # came from a supplied baseline. The difference decides what a signal means.
+    phase: Phase
     warnings: list[CaveatField]
     in_control: bool
 
