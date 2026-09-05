@@ -163,21 +163,21 @@ def compute_stability(req: StabilityRequest) -> StabilityReportOut:
 @router.post("/control-chart/i-mr", response_model=ChartPairOut)
 def compute_i_mr(req: IMRRequest) -> ChartPairOut:
     with core_errors():
-        result = i_mr_chart(req.data)
+        result = i_mr_chart(req.data, center=req.center, sigma=req.sigma)
     return ChartPairOut.model_validate(result)
 
 
 @router.post("/control-chart/xbar-r", response_model=ChartPairOut)
 def compute_xbar_r(req: SubgroupRequest) -> ChartPairOut:
     with core_errors():
-        result = xbar_r_chart(req.subgroups)
+        result = xbar_r_chart(req.subgroups, center=req.center, sigma=req.sigma)
     return ChartPairOut.model_validate(result)
 
 
 @router.post("/control-chart/xbar-s", response_model=ChartPairOut)
 def compute_xbar_s(req: SubgroupRequest) -> ChartPairOut:
     with core_errors():
-        result = xbar_s_chart(req.subgroups)
+        result = xbar_s_chart(req.subgroups, center=req.center, sigma=req.sigma)
     return ChartPairOut.model_validate(result)
 
 

@@ -39,6 +39,7 @@ const CAPABILITY = {
 
 const CHART = {
   in_control: true,
+  phase: "I",
   sigma_within: 0.05,
   subgroup_size: 1,
   subgroups: VALUES.length,
@@ -153,6 +154,7 @@ const CAPABILITY_SUBGROUPS = {
 
 const XBAR_R = {
   in_control: true,
+  phase: "I",
   sigma_within: 0.04,
   subgroup_size: 5,
   subgroups: 6,
@@ -244,6 +246,54 @@ test("upload -> capability -> control chart", async ({ page }) => {
     page.locator('[aria-label="Capability analysis"] svg'),
   ).toHaveCount(1);
   await expect(page.locator('[aria-label="Control chart"] svg')).toHaveCount(2);
+});
+
+test("a known baseline makes the chart Phase II, and half a baseline does not", async ({
+  page,
+}) => {
+  // T-0076. Phase I limits are estimated from the data being plotted, so a
+  // sustained shift drags the centre towards itself -- which does not merely
+  // soften the signal, it condemns the subgroups that were fine. A baseline
+  // from a stable period stops both.
+  const sent: Array<{ center: number | null; sigma: number | null }> = [];
+  await mockApi(page);
+  await page.route("**/control-chart/i-mr", async (r) => {
+    const body = r.request().postDataJSON();
+    sent.push({ center: body.center, sigma: body.sigma });
+    return r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...CHART,
+        phase: body.center != null && body.sigma != null ? "II" : "I",
+      }),
+    });
+  });
+  await gotoReady(page, "/");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n"),
+  });
+  await expect(page.getByText("Phase I", { exact: true })).toBeVisible();
+
+  // Half a baseline is still Phase I, and the panel says why rather than
+  // sending a known centre with an estimated sigma.
+  await page.getByLabel("Known centre").fill("10");
+  await expect(
+    page.getByText(/needs both a centre and a positive sigma/),
+  ).toBeVisible();
+  await expect(page.getByText("Phase I", { exact: true })).toBeVisible();
+  expect(sent.at(-1)).toEqual({ center: null, sigma: null });
+
+  // Both halves: Phase II, and the baseline is what goes on the wire.
+  await page.getByLabel("Known sigma").fill("0.05");
+  await expect(page.getByText("Phase II", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(/Phase II: the limits come from these numbers/),
+  ).toBeVisible();
+  expect(sent.at(-1)).toEqual({ center: 10, sigma: 0.05 });
 });
 
 test("a subgroup size reaches the subgrouped endpoints, not the individuals ones", async ({

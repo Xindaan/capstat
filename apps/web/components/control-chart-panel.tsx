@@ -7,6 +7,7 @@ import {
   nelsonRules,
   xbarRChart,
   xbarSChart,
+  type Baseline,
   rulesCatalogue,
   type ChartPair,
   type IngestColumn,
@@ -31,6 +32,21 @@ type State =
  * which is the point of this control, but they are not the default.
  */
 const DEFAULT_RULES = [1, 2, 3, 4];
+
+/**
+ * A baseline, or null when it is not complete.
+ *
+ * Null for half a baseline as much as for none: the panel must not send a
+ * known centre with an estimated sigma, and falling back to "just the centre"
+ * would be exactly that.
+ */
+function readBaseline(center: string, sigma: string): Baseline | null {
+  if (center.trim() === "" || sigma.trim() === "") return null;
+  const c = Number(center);
+  const s = Number(sigma);
+  if (!Number.isFinite(c) || !Number.isFinite(s) || s <= 0) return null;
+  return { center: c, sigma: s };
+}
 
 /** "individuals" -> "Individuals"; "X-bar" is already how the core writes it. */
 function titleCase(name: string): string {
@@ -82,6 +98,19 @@ export function ControlChartPanel({
     message: "",
   });
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  // A known in-control centre and sigma turn this into a Phase II chart. Both
+  // or neither: half a baseline is neither phase, so the panel only sends one
+  // when both fields parse (T-0076).
+  const [centerText, setCenterText] = useState("");
+  const [sigmaText, setSigmaText] = useState("");
+  // Memoised so its identity is stable while the fields are: the chart
+  // effect keys on it, and a fresh object each render would refetch forever.
+  const baseline = useMemo(
+    () => readBaseline(centerText, sigmaText),
+    [centerText, sigmaText],
+  );
+  const halfGiven =
+    baseline == null && (centerText.trim() !== "" || sigmaText.trim() !== "");
 
   // The chart depends only on the data: changing which rules are applied must
   // not recompute the control limits (and must not make them look unstable).
@@ -93,11 +122,11 @@ export function ControlChartPanel({
       // subgroup, so above 10 the s chart is the better estimator. The panel
       // picks and then says which it picked, rather than making the user know.
       const request = () => {
-        if (subgroupSize <= 1) return imrChart(column.values);
+        if (subgroupSize <= 1) return imrChart(column.values, baseline);
         const { subgroups } = intoSubgroups(column.values, subgroupSize);
         return chartForSize(subgroupSize) === "xbar-r"
-          ? xbarRChart(subgroups)
-          : xbarSChart(subgroups);
+          ? xbarRChart(subgroups, baseline)
+          : xbarSChart(subgroups, baseline);
       };
       const outcome = await callApi(
         request,
@@ -113,7 +142,7 @@ export function ControlChartPanel({
     return () => {
       cancelled = true;
     };
-  }, [column.values, subgroupSize]);
+  }, [column.values, subgroupSize, baseline]);
 
   // Run-rules read their sigma zones from the individuals chart's own limits,
   // so this waits for the chart and re-runs whenever the selection changes.
@@ -211,7 +240,21 @@ export function ControlChartPanel({
             {state.chart.in_control ? "In control" : "Out of control"}
           </span>
         )}
+        {state.kind === "done" && (
+          <span className="rounded bg-foreground/10 px-2 py-0.5 text-xs font-medium">
+            Phase {state.chart.phase}
+          </span>
+        )}
       </div>
+
+      <BaselineFields
+        center={centerText}
+        sigma={sigmaText}
+        onCenter={setCenterText}
+        onSigma={setSigmaText}
+        active={baseline != null}
+        halfGiven={halfGiven}
+      />
 
       {state.kind === "loading" && (
         <p className="text-sm text-muted">Computing control limits…</p>
@@ -268,6 +311,73 @@ export function ControlChartPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function BaselineFields({
+  center,
+  sigma,
+  onCenter,
+  onSigma,
+  active,
+  halfGiven,
+}: {
+  center: string;
+  sigma: string;
+  onCenter: (v: string) => void;
+  onSigma: (v: string) => void;
+  active: boolean;
+  halfGiven: boolean;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-2 rounded-lg border border-foreground/15 p-4">
+      <legend className="px-1 text-xs font-medium text-foreground/60">
+        Known limits from a stable period (optional)
+      </legend>
+      <div className="no-print flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs uppercase tracking-wide text-muted">
+            Centre
+          </span>
+          <input
+            type="number"
+            step="any"
+            value={center}
+            onChange={(e) => onCenter(e.target.value)}
+            aria-label="Known centre"
+            placeholder="estimated"
+            className="h-9 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs uppercase tracking-wide text-muted">
+            Sigma (within)
+          </span>
+          <input
+            type="number"
+            step="any"
+            value={sigma}
+            onChange={(e) => onSigma(e.target.value)}
+            aria-label="Known sigma"
+            placeholder="estimated"
+            className="h-9 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
+          />
+        </label>
+      </div>
+      <p className="max-w-2xl text-xs text-muted">
+        {active
+          ? "Phase II: the limits come from these numbers, not from the data plotted, so a large excursion cannot move the limits meant to catch it — nor drag the centre line towards itself and condemn the points that were fine."
+          : "Leave both empty for Phase I: the limits are estimated from the data being plotted, which is what you do when establishing a chart. Fill both in once the process is known to be stable, and this chart judges new data against that history instead."}
+      </p>
+      {halfGiven && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          A baseline needs both a centre and a positive sigma from the same
+          period. One without the other mixes a known parameter with one
+          estimated from the data under test, which is neither phase — so this
+          chart is still Phase I.
+        </p>
+      )}
+    </fieldset>
   );
 }
 

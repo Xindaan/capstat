@@ -212,8 +212,14 @@ Other things capstat tells you rather than leaving you to know:
 - **`i_mr_chart` assumes your data are in time order.** Shuffle them and the
   limits still look perfectly reasonable. capstat cannot detect that, so it
   warns every time.
-- **These are Phase I (trial) limits**, estimated from the data being plotted.
-  A large excursion inflates the very limits meant to catch it.
+- **Limits are Phase I (trial) by default**, estimated from the data being
+  plotted — so a sustained shift drags the centre line towards itself. Measured
+  on a 25-subgroup series with a shift over the last five: the centre moves from
+  9.98 to 11.18, which does not merely soften the signal but condemns seven
+  *stable* subgroups for sitting too far below a centre the shift invented.
+  Once the process is known to be stable, pass `center=` and `sigma=` from that
+  period and the chart becomes Phase II — the limits hold, and only the shifted
+  subgroups signal. `pair.phase` says which you got.
 
 `ControlChart.violations` holds only the points beyond the limits. The run-based
 rules that catch drifts never crossing one are applied *to* a chart rather than
