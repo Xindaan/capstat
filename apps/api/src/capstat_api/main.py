@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from capstat_api import __version__
+from capstat_api.limits import DEFAULT_MAX_COMPUTE_BYTES, ComputeBodyLimit
 from capstat_api.routers import compute, ingest
 
 DESCRIPTION = (
@@ -34,6 +35,23 @@ def _cors_origins() -> list[str]:
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
+def _max_compute_bytes() -> int:
+    """The compute body ceiling, overridable for an unusual deployment.
+
+    Invalid or non-positive settings fall back to the default rather than
+    disabling the guard: a typo in an environment variable must not be the way
+    the limit gets turned off.
+    """
+    raw = os.environ.get("CAPSTAT_MAX_COMPUTE_BYTES")
+    if raw is None:
+        return DEFAULT_MAX_COMPUTE_BYTES
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_MAX_COMPUTE_BYTES
+    return value if value > 0 else DEFAULT_MAX_COMPUTE_BYTES
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="capstat API",
@@ -43,6 +61,12 @@ def create_app() -> FastAPI:
     # Only the browser needs CORS; it is not part of the HTTP contract, so the
     # OpenAPI schema (and its drift check) is unaffected. GET/POST suffice for
     # the compute and ingest surface; no credentials are ever sent.
+    # Transport-level, so the OpenAPI contract is unchanged (T-0063). Added
+    # *before* CORS on purpose: add_middleware puts the last one added on the
+    # outside, so this ordering leaves CORS outermost and its headers therefore
+    # reach the 413. Reversed, a browser could not read the refusal -- it would
+    # see an opaque CORS failure instead of the message saying what the limit is.
+    app.add_middleware(ComputeBodyLimit, max_bytes=_max_compute_bytes())
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(),

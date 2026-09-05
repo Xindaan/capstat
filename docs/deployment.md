@@ -120,6 +120,7 @@ imply a freedom that does not exist.
 | Variable | Where | Meaning |
 |---|---|---|
 | `CAPSTAT_CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API. Default: `http://localhost:3000,http://127.0.0.1:3000`. |
+| `CAPSTAT_MAX_COMPUTE_BYTES` | API | Largest accepted `/compute/*` request body, in bytes. Default: `10485760` (10 MB). A body beyond it gets a 413. Unparseable or non-positive values fall back to the default, so a typo cannot disable the guard. |
 | `PORT` | API | Port to bind. Default 8000; container hosts usually inject this. |
 | `NEXT_PUBLIC_API_URL` | web (build time) | Where the browser reaches the API. Default `http://127.0.0.1:8000`. |
 
