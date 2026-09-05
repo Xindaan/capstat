@@ -8,6 +8,12 @@ import {
   type IngestColumn,
 } from "@/lib/api-client";
 import { callApi } from "@/lib/call-api";
+import {
+  DEFAULT_REQUIRED_INDEX,
+  capabilityBand,
+  parseRequiredIndex,
+  type CapabilityBand,
+} from "@/lib/capability";
 import { CapabilityHistogram, type NormalFit } from "./capability-histogram";
 import { ErrorAlert } from "./error-alert";
 
@@ -27,19 +33,24 @@ function fmt(value: number | null | undefined, digits = 3): string {
   return value == null || Number.isNaN(value) ? "—" : value.toFixed(digits);
 }
 
-/** Capability verdict colouring on the usual 1.00 / 1.33 thresholds. */
-function indexTone(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "text-muted";
-  if (value >= 1.33) return "text-emerald-600 dark:text-emerald-400";
-  if (value >= 1.0) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
+/** Colour per band. The bands themselves live in lib/capability (T-0073). */
+const BAND_TONE: Record<CapabilityBand, string> = {
+  meets: "text-emerald-600 dark:text-emerald-400",
+  capable: "text-amber-600 dark:text-amber-400",
+  incapable: "text-red-600 dark:text-red-400",
+  unjudged: "text-muted",
+};
 
 export function CapabilityDashboard({ column }: { column: IngestColumn }) {
   const [lsl, setLsl] = useState("");
   const [usl, setUsl] = useState("");
   const [target, setTarget] = useState("");
+  const [required, setRequired] = useState(DEFAULT_REQUIRED_INDEX);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  // Colouring only -- it never reaches the API, so changing it re-judges the
+  // indices on screen without recomputing them.
+  const requiredIndex = parseRequiredIndex(required);
 
   const parsed = useMemo(() => {
     const num = (s: string) => (s.trim() === "" ? null : Number(s));
@@ -115,6 +126,11 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
         <SpecField label="LSL" value={lsl} onChange={setLsl} />
         <SpecField label="Target" value={target} onChange={setTarget} />
         <SpecField label="USL" value={usl} onChange={setUsl} />
+        <SpecField
+          label="Required Cpk"
+          value={required}
+          onChange={setRequired}
+        />
         <button
           type="button"
           onClick={() => void compute()}
@@ -140,21 +156,38 @@ export function CapabilityDashboard({ column }: { column: IngestColumn }) {
             <IndexCard
               label="Pp"
               value={result.pp}
+              required={requiredIndex}
               unavailable="needs both spec limits"
             />
-            <IndexCard label="Ppk" value={result.ppk} emphasize />
+            <IndexCard
+              label="Ppk"
+              value={result.ppk}
+              required={requiredIndex}
+              emphasize
+            />
             <IndexCard
               label="Cp"
               value={report?.cp}
+              required={requiredIndex}
               unavailable={withinUnavailable ?? "needs both spec limits"}
             />
             <IndexCard
               label="Cpk"
               value={report?.cpk}
+              required={requiredIndex}
               emphasize
               unavailable={withinUnavailable}
             />
           </div>
+
+          {/* A printed report has to say what it was judged against: a colour
+              means nothing without the threshold behind it, the same reason
+              the control chart names the rule set it applied. */}
+          <p className="text-xs text-muted">
+            {requiredIndex == null
+              ? "No required index is set, so the indices below are not coloured. Enter the value your customer specifies — 1.33 and 1.67 are both common, and the same Cpk passes one and fails the other."
+              : `Coloured against a required index of ${requiredIndex}: at or above it, the process meets the requirement; between 1.00 and it, the process is capable but short; below 1.00 the spread does not fit the tolerance at all. capstat-core states no such threshold — it is a customer's specification, not a property of the statistic.`}
+          </p>
 
           <div className="rounded-lg border border-foreground/15 p-4">
             <div className="mb-2 flex items-center gap-2">
@@ -226,11 +259,14 @@ function SpecField({
 function IndexCard({
   label,
   value,
+  required,
   emphasize = false,
   unavailable,
 }: {
   label: string;
   value: number | null | undefined;
+  /** The customer's required index; null leaves the card uncoloured. */
+  required: number | null;
   emphasize?: boolean;
   /**
    * Why this index has no value, for the cases where it genuinely has none.
@@ -251,7 +287,7 @@ function IndexCard({
           className={[
             "font-mono tabular-nums",
             emphasize ? "text-2xl" : "text-xl",
-            indexTone(value),
+            BAND_TONE[capabilityBand(value, required)],
           ].join(" ")}
         >
           {fmt(value)}
