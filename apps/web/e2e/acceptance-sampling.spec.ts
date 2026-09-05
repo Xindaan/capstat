@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { gotoReady } from "./support";
+import { gotoReady, requestDuring } from "./support";
 
 // Faithful-shaped SamplingPlanOut / SamplingPlanReportOut / OCCurveOut /
 // LotDecisionOut. The page is pre-filled with the published example that
@@ -334,36 +334,33 @@ test("switching rules: the pre-filled series tightens and recovers", async ({
 test("switching rules: what reaches the API is the parsed series", async ({
   page,
 }) => {
-  const requested: unknown[] = [];
   await mockApi(page);
-  await page.route(
-    "**/compute/acceptance-sampling/switching-rules",
-    async (r) => {
-      requested.push(r.request().postDataJSON());
-      await r.fulfill(json(SCHEME));
-    },
+  await page.route("**/compute/acceptance-sampling/switching-rules", (r) =>
+    r.fulfill(json(SCHEME)),
   );
   await gotoReady(page, "/acceptance-sampling");
 
   const panel = page.getByLabel("Switching rules");
   await panel.getByLabel("Lot outcomes").fill("A R A");
-  await panel
-    .getByRole("button", { name: "Apply the switching rules" })
-    .click();
 
-  await expect
-    .poll(() => (requested.at(-1) as { lots?: unknown[] })?.lots)
-    .toEqual([
-      { accepted: true, accepted_at_tighter_aql: null },
-      { accepted: false, accepted_at_tighter_aql: null },
-      { accepted: true, accepted_at_tighter_aql: null },
-    ]);
+  // One click, one request -- so wait on the request rather than polling a
+  // captured array against a fixed budget. That budget is what expired under
+  // load, twice (T-0038, T-0049); see requestDuring in support.ts.
+  const body = await requestDuring<{
+    lots?: unknown[];
+    reduced_inspection_authorised?: boolean;
+  }>(page, "**/compute/acceptance-sampling/switching-rules", () =>
+    panel.getByRole("button", { name: "Apply the switching rules" }).click(),
+  );
+
+  expect(body.lots).toEqual([
+    { accepted: true, accepted_at_tighter_aql: null },
+    { accepted: false, accepted_at_tighter_aql: null },
+    { accepted: true, accepted_at_tighter_aql: null },
+  ]);
   // Authorisation is off unless the box is ticked: the scheme never relaxes on
   // its own, and that has to survive the wire.
-  expect(
-    (requested.at(-1) as { reduced_inspection_authorised?: boolean })
-      ?.reduced_inspection_authorised,
-  ).toBe(false);
+  expect(body.reduced_inspection_authorised).toBe(false);
 });
 
 test("switching rules: an unusable series disables the button and says why", async ({
@@ -532,12 +529,10 @@ test("deciding a lot judges the plan on screen, not whatever is left in the fiel
   // size n" after judging left an enabled button that did nothing at all: no
   // request, no message, no reason. The decision belongs to the plan the report
   // describes, which is the one the user is looking at.
-  const requested: unknown[] = [];
   await mockApi(page);
-  await page.route("**/acceptance-sampling/inspect", async (r) => {
-    requested.push(r.request().postDataJSON());
-    await r.fulfill(json(DECISION));
-  });
+  await page.route("**/acceptance-sampling/inspect", (r) =>
+    r.fulfill(json(DECISION)),
+  );
 
   await gotoReady(page, "/acceptance-sampling");
   await page.getByRole("button", { name: "Judge this plan" }).click();
@@ -545,10 +540,13 @@ test("deciding a lot judges the plan on screen, not whatever is left in the fiel
 
   await page.getByLabel("Sample size n").fill("");
   await page.getByLabel("Defectives found in the sample").fill("2");
-  await page.getByRole("button", { name: "Decide the lot" }).click();
+
+  const body = await requestDuring<{ plan?: { sample_size?: number } }>(
+    page,
+    "**/acceptance-sampling/inspect",
+    () => page.getByRole("button", { name: "Decide the lot" }).click(),
+  );
 
   await expect(page.getByText("Accept", { exact: true })).toBeVisible();
-  await expect
-    .poll(() => (requested.at(-1) as { plan?: { sample_size?: number } })?.plan)
-    .toMatchObject({ sample_size: PLAN.sample_size });
+  expect(body.plan).toMatchObject({ sample_size: PLAN.sample_size });
 });
