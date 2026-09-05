@@ -440,6 +440,18 @@
   * Noted while resolving it, and *not* a defect: `watchdog` left the
     environment because uvicorn's `standard` extra now uses `watchfiles`.
     `--reload` still works.
+- T-0079 (2026-09-02) **The README screenshots were re-shot.** They predated
+  T-0073 and T-0075/T-0076, so the figures showed a UI that no longer existed:
+  no "Required Cpk" field, no subgroup control, no Phase badge and no
+  known-limits fieldset. Captured by the script against the real API and core,
+  as always -- and every image was looked at, because the capture spec's own
+  lesson is that nothing but looking catches a chart that rendered empty.
+  Two of them now double as evidence: the capability figure shows Pp 1.379 in
+  green against a required 1.33 and Ppk 0.942 in red below 1.00, and the
+  control chart shows the Phase I badge beside the baseline fields.
+  It also puts T-0078 in the README: the warning under the chart says
+  "out of control at [29, 30]" above an axis that labels those same two points
+  30 and 31.
 
 - **The three deferred features were built 2026-09-02**, in the order the
   warning-codes decision implied (T-0075, T-0076, T-0077). New follow-up:
