@@ -163,6 +163,54 @@ test("upload -> capability -> control chart", async ({ page }) => {
   await expect(page.locator('[aria-label="Control chart"] svg')).toHaveCount(2);
 });
 
+test("the capability colouring follows the requirement you state, not 1.33", async ({
+  page,
+}) => {
+  // The discriminating case for T-0073. The mocked Cpk is exactly 1.33: it
+  // meets a 1.33 requirement and falls short of a 1.67 one, and the old fixed
+  // threshold called it green for both. An automotive customer asking for 1.67
+  // would have read a clean bill of health off a process that misses their
+  // specification.
+  await mockApi(page);
+  await gotoReady(page, "/");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+  await page.getByLabel("LSL").fill("9.7");
+  await page.getByLabel("USL").fill("10.3");
+  await page.getByRole("button", { name: "Compute capability" }).click();
+
+  const cpk = page.locator("div").filter({ hasText: /^Cpk$/ }).locator("..");
+  await expect(cpk.getByText("1.330")).toBeVisible();
+
+  // Default requirement 1.33: the index meets it.
+  const required = page.getByLabel("Required Cpk");
+  await expect(required).toHaveValue("1.33");
+  await expect(cpk.locator(".text-emerald-600")).toHaveCount(1);
+  await expect(
+    page.getByText(/Coloured against a required index of 1.33/),
+  ).toBeVisible();
+
+  // Raise the requirement and the same number is no longer green. Nothing was
+  // recomputed -- the threshold never reaches the API.
+  await required.fill("1.67");
+  await expect(cpk.locator(".text-emerald-600")).toHaveCount(0);
+  await expect(cpk.locator(".text-amber-600")).toHaveCount(1);
+  await expect(
+    page.getByText(/Coloured against a required index of 1.67/),
+  ).toBeVisible();
+
+  // A requirement that cannot be read colours nothing, rather than falling
+  // back to a threshold nobody asked for.
+  await required.fill("");
+  await expect(cpk.locator(".text-emerald-600")).toHaveCount(0);
+  await expect(cpk.locator(".text-amber-600")).toHaveCount(0);
+  await expect(page.getByText(/No required index is set/)).toBeVisible();
+});
+
 test("an index with no value says why, instead of showing a bare dash", async ({
   page,
 }) => {
