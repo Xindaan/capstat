@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.3.0](https://github.com/Xindaan/capstat/compare/v0.2.1...v0.3.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **core,api,web:** every warning carries a code (T-0074). A warning crosses
+  the HTTP contract as `{code, message}` rather than a bare string, and
+  `capstat-core`'s `warnings` tuples hold `Caveat` rather than `str`.
+  `Caveat` is a `str` subclass, so printing, joining and `"text" in warning`
+  are unaffected; a client reading `warnings` as JSON strings is not.
+  ([e3abe9f](https://github.com/Xindaan/capstat/commit/e3abe9f9dadadd9e00a1f61e8eb5581905324aeb))
+
+
+### Features
+
+* **core,api,web:** every warning carries a code (T-0074) ([e3abe9f](https://github.com/Xindaan/capstat/commit/e3abe9f9dadadd9e00a1f61e8eb5581905324aeb))
+* **api:** a local CLI over the same parser and the same core (T-0077) ([05fc732](https://github.com/Xindaan/capstat/commit/05fc732d223c2ca602747f138a8dff52626c28bf))
+* **api:** cap the compute request body at 10 MB (T-0063) ([d1473ad](https://github.com/Xindaan/capstat/commit/d1473ad257a79702ca21f46212641fbe17336977))
+* **core,api,web:** judge new data against a known baseline (T-0076) ([9129626](https://github.com/Xindaan/capstat/commit/9129626798664e2d84c2034f6e57a24f3aaac842))
+* **web:** judge Cp/Cpk against a stated requirement (T-0073) ([5f66ab0](https://github.com/Xindaan/capstat/commit/5f66ab0a0de2d17342745a199d6b56a2dc35abbc))
+* **web:** reach the subgrouped analyses from the page (T-0075) ([6d12d64](https://github.com/Xindaan/capstat/commit/6d12d646e864fa8603fa62030b0cc411d44cc6f1))
+
+
+### Bug fixes
+
+* **api:** read a German Excel CSV, and name what was detected (T-0067) ([a090433](https://github.com/Xindaan/capstat/commit/a09043300b0359365394233a81f6fafd03015d0c))
+* **core:** carry the inner report's warnings through the Box-Cox path (T-0064) ([2d52a4d](https://github.com/Xindaan/capstat/commit/2d52a4d048cde3a5d2dcdfcd51bdb8cc46dff325))
+* **core:** let no absolute tolerance hide a lopsided chart (T-0069) ([3ce24e7](https://github.com/Xindaan/capstat/commit/3ce24e733bf25621f7d721a8e34b2865e8e22f1f))
+* **core:** name the pooled ceiling's quantity, and say what went untested ([e62e990](https://github.com/Xindaan/capstat/commit/e62e990ad7c247bca164d35c26d0a6c53c8e60ca))
+* **core:** reject a lot claiming acceptance at a tighter AQL (T-0066) ([c704704](https://github.com/Xindaan/capstat/commit/c70470421e6518de2dbfec7056a25bf79549f865))
+* **e2e:** wait on the request, not on a poll budget (T-0049) ([5c2fafe](https://github.com/Xindaan/capstat/commit/5c2fafea086217988f676db263e7b6fee70060e2))
+* **screenshots:** drop a reload flag that was doing nothing ([0b7626c](https://github.com/Xindaan/capstat/commit/0b7626ceba0bc514bb33b6677d386a22720174bd))
+* **web:** stop a two-digit dimension eating the Gage R&R grid (T-0065) ([32ccd4e](https://github.com/Xindaan/capstat/commit/32ccd4eec733e20cdf9e03fc131b17e1dfb3ff36))
+
+
+### Documentation
+
+* close the drift between the steering files and the code (T-0072) ([f9f9103](https://github.com/Xindaan/capstat/commit/f9f91032530638b2af8c5ef75d5571250242f37d))
+* **images:** re-shoot the README figures against the current UI (T-0079) ([dd415c2](https://github.com/Xindaan/capstat/commit/dd415c226ee269843cb7219e78b7309f542abbe8))
+* **state:** correct the commit count on the branch ([95b92fb](https://github.com/Xindaan/capstat/commit/95b92fb2c5d849a7d330d416fc16c43c1d352d2c))
+* **task:** park the Next-generated agent files, with the tripwire named (T-0050) ([0a23634](https://github.com/Xindaan/capstat/commit/0a23634e8f455b9fd052b322b5a11b8f977bf511))
+* **task:** record the dependency sweep, and what merging on a stale tick cost ([bdf66d9](https://github.com/Xindaan/capstat/commit/bdf66d9ae92272e14d3226cf83cc929dbb973e8f))
+
+
+### Refactoring
+
+* **web:** key the analyses on a counter, not a fingerprint (T-0071) ([16d4e20](https://github.com/Xindaan/capstat/commit/16d4e206162b0d7187552f135aae92a22c958fd3))
+
 ## [0.2.1](https://github.com/Xindaan/capstat/compare/v0.2.0...v0.2.1) (2026-08-16)
 
 
