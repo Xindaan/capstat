@@ -62,6 +62,18 @@
 - ~~T-0057 **Result-card labels fell below WCAG AA**~~ -- **done 2026-08-23**:
   a measured `--muted` token replaces 51 uses of opacity steps that failed.
   See `## Done`.
+- T-0078 **Point positions are reported in two conventions.** Found while
+  building the CLI, not by the review. The core's warnings quote raw 0-based
+  indices -- "the moving range chart is out of control at [29, 30]" -- while
+  the web app and the CLI both count points from 1, the way a person reads a
+  chart. In the CLI's output both now appear in one block: "out of control at
+  point(s): 30, 31" directly above a warning naming [29, 30] for the same two
+  points.
+  Not fixed here: it is pre-existing, it touches warning text several tests
+  assert on, and it is the kind of change that should be one deliberate commit
+  rather than a rider on a feature. The honest options are to make the core's
+  warnings 1-based (and say so), or to state the convention in each message.
+  Acceptance: one convention, or every message that quotes an index says which.
 - ~~T-0063 **The compute endpoints accept a body of any size**~~ -- **decided
   and done 2026-09-02.** The maintainer chose a byte limit in middleware (10 MB,
   413, mirroring `/ingest`) over a per-field `max_length`, so the published
@@ -403,6 +415,81 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- **The three deferred features were built 2026-09-02**, in the order the
+  warning-codes decision implied (T-0075, T-0076, T-0077). New follow-up:
+  T-0078 below.
+
+- T-0075 (2026-09-02) **The subgrouped analyses are reachable from the app.**
+  * `capability()` has taken subgroups since T-0005 and `xbar_r_chart` has
+    existed since T-0007. Neither was reachable: the page only ever sent a flat
+    column, so **every Cp/Cpk the app has ever shown rested on a moving-range
+    sigma** -- the fallback the library warns about on every such report. Built,
+    tested, reference-validated, and invisible.
+  * A subgroup size on the workspace groups consecutive rows in file order.
+    That is the ordinary SPC arrangement *and* the assumption the result rests
+    on, so the panel states it rather than implying it.
+  * **Leftovers are reported, not dropped.** 30 measurements in subgroups of 4
+    leave two out, and a study quietly computed on 28 of 30 is a different
+    study with nothing on screen to say so.
+  * Which chart pair follows from the size rather than being a second choice,
+    and the pair names itself from what the core returned -- so the heading
+    cannot announce a chart the panel is not showing.
+  * The decision path stays individuals-only and the panel says why:
+    `analyze_capability` needs a flat sample because Box-Cox and the percentile
+    fit both work on one.
+  * Two e2e fixtures were quietly wrong -- "Individuals" where the core writes
+    "individuals". That never mattered while the titles were hardcoded, and
+    broke the moment they came from the data.
+
+- T-0076 (2026-09-02) **Phase II: judging new data against a known baseline.**
+  * The charts only ever computed Phase I limits, and the docstring said so
+    rather than offering the alternative.
+  * **The cost of that default is worse than the textbook statement**, and the
+    test measures it rather than repeating it. On 25 subgroups with a sustained
+    shift over the last five, the Phase I centre moves from 9.98 to 11.18 --
+    which does not merely soften the signal on the shifted subgroups but flags
+    **seven stable ones** for sitting too far below a centre the shift invented.
+    The chart misattributes the fault. My first draft of that test asserted
+    Phase I would flag *fewer* points; it flags more, and the measurement
+    corrected the claim.
+  * `center=` and `sigma=` from a stable period hold the limits: exactly the
+    five shifted subgroups signal.
+  * **The Phase II arithmetic is the Phase I arithmetic.** Rbar and sbar are now
+    recovered from sigma rather than the other way round, making it one code
+    path -- and giving the reduction identity the tests assert for all three
+    pairs: handed what it would have estimated, a Phase II chart reproduces the
+    Phase I limits to 1e-12. All 566 core tests passed unchanged through that
+    refactor, which is what says the arithmetic did not move.
+  * Both halves or neither: a known centre with a sigma estimated from the data
+    under test is neither phase. Refused in the core, 422 over HTTP, and the
+    panel keeps the chart Phase I and says why.
+  * The Phase I trial-limit caveat no longer fires where it is untrue; a
+    different one takes its place.
+
+- T-0077 (2026-09-02) **A local CLI.** `capstat columns | capability | chart`.
+  * T-0026 decided capstat runs on your own machine. The web app honours that
+    but wants two processes and a browser; this is the same analysis with
+    neither.
+  * **It lives in `capstat-api`, not a package of its own.** It needs exactly
+    what that package already owns -- the tabular parsing -- and a CLI with its
+    own CSV reader would be a second answer to "what does this file contain".
+    The two would disagree about a decimal comma sooner or later. The parsing
+    moved out of the router into `capstat_api/tabular.py`; one implementation,
+    two callers, and a test asserts the CLI reads a cp1252 semicolon file with
+    a decimal comma exactly as `/ingest` does.
+  * **The agreement is the test that matters:** on the demo file the CLI
+    reproduces the figures the README quotes and the screenshots show --
+    percentile path, Pp 1.3792, Ppk 0.9418, and no Cp/Cpk. A second surface
+    onto one library is only worth having if it cannot disagree with the first.
+  * Exit codes distinguish a refusal from a crash: 2 for bad input, with the
+    core's own message reaching the terminal verbatim as the HTTP layer passes
+    it through as a 422. `--fail-on-signal` gives 3, and it is **opt-in** --
+    turning "out of control" into a non-zero exit unasked would make every
+    scripted run a pass/fail test, which is not what a control chart is for.
+  * Extracting the parsing also fixed a small wrong in the router: an
+    unsupported extension is a 415, not the 422 the shared catch-all would now
+    have given it.
 
 - **The three open decisions were taken 2026-09-02** (see the decision
   templates in the session that produced them). Body limit: middleware, not

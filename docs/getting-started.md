@@ -59,6 +59,16 @@ quote; `ppk` is the one the customer lives with. When they diverge, the gap
     print(analysis.rationale)  # why that path, in a sentence
     ```
 
+## Or skip both, and use the command line
+
+```bash
+uv run capstat capability examples/shaft-diameter.csv \
+  --column diameter_mm --lsl 9.7 --usl 10.3
+```
+
+Same parser as `/ingest`, same core, no server and no browser. `--json` for a
+script; `capstat chart --fail-on-signal` exits 3 when the process signals.
+
 ## Run the API
 
 ```bash

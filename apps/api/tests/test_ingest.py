@@ -8,6 +8,7 @@ from typing import cast
 
 import pandas as pd
 import pytest
+from capstat_api.tabular import repair_decimal_commas
 from fastapi import HTTPException, UploadFile
 from fastapi.testclient import TestClient
 
@@ -263,7 +264,6 @@ def test_an_empty_column_is_not_reported_as_repaired() -> None:
     all-empty column would be listed among those whose decimal comma was
     converted -- a warning describing something that never happened.
     """
-    from capstat_api.routers import ingest as module
 
     frame = pd.DataFrame(
         {
@@ -271,5 +271,5 @@ def test_an_empty_column_is_not_reported_as_repaired() -> None:
             "real": pd.Series(["9,71", "9,80"], dtype=object),
         }
     )
-    assert module._repair_decimal_commas(frame) == ["real"]
+    assert repair_decimal_commas(frame) == ["real"]
     assert frame["real"].tolist() == [9.71, 9.80]
