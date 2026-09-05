@@ -309,6 +309,22 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-09-05: **T-0083 — CI `web` was red on main; the e2e suite was racing
+  hydration.** `gotoReady` waited only for `load`, and at that moment no element
+  on the page carries a React fiber (measured, throttled CPU). A click there is
+  lost and fails loudly; a `fill` is *merged* — Playwright selects the
+  server-rendered text, React re-renders and drops the selection, and the typed
+  text lands in front of the old value. The suite posted a sixteen-lot series
+  for a three-lot test, and the only symptom was a deep-equality diff that read
+  like an app bug. Fixed once at the choke point: the app raises `data-hydrated`
+  from a committed root effect and `gotoReady` waits for it. The screenshots
+  harness had the same shape and writes the committed README figures, so it now
+  waits too. Regression test runs under a 20x CPU throttle; negative probe
+  reproduces the CI diff exactly. Third fix of this shape (T-0038, T-0049) —
+  the first two widened waits on results and missed that the race was hydration.
+
+- 2026-09-05: **T-0084 — `tmp/` is git-ignored.**
+
 - 2026-08-16: **T-0050 — the Next-generated agent files are gitignored, their
   substance kept.** `apps/web/AGENTS.md` and `apps/web/CLAUDE.md` are written by
   `next dev` whenever it detects an agent, so they show up only in agent

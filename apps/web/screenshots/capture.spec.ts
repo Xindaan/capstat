@@ -13,6 +13,12 @@
  */
 
 import { expect, test, type Locator } from "@playwright/test";
+
+// Shared with the e2e suite so both harnesses wait for the same thing: a
+// screenshot taken before hydration would show a page that looks right and is
+// not yet listening, and a `fill` in that window is merged into the
+// pre-filled value rather than replacing it (T-0083).
+import { gotoReady } from "../e2e/support";
 import path from "node:path";
 
 // Playwright runs with the config's directory (apps/web) as the cwd.
@@ -104,7 +110,7 @@ test.use({ viewport: { width: 1280, height: 900 } });
 test("capability, control chart and the row-index warning", async ({
   page,
 }) => {
-  await page.goto("/");
+  await gotoReady(page, "/");
   await page.setInputFiles('input[type="file"]', CSV);
 
   // The panel auto-selects diameter_mm, skipping the part-number column.
@@ -142,7 +148,7 @@ test("capability, control chart and the row-index warning", async ({
 });
 
 test("gage r&r", async ({ page }) => {
-  await page.goto("/gage-rr");
+  await gotoReady(page, "/gage-rr");
   const panel = page.getByLabel("Gage R&R");
   await panel.getByRole("button", { name: /compute/i }).click();
   await expect(panel.getByText(/ndc/i).first()).toBeVisible();
@@ -150,7 +156,7 @@ test("gage r&r", async ({ page }) => {
 });
 
 test("acceptance sampling", async ({ page }) => {
-  await page.goto("/acceptance-sampling");
+  await gotoReady(page, "/acceptance-sampling");
   const panel = page.getByLabel("Acceptance sampling");
   await panel.getByRole("button", { name: "Design the plan" }).click();
   // The pre-filled example designs to n = 144, Ac = 4 -- a published result the
@@ -162,7 +168,7 @@ test("acceptance sampling", async ({ page }) => {
 });
 
 test("switching rules", async ({ page }) => {
-  await page.goto("/acceptance-sampling");
+  await gotoReady(page, "/acceptance-sampling");
   const panel = page.getByLabel("Switching rules");
   await panel
     .getByRole("button", { name: "Apply the switching rules" })

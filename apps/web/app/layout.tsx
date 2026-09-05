@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HydrationFlag } from "@/components/hydration-flag";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ export default function RootLayout({
           </Link>
         </nav>
         {children}
+        <HydrationFlag />
       </body>
     </html>
   );

@@ -455,6 +455,40 @@
 
 ## Done
 
+- T-0083 (2026-09-05) **CI `web` was red on main: the e2e suite drove pages
+  before React had hydrated.** `gotoReady` waited for `load`, which says the
+  markup and scripts arrived, not that anything is listening. Measured under a
+  throttled CPU at that moment: *no* element on the page carried a React fiber.
+  A click in that window is merely lost -- the assertion that follows then fails
+  loudly, which is why this was survivable for so long. A `fill` is worse: it is
+  merged, not lost. Playwright selects the server-rendered text, React
+  re-renders and drops the selection, and the typed text is inserted in front of
+  the old value. `fill("A R A")` over the pre-filled thirteen-lot example left
+  `"A R AA A R A A R A A A A A A A"` in the field, and the suite posted sixteen
+  lots for a three-lot series. The only symptom was a deep-equality diff on the
+  request body, which read like an app bug and was not one.
+  - Fixed at the choke point: the app raises `data-hydrated` from a committed
+    root effect (`components/hydration-flag.tsx`), `gotoReady` waits for it, and
+    every spec goes through `gotoReady` -- verified by grep, the only other
+    navigation is the warmup, which now waits too.
+  - Probing React's own fibers instead was tried and rejected on measurement:
+    they are attached top-down, so `body` carries one while the inputs beneath
+    it are still dead, and 7 of 80 nodes (Next's injected scripts) never carry
+    one at all. There is no element whose fiber means "the page is live".
+  - Isomorphy check: the screenshots harness had the same shape -- bare
+    `page.goto` then `fill` on LSL/USL -- and it writes the committed README
+    figures, so a raced capture would ship a wrong number into the docs. It now
+    uses the same `gotoReady`. No third site: those are the only two harnesses.
+  - Regression test asserts the *series*, not its length, and runs under a 20x
+    CPU throttle to hold the window open. Negative probe done: with the wait
+    removed it fails with `+ Received + 52`, the same diff the CI run produced.
+  - Third fix of this shape (T-0038, T-0049, now this). The first two widened
+    waits on results; this one is why the class kept coming back -- the suite
+    was racing hydration itself, not the results.
+
+- T-0084 (2026-09-05) **`tmp/` is git-ignored.** Mail and scratch notes are
+  dropped in the working copy by hand; they were showing up as untracked.
+
 - **v0.3.0 released 2026-09-05.** Tag cut, versions stamped across all five
   files, GitHub release published. The changelog needed a hand correction
   first -- see T-0081 -- and the release notes on GitHub were re-set from the

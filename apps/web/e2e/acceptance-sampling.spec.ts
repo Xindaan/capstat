@@ -550,3 +550,49 @@ test("deciding a lot judges the plan on screen, not whatever is left in the fiel
   await expect(page.getByText("Accept", { exact: true })).toBeVisible();
   expect(body.plan).toMatchObject({ sample_size: PLAN.sample_size });
 });
+
+// A guard on the suite itself rather than on the page.
+//
+// Three fixes have now gone into this suite for the same shape: the tests
+// acting on a page that had not finished becoming interactive (T-0038, T-0049,
+// and T-0083). The first two were about *waiting long enough* for a result.
+// This one was worse, because nothing waited and nothing timed out: a `fill`
+// that lands before hydration is not lost, it is merged. Playwright selects the
+// server-rendered text, React re-renders and drops the selection, and the typed
+// text is inserted in front of what was already there. The suite posted a
+// sixteen-lot series for a test that had written three lots, and the only
+// symptom was a deep-equality diff on the request body.
+//
+// The CPU throttle is the point of the test: it widens the hydration window
+// until it reliably contains the fill, which is what a loaded CI runner does by
+// accident. Remove the wait in gotoReady and this goes red.
+test("a control is not driven before it can listen", async ({ page }) => {
+  test.setTimeout(90_000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
+
+  await mockApi(page);
+  await page.route("**/compute/acceptance-sampling/switching-rules", (r) =>
+    r.fulfill(json(SCHEME)),
+  );
+  await gotoReady(page, "/acceptance-sampling");
+
+  const panel = page.getByLabel("Switching rules");
+  await panel.getByLabel("Lot outcomes").fill("A R A");
+
+  const body = await requestDuring<{ lots?: unknown[] }>(
+    page,
+    "**/compute/acceptance-sampling/switching-rules",
+    () =>
+      panel.getByRole("button", { name: "Apply the switching rules" }).click(),
+  );
+
+  // Assert the series itself, not its length: a length alone would also be
+  // satisfied by three lots of the wrong outcomes.
+  expect(body.lots).toEqual([
+    { accepted: true, accepted_at_tighter_aql: null },
+    { accepted: false, accepted_at_tighter_aql: null },
+    { accepted: true, accepted_at_tighter_aql: null },
+  ]);
+  await expect(panel.getByLabel("Lot outcomes")).toHaveValue("A R A");
+});

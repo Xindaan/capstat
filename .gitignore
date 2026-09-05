@@ -44,3 +44,6 @@ site/
 *.swp
 .idea/
 .vscode/
+
+# Scratch space for mails/notes dropped in by hand -- never tracked.
+tmp/
