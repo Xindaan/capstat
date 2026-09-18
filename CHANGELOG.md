@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.1](https://github.com/Xindaan/capstat/compare/v0.3.0...v0.3.1) (2026-09-18)
+
+
+### Bug fixes
+
+* **deps:** patch Next.js and the web lockfile against ten advisories (T-0086) ([9905e2e](https://github.com/Xindaan/capstat/commit/9905e2e6e14a5363b5aec27c1dc84490fe358d18))
+* **e2e:** wait for hydration, not just load (T-0083) ([f56c84b](https://github.com/Xindaan/capstat/commit/f56c84b6696a1a305e4895b655bd066cef71d6e0))
+
+
+### Documentation
+
+* **agents:** the working rules are the maintainer's to change (T-0085) ([d397d60](https://github.com/Xindaan/capstat/commit/d397d60cf2aa2b726912ca7138199f41f3d49b73))
+* **task,state:** record the 0.3.0 publish, and correct two things ([9c65a9b](https://github.com/Xindaan/capstat/commit/9c65a9b1a7d7440fe4e51149d8187e572441d571))
+* **task,state:** record the 0.3.0 release and the notes it nearly shipped ([fb0c952](https://github.com/Xindaan/capstat/commit/fb0c95289dfd7deabebc040be99400d7bed6c49e))
+
 ## [0.3.0](https://github.com/Xindaan/capstat/compare/v0.2.1...v0.3.0) (2026-09-05)
 
 
