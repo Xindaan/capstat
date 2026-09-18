@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/Xindaan/capstat/compare/v0.3.1...v0.3.2) (2026-09-18)
+
+
+### Documentation
+
+* **task,state:** record the 0.3.1 publish, verified on PyPI ([a488222](https://github.com/Xindaan/capstat/commit/a488222221801f1e2eee6fa557c6bb0a5d23e17a))
+* **task,state:** record the 0.3.1 release and the cause of the rule rewrite ([05c73b7](https://github.com/Xindaan/capstat/commit/05c73b7d196b2e9fd1f47a1ebe54156009d5d3ed))
+
 ## [0.3.1](https://github.com/Xindaan/capstat/compare/v0.3.0...v0.3.1) (2026-09-18)
 
 
