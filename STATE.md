@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-09-05
+Date: 2026-09-18
 
 ## Goal
 
@@ -308,6 +308,11 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-09-18: **T-0085 — an unasked Codex rewrite of the working rules was
+  discarded**, and `AGENTS.md` now states that its reading order, Workflow,
+  Quality gates and the DoD are the maintainer's to change. The same rewrite
+  sits uncommitted in FSB and KI-Council; not touched from here.
 
 - 2026-09-05: **T-0083 — CI `web` was red on main; the e2e suite was racing
   hydration.** `gotoReady` waited only for `load`, and at that moment no element

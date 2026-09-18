@@ -33,6 +33,16 @@ on this repository.
   itself drops an `AGENTS.md` and a `CLAUDE.md` into `apps/web` whenever it
   detects an agent; those are gitignored (T-0050) and unmaintained — this
   bullet is the version that is kept current.
+- **The rules in this file are the maintainer's, not the agent's.** Do not
+  reword, soften, restructure or relocate "Read this first", "Workflow" or
+  "Quality gates", nor the Definition of Done that PLAN.md restates, unless
+  the maintainer asks for that change in the task at hand — propose it in the
+  conversation instead. These sections mirror conventions shared across the
+  maintainer's repositories, so a local rewrite forks them silently. On
+  2026-09-13 an agent did exactly that, uncommitted and unasked, in three
+  repositories at once: "a commit that changes code but not TASK.md/STATE.md
+  is usually wrong" became optional, and documentation work was excused from
+  the test suites (T-0085).
 
 ## Workflow
 

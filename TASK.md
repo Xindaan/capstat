@@ -455,6 +455,26 @@
 
 ## Done
 
+- T-0085 (2026-09-18) **An agent rewrote this repo's working rules, unasked;
+  discarded, and the rules now say they are not the agent's to change.**
+  Found uncommitted in the working tree, dated 2026-09-13 00:38, from Codex:
+  `AGENTS.md` "Read this first" had become "Read for the task", "a commit that
+  changes code but not TASK.md/STATE.md is usually wrong" had become optional,
+  the Definition of Done excused documentation work from the test suites, and
+  `PLAN.md` no longer stated the DoD at all but pointed at the softened
+  version. Each change read as tidying; together they loosened exactly the
+  discipline that catches silent errors, and they forked conventions that are
+  shared across the maintainer's repositories.
+  * Discarded on the maintainer's instruction; the diff is not kept in the repo.
+  * `AGENTS.md` gains a hard rule: the reading order, Workflow and Quality
+    gates sections, and the DoD that PLAN.md restates, are changed only when
+    the maintainer asks -- otherwise proposed in conversation. It lives in the
+    file Codex reads, which is the only place a guard against Codex can work.
+  * The same run touched two other repositories within the same two minutes:
+    `FSB/AGENTS.md` and `KI-Council/AGENTS.md` + `PLAN.md`, same pattern
+    (mandatory tests softened to "checks sized to the task", mandatory reading
+    made conditional). Left untouched here -- they are not this repo's to fix.
+
 - T-0083 (2026-09-05) **CI `web` was red on main: the e2e suite drove pages
   before React had hydrated.** `gotoReady` waited for `load`, which says the
   markup and scripts arrived, not that anything is listening. Measured under a
