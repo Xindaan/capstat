@@ -5,8 +5,8 @@ Date: 2026-09-18
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.3.0;
-`capstat-core` 0.3.0 is on PyPI.
+Next.js frontend as a professional MIT open-source project. Released: v0.3.1;
+`capstat-core` 0.3.1 is on PyPI.
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -83,10 +83,6 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-- **Approve the PyPI publish of 0.3.1** -- run 35308969519, held at the
-  `pypi` environment (maintainer only). Then verify against PyPI itself, not
-  the green run: `https://pypi.org/pypi/capstat-core/json` and a clean venv.
-  Tag `v0.3.1` and the GitHub release are out; see TASK.md Done.
 - **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
   decide there whether to discard it. Not this repo's to touch.
 
@@ -316,8 +312,9 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
-- 2026-09-18: **v0.3.1 released** (tag + GitHub release; PyPI publish waiting
-  for approval). Cut to get the Next.js security fix (T-0086) into a tag.
+- 2026-09-18: **v0.3.1 released and on PyPI.** Cut to get the Next.js security
+  fix (T-0086) into a tag. Verified on PyPI: clean-venv import 0.3.1, all 19
+  source files byte-identical to the tag.
 
 - 2026-09-18: **T-0086 — dependency and security sweep.** Ten open advisories
   closed, four critical (Next.js RCEs, fixed by 16.3.5); dependabot's #33-#35

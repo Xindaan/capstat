@@ -558,8 +558,12 @@
   head that was merged (`18d6fe4`). Tag, `main`, `pyproject.toml` and
   `capstat_core.__version__` all agree on 0.3.1. `capstat-core` 0.3.1 is
   identical in content to 0.3.0 -- a known, accepted cost. PyPI: `publish`
-  dispatched for `v0.3.1` (run 35308969519), held at the `pypi` environment
-  for the maintainer's approval.
+  dispatched for `v0.3.1` (run 35308969519) and published the same day after
+  the maintainer approved the `pypi` environment. Verified on PyPI itself, not
+  on the green run: the JSON API reports 0.3.1 (wheel and sdist), a clean venv
+  installs and imports 0.3.1, and all 19 installed source files are
+  byte-identical to tag `v0.3.1`. With no new symbol in this release, that file
+  comparison is what proves which code shipped.
   Expect a new release PR straight after the commit recording this: here every
   commit type with a visible changelog section -- feat, fix, perf, docs, test,
   refactor -- opens or updates one; only ci and chore do not (PR #30 itself was
