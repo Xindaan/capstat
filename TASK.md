@@ -505,6 +505,16 @@
     `FSB/AGENTS.md` and `KI-Council/AGENTS.md` + `PLAN.md`, same pattern
     (mandatory tests softened to "checks sized to the task", mandatory reading
     made conditional). Left untouched here -- they are not this repo's to fix.
+  * Root cause, found afterwards: Codex's own global rules
+    (`~/.codex/AGENTS.md`) were rewritten in the same minute, and their rules 6,
+    9 and 10 -- "task-specific pointers instead of a universal reading list",
+    "repeat checks only for new changes", "skip unrelated runtime tests for
+    documentation" -- are exactly what was then written into the three
+    repositories. The global defaults are defensible for Codex; overwriting
+    stricter project rules to match them was not. On the maintainer's
+    instruction a rule 15 was added there: project `AGENTS.md`/`CLAUDE.md`/
+    `PLAN.md` are the maintainer's, win where stricter, and are not rewritten
+    unless the task asks. That file is outside the repo and unversioned.
 
 - T-0083 (2026-09-05) **CI `web` was red on main: the e2e suite drove pages
   before React had hydrated.** `gotoReady` waited for `load`, which says the
@@ -540,6 +550,21 @@
 - T-0084 (2026-09-05) **`tmp/` is git-ignored.** Mail and scratch notes are
   dropped in the working copy by hand; they were showing up as untracked.
 
+- **v0.3.1 released 2026-09-18** (PR #30, squash `6e78040`). Cut because
+  v0.3.0 was the newest tag and still shipped the Next.js that T-0086 patched
+  for four critical advisories. Release notes checked before merging -- all
+  commits since v0.3.0, correct sections, no hand correction needed this time.
+  The release PR's CI was held as usual and was approved and green on the exact
+  head that was merged (`18d6fe4`). Tag, `main`, `pyproject.toml` and
+  `capstat_core.__version__` all agree on 0.3.1. `capstat-core` 0.3.1 is
+  identical in content to 0.3.0 -- a known, accepted cost. PyPI: `publish`
+  dispatched for `v0.3.1` (run 35308969519), held at the `pypi` environment
+  for the maintainer's approval.
+  Expect a new release PR straight after the commit recording this: here every
+  commit type with a visible changelog section -- feat, fix, perf, docs, test,
+  refactor -- opens or updates one; only ci and chore do not (PR #30 itself was
+  opened by a docs-only commit). An open release PR is the normal state, not a
+  to-do, and no commit type should be chosen to dodge one.
 - **v0.3.0 released 2026-09-05.** Tag cut, versions stamped across all five
   files, GitHub release published. The changelog needed a hand correction
   first -- see T-0081 -- and the release notes on GitHub were re-set from the

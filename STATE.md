@@ -83,13 +83,12 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-- **Release 0.3.1 (PR #30) -- maintainer's call.** It now carries T-0086's
-  Next.js fix for four critical advisories, so the newest tag (v0.3.0) is the
-  one still shipping the vulnerable framework. Cost of releasing: PyPI gets a
-  `capstat-core` 0.3.1 identical in content to 0.3.0. Note for the decision: in
-  this repo every commit type with a visible changelog section (feat, fix,
-  perf, docs, test, refactor) opens or updates a release PR -- only ci and
-  chore do not -- so an open release PR is the normal state, not a to-do.
+- **Approve the PyPI publish of 0.3.1** -- run 35308969519, held at the
+  `pypi` environment (maintainer only). Then verify against PyPI itself, not
+  the green run: `https://pypi.org/pypi/capstat-core/json` and a clean venv.
+  Tag `v0.3.1` and the GitHub release are out; see TASK.md Done.
+- **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
+  decide there whether to discard it. Not this repo's to touch.
 
 **External review triaged 2026-08-23** (Ox Alpha, 2026-08-22, source read only).
 Eleven confirmed findings are filed as T-0051..T-0061; T-0062 is the one the
@@ -316,6 +315,9 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-09-18: **v0.3.1 released** (tag + GitHub release; PyPI publish waiting
+  for approval). Cut to get the Next.js security fix (T-0086) into a tag.
 
 - 2026-09-18: **T-0086 — dependency and security sweep.** Ten open advisories
   closed, four critical (Next.js RCEs, fixed by 16.3.5); dependabot's #33-#35
