@@ -455,6 +455,37 @@
 
 ## Done
 
+- T-0086 (2026-09-18) **Dependency sweep, security first: ten open advisories
+  closed, three dependabot PRs superseded.** The three PRs (#33 browserslist,
+  #34 types-pyyaml, #35 ruff) were the visible part. The repository's security
+  alerts held ten advisories, four of them critical -- two Next.js remote code
+  executions (servers hosted on Windows; the Image Optimization API with AVIF
+  files) -- and dependabot had opened no PR for Next at all.
+  * Exposure was low and fixed regardless: the app uses no `next/image` and
+    the image is Linux. A critical rating on the framework is not something to
+    argue down in a release.
+  * Web: `next` and `eslint-config-next` 16.3.1 -> 16.3.5 (fixed from 16.3.3;
+    latest 16.3 patch; exact pins kept), which also brought `sharp` 0.35.4.
+    Lockfile-level: `vitest`/`@vitest/mocker` 4.1.11, `baseline-browser-mapping`
+    2.11.25, `browserslist` 4.29.0, `js-yaml` 4.3.2. The `js-yaml` override is
+    `^4.3.1`, a floor rather than a pin, so it did not block the fix -- the lock
+    was simply stale. `npm audit`: 0 vulnerabilities.
+  * **npm 10.9.8 could not do it.** Every route -- `install`, `update`,
+    `audit fix`, and again on a fresh `node_modules` -- died in arborist's
+    `#loadPeerSet` with "Cannot read properties of null (reading 'edgesOut')".
+    npm 11.19.0 (`npx -y npm@11 update ...`) resolved the same request. The
+    lockfile stays version 3 and a clean `npm ci` with the system npm 10 --
+    what CI runs -- installs it without complaint. Next time: go to npm 11
+    first, and verify with npm 10.
+  * Python, lock only as the PRs had it: `ruff` 0.16.0 -> 0.16.8 (one patch past
+    #35), `types-pyyaml` -> 6.0.12.20260906. Pre-commit runs ruff through
+    `uv run`, so there is no second pin to drift.
+  * `capstat-core` is untouched (numpy + scipy only): nothing changes for
+    anyone installing it from PyPI.
+  * Verified as one set: Python 677/677 with 100 % coverage, ruff, format and
+    mypy clean, no OpenAPI drift; web lint, Prettier, types and build clean,
+    79/79 unit, 40/40 e2e including T-0083's hydration guard.
+
 - T-0085 (2026-09-18) **An agent rewrote this repo's working rules, unasked;
   discarded, and the rules now say they are not the agent's to change.**
   Found uncommitted in the working tree, dated 2026-09-13 00:38, from Codex:

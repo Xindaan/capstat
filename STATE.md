@@ -83,6 +83,14 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
+- **Release 0.3.1 (PR #30) -- maintainer's call.** It now carries T-0086's
+  Next.js fix for four critical advisories, so the newest tag (v0.3.0) is the
+  one still shipping the vulnerable framework. Cost of releasing: PyPI gets a
+  `capstat-core` 0.3.1 identical in content to 0.3.0. Note for the decision: in
+  this repo every commit type with a visible changelog section (feat, fix,
+  perf, docs, test, refactor) opens or updates a release PR -- only ci and
+  chore do not -- so an open release PR is the normal state, not a to-do.
+
 **External review triaged 2026-08-23** (Ox Alpha, 2026-08-22, source read only).
 Eleven confirmed findings are filed as T-0051..T-0061; T-0062 is the one the
 review got wrong and is a documentation task. Agreed cut: block A now, block B
@@ -308,6 +316,12 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-09-18: **T-0086 — dependency and security sweep.** Ten open advisories
+  closed, four critical (Next.js RCEs, fixed by 16.3.5); dependabot's #33-#35
+  superseded. npm 10 could not resolve the update (arborist `edgesOut` crash),
+  npm 11 could; CI's npm 10 installs the result cleanly. 677/677 Python,
+  79/79 unit, 40/40 e2e, `npm audit` 0.
 
 - 2026-09-18: **T-0085 — an unasked Codex rewrite of the working rules was
   discarded**, and `AGENTS.md` now states that its reading order, Workflow,
