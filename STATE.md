@@ -318,6 +318,9 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
   byte against the tag; the workflow calls it after the upload. Green on 0.3.1
   (19/19 identical), and red on purpose against v0.2.0. Caches off and the
   index pinned, so it answers about PyPI rather than about the runner.
+  `uv.lock` was refreshed in the same session: it still said `0.3.0` because
+  release-please does not touch it and `uv sync --frozen` does not check it.
+  **That refresh is manual at every release.**
 
 - 2026-09-19: **T-0088 — two practised conventions became rules.** `AGENTS.md`
   Hard rules gains "every claim carries its evidence, where the claim is made"
