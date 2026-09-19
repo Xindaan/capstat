@@ -455,6 +455,42 @@
 
 ## Done
 
+- T-0087 (2026-09-19) **Two working conventions that were practised but never
+  written down are now rules, and the language split is stated in full.**
+  A review of the five conventions the maintainer keeps across repositories
+  found three of them already covered here and two missing.
+  * Already covered, left untouched: **TASK.md/STATE.md on every code commit**
+    (`AGENTS.md` Workflow, the Definition of Done, and the PR template's
+    checklist all carry it), and the **English rule** for repo content
+    (`AGENTS.md` Hard rules).
+  * **Not adopted: German as the repository language.** The cross-repository
+    default is German; this repo overrode it on 2026-07-13 and all repo
+    content is English. German applies to the maintainer conversation only, so
+    `CLAUDE.md` now states the rest of that convention rather than reopening
+    the override: the chat uses *du*, and German prose is gendered with a
+    colon (`Anwender:innen`) — prose only, never an identifier, which stays
+    English and plain ASCII.
+  * **New hard rule — every claim carries its evidence, where the claim is
+    made.** The command and its output, the `file:line` or the citation goes
+    with the statement; what was not checked is labelled unchecked rather than
+    asserted; a claim found wrong is corrected in the file that made it. The
+    repo already worked this way (T-0082's measured "does not break CI", the
+    0.2.0/0.2.1 correction above), but nothing said so, and an agent that does
+    not know it is the standard defaults to confident prose.
+  * **New hard rule — a release is verified against the published artefact,
+    not against the green run.** Before the approval: version stamped in every
+    file that carries it, a build at the tag, and the version still absent from
+    the index. After it: the index's metadata, a clean-environment install, and
+    the release's new behaviour exercised — or a byte-for-byte file comparison
+    against the tag when the release adds no new symbol, which is then the only
+    proof of which code shipped. This is what was done for 0.3.0 and 0.3.1;
+    writing it down is what keeps the next release from settling for a green
+    run.
+  * `AGENTS.md`'s protected sections (Read this first, Workflow, Quality gates,
+    the DoD) are untouched: both rules are additions to Hard rules, per T-0085.
+    Steering files only; no code changed, so nothing to run beyond the
+    pre-commit hooks.
+
 - T-0086 (2026-09-18) **Dependency sweep, security first: ten open advisories
   closed, three dependabot PRs superseded.** The three PRs (#33 browserslist,
   #34 types-pyyaml, #35 ruff) were the visible part. The repository's security
