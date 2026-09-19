@@ -108,12 +108,42 @@ imply a freedom that does not exist.
     landing, so nothing is unverified — but if you want CI on the PR itself,
     give the action a PAT with `repo` scope.
 
-!!! warning "Publishing to PyPI is not set up"
-    `capstat-core` is not published to any index yet. Doing so needs a PyPI
-    account and a trusted-publisher (OIDC) configuration, which cannot be
-    created from inside the repository. Until that decision is made, releases
-    are GitHub releases only, and the install instructions that mention
-    `pip install capstat-core` describe an intent rather than a fact.
+## Publishing to PyPI
+
+Tagging is not publishing. `capstat-core` reaches PyPI only when someone runs
+the **`publish`** workflow by hand from the Actions tab and names the tag to
+publish. It has no push, tag or release trigger, and it stops at the `pypi`
+environment's required reviewer before the upload — two deliberate gates,
+because a PyPI version number can never be reused, not even after a yank.
+
+The upload itself uses trusted publishing (OIDC), so no API token exists to
+leak or rotate.
+
+### Verifying what was published
+
+A green publish run proves PyPI accepted *something*. It does not prove which
+code: the version string is checked against the tag before the build, and
+nothing afterwards looks at the artefact the index actually serves. A release
+that adds no public symbol cannot be told apart by importing it — 0.3.1 was
+exactly that.
+
+So the workflow ends by asking PyPI instead of the runner:
+
+```bash
+uv run python scripts/verify_pypi_release.py 0.3.1
+```
+
+The script installs that version from pypi.org into a fresh environment with
+caches disabled, imports it, and compares every installed source file byte for
+byte against the tag `v0.3.1`, which it reads with `git cat-file` rather than
+checking out — your working tree is never touched. It reports the file count
+and exits `0` when they are identical, `1` when they are not, and `2` when the
+check could not be run at all (unknown tag, no network, failed install). That
+last code is separate on purpose: "could not look" must not read as "looked and
+it was fine".
+
+It is not only a CI step. Run it against any published version at any time to
+re-establish that what PyPI serves today is still what the tag holds.
 
 ## Configuration
 
