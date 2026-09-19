@@ -10,6 +10,13 @@ name: publish
 # repo, this workflow filename (publish.yml), and this environment (pypi); all
 # three must match or the upload is refused rather than misdirected.
 #
+# After the upload it verifies what PyPI now serves against that same tag, file
+# by file (scripts/verify_pypi_release.py). A green upload only says PyPI
+# accepted something; 0.3.1 added no public symbol, so importing the result
+# could not have told it apart from 0.3.0. That comparison was done by hand for
+# 0.3.1 -- the script is that check, so it happens on every release instead of
+# when someone remembers.
+#
 # It publishes a TAG, never a branch. Until 2026-08-16 this checked out whatever
 # `main` held while the version string came from pyproject.toml -- which only
 # moves when release-please cuts a release. Whenever main ran ahead of the newest
@@ -83,3 +90,17 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+
+      # The one check that reads PyPI rather than this runner: a fresh
+      # environment installs the version from pypi.org, and every installed
+      # source file is compared byte for byte against the tag. It fails the job
+      # if they differ. The upload cannot be undone at that point -- knowing is
+      # still the difference between a yank and a surprise months later.
+      #
+      # `--no-project` because the script is stdlib-only: it needs an
+      # interpreter, not the workspace's dependencies. The script retries the
+      # PyPI API on its own while the index catches up with the upload.
+      - name: Verify the published artefact against the tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: uv run --no-project python scripts/verify_pypi_release.py "${TAG}"
