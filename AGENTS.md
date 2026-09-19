@@ -33,6 +33,28 @@ on this repository.
   itself drops an `AGENTS.md` and a `CLAUDE.md` into `apps/web` whenever it
   detects an agent; those are gitignored (T-0050) and unmaintained — this
   bullet is the version that is kept current.
+- **Every claim carries its evidence, where the claim is made.** A statement
+  about this repository — what the suite reports, what version is installed,
+  what a source says, what an agent changed — is stated together with the
+  command and its output, the `file:line`, or the citation that establishes
+  it, in the conversation, commit message, TASK.md or STATE.md that carries
+  the claim. What was not checked is labelled as unchecked or as an inference
+  instead of being asserted; "measured: `uv sync --frozen` succeeds either way"
+  is the standard, not "should be fine". A claim later found wrong is
+  corrected in the file that made it (see the 0.2.0/0.2.1 correction in
+  TASK.md), not quietly dropped.
+- **A release is verified against the published artefact, not against the
+  green run.** An upload to an index is permanent and a version number can
+  never be reused, so before the publish is approved: the tag stamps the
+  version in every file that carries it (both `pyproject.toml` files,
+  `__version__`, `uv.lock`), a build at that tag produces the expected sdist
+  and wheel, and the version is still absent from the index. After it: the
+  index's own metadata reports the version, and a clean environment installs
+  it and exercises the release's new behaviour — or, when a release adds no
+  new symbol, compares the installed files against the tag byte for byte,
+  because that comparison is then the only thing that proves which code
+  shipped. A green CI run is not that evidence. Done this way for 0.3.0 and
+  0.3.1; see TASK.md.
 - **The rules in this file are the maintainer's, not the agent's.** Do not
   reword, soften, restructure or relocate "Read this first", "Workflow" or
   "Quality gates", nor the Definition of Done that PLAN.md restates, unless
