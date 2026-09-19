@@ -455,6 +455,40 @@
 
 ## Done
 
+- T-0089 (2026-09-19) **The release gate now checks the one version-carrying
+  file nothing else covered.** T-0087 found `uv.lock` two releases behind and
+  fixed it by hand; T-0088 then made "the tag stamps the version in every file
+  that carries it, `uv.lock` named among them" a hard rule. The gap between
+  those two was that `publish.yml`'s pre-build step checked `pyproject.toml`
+  and `__version__` and stopped there, so the rule depended on somebody
+  remembering. `scripts/check_lock_version.py` closes it, and `publish` runs it
+  before the build.
+  * A workspace member is read out of the lock as a package whose `source` is
+    `editable` -- it points back at this tree, so its version is ours. Anything
+    resolved from an index is not our version and is ignored. Both members are
+    checked, not just the published one.
+  * Called bare it compares the lock against the version in
+    `packages/capstat-core/pyproject.toml`; called with a tag it requires that
+    too. The tag is the only anchor that
+    comes from outside the tree, which is exactly when a disagreement matters
+    -- so the failure output distinguishes a tag/manifest disagreement (which
+    `uv lock` would not fix) from a stale lock (which it would), and only
+    prints the `uv lock` hint for the second.
+  * **Deliberately not in CI.** Since release-please does not touch the lock,
+    a CI check would turn `main` red for the window between a release PR
+    merging and the refresh commit landing. That trades a silent problem for a
+    loud one in the wrong place. The release gate is where a stale lock has
+    consequences, so that is where it is caught; `docs/deployment.md` carries
+    the manual refresh as the step after every release merge.
+  * Wiring the lock into release-please's `extra-files` was considered and
+    dropped: its generic updater works off an annotated comment, and `uv lock`
+    rewrites the file, so the annotation would survive until the first refresh
+    and then silently stop working -- the worst available failure mode for a
+    check about silent drift.
+  * Exercised on all three outcomes against the current tree: bare and `v0.3.1`
+    both report `capstat-api, capstat-core all at 0.3.1` and exit `0`; `v0.4.0`
+    names the tag/manifest disagreement and both stale members and exits `1`.
+
 - T-0087 (2026-09-19) **The 0.3.1 release check, written down: `publish` now
   verifies against PyPI, not against itself.** After 0.3.1 was uploaded, the
   proof that the right code shipped was a hand-run comparison -- clean venv,

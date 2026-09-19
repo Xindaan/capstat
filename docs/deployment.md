@@ -102,6 +102,23 @@ The repository carries **one version for everything**. The core, the API and the
 web app are built and released together, so independent version numbers would
 imply a freedom that does not exist.
 
+!!! warning "`uv.lock` is not on that list — refresh it after every release"
+    The lock records a version for each workspace member, release-please does
+    not update it, and `uv sync --frozen` takes the lock as it finds it rather
+    than checking it against the manifests. So merging a release pull request
+    leaves the lock one version behind, and nothing says so. Run this straight
+    after the merge:
+
+    ```bash
+    uv lock && uv run python scripts/check_lock_version.py
+    ```
+
+    The same check runs in `publish` before the build, against the tag, so a
+    forgotten refresh stops the release rather than riding along in it. It is
+    not in CI on purpose: that would leave `main` red between the release merge
+    and the refresh commit, which trades one silent problem for a loud one in
+    the wrong place.
+
 !!! note "The release PR does not run CI"
     Pull requests opened with the default `GITHUB_TOKEN` do not trigger other
     workflows. The commits the PR summarises were each tested on `main` before
