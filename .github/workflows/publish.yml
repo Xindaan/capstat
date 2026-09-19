@@ -86,6 +86,18 @@ jobs:
           test -f "dist/capstat_core-${expected}-py3-none-any.whl" \
             || { echo "::error::no wheel for ${expected} in dist/"; ls -la dist; exit 1; }
 
+      # uv.lock carries the version too, and nothing else in the repo keeps it
+      # honest: release-please does not touch it, and `uv sync --frozen` takes
+      # it as it finds it. On 2026-09-19 it still said 0.3.0 while the packages,
+      # the tag and PyPI had all moved to 0.3.1 (T-0087). A stale lock does not
+      # change what gets uploaded -- the wheel is built from the tree -- but it
+      # is a file that carries the version disagreeing with the release, and
+      # AGENTS.md requires the tag to stamp every one of them.
+      - name: Verify uv.lock stamps the tag's version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: uv run --no-project python scripts/check_lock_version.py "${TAG}"
+
       - name: Publish to PyPI (trusted publishing)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

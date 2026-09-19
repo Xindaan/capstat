@@ -312,6 +312,13 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-09-19: **T-0089 — the release gate checks `uv.lock` too.**
+  `scripts/check_lock_version.py` compares the lock's workspace members against
+  the packages, and against the tag when given one; `publish` runs it before
+  the build. Not in CI on purpose -- that would redden `main` between a release
+  merge and the refresh commit. The manual refresh after every release merge is
+  in `docs/deployment.md`.
+
 - 2026-09-19: **T-0087 — the release check is a script now, and `publish` runs
   it.** `scripts/verify_pypi_release.py` installs a published version from
   pypi.org into a fresh environment and compares every source file byte for
