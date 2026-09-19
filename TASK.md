@@ -455,7 +455,7 @@
 
 ## Done
 
-- T-0087 (2026-09-19) **Two working conventions that were practised but never
+- T-0088 (2026-09-19) **Two working conventions that were practised but never
   written down are now rules, and the language split is stated in full.**
   A review of the five conventions the maintainer keeps across repositories
   found three of them already covered here and two missing.
@@ -490,6 +490,11 @@
     the DoD) are untouched: both rules are additions to Hard rules, per T-0085.
     Steering files only; no code changed, so nothing to run beyond the
     pre-commit hooks.
+  * Opened as T-0087 in PR #37; renumbered here because the parallel
+    release-check work took the same id the same day. PR #38 keeps T-0087, and
+    its rule -- the `uv.lock` refresh is manual after every release PR merges --
+    is the concrete form of the version-stamp check this entry's release rule
+    asks for.
 
 - T-0086 (2026-09-18) **Dependency sweep, security first: ten open advisories
   closed, three dependabot PRs superseded.** The three PRs (#33 browserslist,

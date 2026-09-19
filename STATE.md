@@ -312,7 +312,7 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
-- 2026-09-19: **T-0087 — two practised conventions became rules.** `AGENTS.md`
+- 2026-09-19: **T-0088 — two practised conventions became rules.** `AGENTS.md`
   Hard rules gains "every claim carries its evidence, where the claim is made"
   and "a release is verified against the published artefact, not against the
   green run"; `CLAUDE.md` states the rest of the language split (chat is German
