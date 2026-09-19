@@ -455,6 +455,40 @@
 
 ## Done
 
+- T-0087 (2026-09-19) **The 0.3.1 release check, written down: `publish` now
+  verifies against PyPI, not against itself.** After 0.3.1 was uploaded, the
+  proof that the right code shipped was a hand-run comparison — clean venv,
+  install from PyPI, all 19 source files diffed against the tag. That was the
+  only evidence available: 0.3.1 added no public symbol, so importing it could
+  not have distinguished it from 0.3.0. `scripts/verify_pypi_release.py` is
+  that check as a script, and `publish.yml` runs it as its last step.
+  * The script asks PyPI's four questions in order: does the JSON API list the
+    version with both an sdist and a wheel; does a fresh environment install
+    and import it; does the installed tree hold exactly the tag's files, none
+    missing and none extra; is every one of them byte-identical.
+  * **The point is that it reads PyPI, not the runner.** Both install paths
+    disable their caches (`uv pip --no-cache`, `pip --no-cache-dir`) and pin
+    `--index-url https://pypi.org/simple`. A cached wheel or an inherited index
+    would let the comparison pass while answering a different question — the
+    failure mode a verification script can least afford.
+  * The tag is read with `git ls-tree`/`git cat-file`, not checked out. Nothing
+    in the working tree moves, so it runs mid-work and in CI alike; the tag is
+    fetched first if the clone does not have it, which `actions/checkout` will
+    not have done.
+  * Three exit codes, not two: `0` verified, `1` a difference, `2` the check
+    could not run. The third exists so that "we could not look" cannot be read
+    as a pass — a missing tag or a network failure returning `0` would be worse
+    than having no check.
+  * Both versions are asserted, `__version__` and the installed metadata. Each
+    can be right for the wrong reason on its own.
+  * Verified on the real release and on a real failure: `0.3.1` is green (19
+    files, none missing, none extra, 19/19 identical — reproducing the hand
+    check exactly); `0.3.1 --tag v0.2.0` fails as it should, naming
+    `caveats.py` as unexpected and 13 of 18 shared files as differing; an
+    unknown tag and an unpublished version both exit `2`.
+  * `docs/deployment.md` gained the publish and verification sections, and lost
+    a warning that said PyPI publishing was not set up — untrue since 0.3.0.
+
 - T-0086 (2026-09-18) **Dependency sweep, security first: ten open advisories
   closed, three dependabot PRs superseded.** The three PRs (#33 browserslist,
   #34 types-pyyaml, #35 ruff) were the visible part. The repository's security

@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-09-18
+Date: 2026-09-19
 
 ## Goal
 
@@ -311,6 +311,13 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-09-19: **T-0087 — the release check is a script now, and `publish` runs
+  it.** `scripts/verify_pypi_release.py` installs a published version from
+  pypi.org into a fresh environment and compares every source file byte for
+  byte against the tag; the workflow calls it after the upload. Green on 0.3.1
+  (19/19 identical), and red on purpose against v0.2.0. Caches off and the
+  index pinned, so it answers about PyPI rather than about the runner.
 
 - 2026-09-18: **v0.3.1 released and on PyPI.** Cut to get the Next.js security
   fix (T-0086) into a tag. Verified on PyPI: clean-venv import 0.3.1, all 19
