@@ -85,10 +85,12 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-- **Next release proves T-0093.** The publish run's verification now waits on
-  the simple index before installing, so it should go green unattended; that
-  can only be confirmed by an actual release. If PR #42 (0.4.2) is the one,
-  remember the lock stamp goes on the release branch *before* the merge.
+- **Next release proves T-0093 -- and two claims that it was fixed have already
+  been wrong.** 0.4.2 shipped the first fix and failed on its own release. The
+  verification now retries the *install* (no index page is a valid stand-in:
+  PyPI caches each view for 600s with `Vary: Accept`) on a 900s budget. Do not
+  record it as working until a release run goes green unattended. Whenever that
+  release is cut, the lock stamp goes on the release branch *before* the merge.
 - **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
   decide there whether to discard it. Not this repo's to touch.
 
@@ -318,13 +320,18 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
-- 2026-09-20: **T-0093 — the publish run checked PyPI 1.1 s after uploading to
-  it, so every healthy release ended red.** A retry existed and was pointed at
-  the JSON API while the installer reads the simple index; on 0.4.1 those two
-  disagreed. Now blocks on the simple index before installing, with a raised
-  budget in `publish.yml`. A version that really is absent still fails (proved
-  by stubbing the check). A negative control caught a defect in the fix itself:
-  the first matcher let `0.3` match `0.3.1.tar.gz`.
+- 2026-09-20: **0.4.2 released and verified on PyPI (19/19 byte-identical), and
+  T-0093 fixed twice — the first fix was wrong and 0.4.2's own publish run is
+  what proved it.** The verification waited on the simple index and then failed
+  in 0.63 s, without printing one retry line: the index had the version, the
+  resolver could not find it. PyPI caches the HTML index, the PEP 691 JSON index
+  and the JSON API separately (`Vary: Accept`, `max-age=600`), so they disagree
+  for up to ten minutes and no index page is a valid stand-in for "installable".
+  Now the *install* is retried, on a 900s budget shared by every PyPI-facing
+  step; `await_index()` is gone. Mechanics proved by stubbing (recovers after
+  two failures, gives up at the deadline, re-raises the real error), but that a
+  release run goes green unattended is still unproven — that claim has been made
+  wrongly twice.
 - 2026-09-20: **T-0091/T-0092 — v0.4.1 released to PyPI, and the lock check was
   found to lie when run the way its own docs told you to.** T-0090's ordering
   worked on its first real use: the release PR again left `uv.lock` a version

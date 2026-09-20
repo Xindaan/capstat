@@ -25,6 +25,12 @@ Usage::
     uv run --no-project python scripts/verify_pypi_release.py 0.3.1
     uv run --no-project python scripts/verify_pypi_release.py v0.3.1 --keep
 
+Straight after an upload, give it a budget: PyPI's CDN caches each view of a
+project for up to 600s, so a version can be unresolvable for minutes while the
+JSON API already reports it. `publish` passes ``--wait 900 --delay 30``::
+
+    uv run --no-project python scripts/verify_pypi_release.py 0.4.2 --wait 900
+
 Exit codes: ``0`` verified, ``1`` a difference was found (this is the finding
 the script exists for), ``2`` the check could not be run at all -- an unknown
 tag, no network, a failed install. A 2 is not a pass.
@@ -35,7 +41,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -61,10 +66,12 @@ SOURCE_PREFIX = "packages/capstat-core/src/capstat_core"
 # different one.
 INDEX_URL = "https://pypi.org/simple"
 PYPI_JSON = "https://pypi.org/pypi/{distribution}/{version}/json"
-# The simple index is what a resolver actually reads, and it trails the JSON API
-# by seconds after an upload. Waiting on the JSON API alone is what made the
-# publish run fail on a healthy 0.4.1 (T-0093).
-SIMPLE_INDEX = "https://pypi.org/simple/{distribution}/"
+# PyPI serves every view of a release through a CDN with `max-age=600` and
+# `Vary: Accept` -- so the HTML simple index, the PEP 691 JSON index and the
+# JSON API are three independently cached answers, and after an upload they
+# disagree for up to ten minutes. No view is a trustworthy proxy for "can this
+# be installed": on 0.4.2 the HTML index already listed the version while the
+# JSON index uv reads did not (T-0093).
 
 # Verification failed: files differ, or the wrong version answered.
 EXIT_MISMATCH = 1
@@ -133,15 +140,20 @@ def tag_sources(tag: str) -> dict[str, bytes]:
     }
 
 
-def pypi_artifacts(version: str, *, retries: int, delay: float) -> list[str]:
+def _time_left(deadline: float) -> float:
+    """Seconds until the shared propagation budget runs out."""
+    return deadline - time.monotonic()
+
+
+def pypi_artifacts(version: str, *, deadline: float, delay: float) -> list[str]:
     """The artefact types PyPI serves for this version, e.g. ``sdist``, ``bdist_wheel``.
 
-    Retried, because a freshly accepted upload takes a moment to become visible
-    -- which is exactly when this script runs inside the publish workflow.
+    Retried until the shared deadline: a freshly accepted upload takes a while
+    to become visible, which is exactly when this script runs inside publish.
     """
     url = PYPI_JSON.format(distribution=DISTRIBUTION, version=version)
     last = ""
-    for attempt in range(retries):
+    while True:
         try:
             with urllib.request.urlopen(url, timeout=30) as response:
                 payload = json.load(response)
@@ -149,64 +161,15 @@ def pypi_artifacts(version: str, *, retries: int, delay: float) -> list[str]:
             return sorted({str(entry.get("packagetype")) for entry in urls})
         except (urllib.error.URLError, json.JSONDecodeError, TimeoutError) as exc:
             last = str(exc)
-            if attempt + 1 < retries:
-                print(f"  PyPI not ready yet ({last}); retrying in {delay:.0f}s")
-                time.sleep(delay)
+        if _time_left(deadline) <= delay:
+            break
+        print(f"  PyPI API not ready yet ({last}); retrying in {delay:.0f}s")
+        time.sleep(delay)
     raise CheckUnavailable(f"PyPI did not answer for {DISTRIBUTION} {version}: {last}")
 
 
-def index_lists_version(payload: str, version: str) -> bool:
-    """Does this simple-index page offer a file for exactly ``version``?
-
-    Anchored on what may follow the version in a filename -- ``-`` for a wheel
-    (``capstat_core-0.4.1-py3-none-any.whl``) and exactly ``.tar.gz`` for an
-    sdist. Both anchors are needed: without them ``0.4.1`` matches ``0.4.10``,
-    and allowing a bare ``.`` makes ``0.3`` match ``0.3.1.tar.gz``. Measured --
-    the looser ``[-.]`` form passed four cases and failed that last one.
-    """
-    pattern = re.compile(
-        rf"{re.escape(IMPORT_PACKAGE)}-{re.escape(version)}(?:-|\.tar\.gz)",
-        re.IGNORECASE,
-    )
-    return bool(pattern.search(payload))
-
-
-def await_index(version: str, *, retries: int, delay: float) -> None:
-    """Block until the simple index offers ``version``, or give up.
-
-    PyPI accepts an upload before it serves it, and `publish` runs this script
-    about a second after the upload finishes -- on 0.4.1 the wheel landed at
-    18:51:17 and the install failed at 18:51:19 with "there is no version of
-    capstat-core==0.4.1". The JSON API already answered for that version by
-    then; the simple index did not. So the wait belongs here, against the page
-    the resolver reads.
-
-    Giving up still raises: a version that is genuinely absent must fail the
-    run, only later than it used to.
-    """
-    url = SIMPLE_INDEX.format(distribution=DISTRIBUTION)
-    last = "not listed yet"
-    for attempt in range(retries):
-        try:
-            with urllib.request.urlopen(url, timeout=30) as response:
-                payload = response.read().decode("utf-8", "replace")
-            if index_lists_version(payload, version):
-                return
-        except (urllib.error.URLError, TimeoutError) as exc:
-            last = str(exc)
-        if attempt + 1 < retries:
-            print(
-                f"  simple index has no {version} yet ({last}); "
-                f"retrying in {delay:.0f}s"
-            )
-            time.sleep(delay)
-    raise CheckUnavailable(
-        f"the simple index still does not offer {DISTRIBUTION} {version}: {last}"
-    )
-
-
-def install_into(env_dir: Path, version: str) -> Path:
-    """Create an environment, install the version from PyPI, return its python.
+def _install_once(env_dir: Path, version: str) -> Path:
+    """One attempt: create an environment, install from PyPI, return its python.
 
     Caches are disabled on both paths. A cached wheel could satisfy the install
     without PyPI being consulted, which would leave the script verifying a local
@@ -251,6 +214,40 @@ def install_into(env_dir: Path, version: str) -> Path:
         what=f"installing {requirement}",
     )
     return python
+
+
+def install_into(env_dir: Path, version: str, *, deadline: float, delay: float) -> Path:
+    """Install ``version`` from PyPI, retrying until the shared deadline.
+
+    The retry is on the install itself, not on any index page, because no index
+    page answers the question. PyPI serves the HTML simple index, the PEP 691
+    JSON index and the JSON API as separately cached documents (``Vary:
+    Accept``, ``max-age=600``), and after an upload they disagree for minutes.
+    Checking one of them and then installing means asking a different question
+    than the one that matters: 0.4.2 failed exactly that way, with the HTML
+    index already listing the version the resolver could not find (T-0093).
+
+    Retrying regardless of the reason is deliberate. A broken artefact and an
+    unpropagated one fail identically here, and telling them apart would mean
+    matching on resolver prose that changes between uv releases. Both still end
+    the run as a failure; a genuinely broken release only takes longer to say so.
+    """
+    attempt = 0
+    while True:
+        attempt += 1
+        shutil.rmtree(env_dir, ignore_errors=True)
+        try:
+            return _install_once(env_dir, version)
+        except CheckUnavailable as exc:
+            last = exc
+        if _time_left(deadline) <= delay:
+            raise last
+        print(
+            f"  install attempt {attempt} failed; PyPI may still be "
+            f"propagating -- retrying in {delay:.0f}s "
+            f"({_time_left(deadline):.0f}s of budget left)"
+        )
+        time.sleep(delay)
 
 
 def _venv_python(env_dir: Path) -> Path:
@@ -332,25 +329,28 @@ def compare(expected: dict[str, bytes], actual: dict[str, bytes]) -> Report:
     return Report(lines=lines, failures=failures)
 
 
-def verify(version: str, tag: str, *, retries: int, delay: float, keep: bool) -> int:
+def verify(version: str, tag: str, *, budget: float, delay: float, keep: bool) -> int:
     commit = resolve_tag(tag)
     print(f"{DISTRIBUTION} {version} on PyPI vs tag {tag} ({commit[:12]})\n")
 
     expected = tag_sources(tag)
 
-    artifacts = pypi_artifacts(version, retries=retries, delay=delay)
+    # One budget for both PyPI-facing steps, so a slow index cannot spend the
+    # whole allowance before the install -- which is the step that matters.
+    deadline = time.monotonic() + budget
+
+    artifacts = pypi_artifacts(version, deadline=deadline, delay=delay)
     lines = [f"pypi release        {version}: {', '.join(artifacts) or 'nothing'}"]
     failures: list[str] = []
     for wanted in ("sdist", "bdist_wheel"):
         if wanted not in artifacts:
             failures.append(f"PyPI serves no {wanted} for {version}")
 
-    # Before installing, not after: the install is what raced the index.
-    await_index(version, retries=retries, delay=delay)
-
     env_root = Path(tempfile.mkdtemp(prefix=f"verify-{DISTRIBUTION}-"))
     try:
-        python = install_into(env_root / "venv", version)
+        python = install_into(
+            env_root / "venv", version, deadline=deadline, delay=delay
+        )
         package_dir, dunder, metadata = installed_state(python)
         lines.append(
             f"clean install       imported {IMPORT_PACKAGE} "
@@ -393,17 +393,19 @@ def main(argv: list[str] | None = None) -> int:
         help="tag to compare against; defaults to v<version>",
     )
     parser.add_argument(
-        "--retries",
-        type=int,
-        default=5,
-        help="attempts at PyPI (JSON API and simple index) before giving up "
-        "(default: 5)",
+        "--wait",
+        type=float,
+        default=60.0,
+        metavar="SECONDS",
+        help="how long to keep retrying while PyPI propagates the upload, "
+        "shared by every PyPI-facing step (default: 60). Raise it right "
+        "after an upload: PyPI's CDN caches each view for up to 600s",
     )
     parser.add_argument(
         "--delay",
         type=float,
         default=15.0,
-        help="seconds between those attempts (default: 15)",
+        help="seconds between attempts (default: 15)",
     )
     parser.add_argument(
         "--keep",
@@ -419,8 +421,8 @@ def main(argv: list[str] | None = None) -> int:
         return verify(
             version,
             tag,
-            retries=max(1, int(args.retries)),
-            delay=max(0.0, float(args.delay)),
+            budget=max(0.0, float(args.wait)),
+            delay=max(1.0, float(args.delay)),
             keep=bool(args.keep),
         )
     except CheckUnavailable as exc:

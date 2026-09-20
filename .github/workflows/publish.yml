@@ -113,18 +113,25 @@ jobs:
       # interpreter, not the workspace's dependencies.
       #
       # PyPI accepts an upload before it serves it, and this step starts about a
-      # second after the previous one finishes. On 0.4.1 that was enough to fail
-      # a perfectly good release: the wheel landed at 18:51:17, this step asked
-      # at 18:51:19 and was told there is no such version. The script now waits
-      # for the simple index -- the page a resolver actually reads -- before it
-      # installs (T-0093). The retry budget is raised over the script's default
-      # of 5x15s because the cost of waiting is a slow release, while the cost
-      # of giving up early is a red run on a healthy one, which is how a check
-      # stops being read. A version that is genuinely absent still fails, just
-      # later.
+      # second after the previous one finishes -- which failed two healthy
+      # releases in a row before this was understood (T-0093).
+      #
+      # `--wait` is 900s because PyPI's CDN caches each view of a project with
+      # `max-age=600` and `Vary: Accept`: the HTML simple index, the PEP 691
+      # JSON index a resolver reads, and the JSON API are three independently
+      # cached documents that disagree for up to ten minutes after an upload.
+      # 0.4.2 failed with the HTML index already listing the version while the
+      # JSON index did not, so no index page can be polled as a stand-in -- the
+      # script retries the install itself, and the budget has to outlast that
+      # cache rather than merely exceed the upload.
+      #
+      # Waiting costs a slow release; giving up early costs a red run on a
+      # healthy one, which is how a check stops being read. A version that is
+      # genuinely absent, or an artefact that does not match the tag, still
+      # fails the job -- just later.
       - name: Verify the published artefact against the tag
         env:
           TAG: ${{ inputs.tag }}
         run: >-
           uv run --no-project python scripts/verify_pypi_release.py "${TAG}"
-          --retries 10 --delay 15
+          --wait 900 --delay 30

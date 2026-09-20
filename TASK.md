@@ -470,21 +470,53 @@
     returned 200 while the JSON *summary* still called 0.3.1 newest and the
     simple index already carried 0.4.1. Three views of PyPI, three different
     answers, and the guard was pointed at the one the resolver ignores.
-  * **The fix** is `await_index()`, which blocks on the simple index before the
-    install, and a raised retry budget in `publish.yml` (10x15s instead of the
-    script default 5x15s): waiting costs a slow release, giving up early costs a
-    red run on a healthy one, which is how a check stops being read.
-  * **A genuinely absent version still fails**, only later -- proved by stubbing
-    the index check to always report "missing" and confirming `install_into` was
-    never reached and the run exited 2, not 0.
+  * **First fix, and it was wrong: `await_index()`**, blocking on the simple
+    index before the install, with a raised retry budget. It shipped in 0.4.2
+    and failed on its own release the same evening -- see the correction below.
+    The reasoning was right about *what* raced and wrong about *what to watch*.
   * **A negative control caught a real defect in the fix.** The first matcher
     anchored the version with `[-.]`, which passed the obvious trap (`0.4.1`
     must not match `0.4.10`) and failed a subtler one: `0.3` matched
     `capstat_core-0.3.1.tar.gz`. Now anchored on `-` (wheel) or exactly
     `.tar.gz` (sdist); all five cases pass.
   * Verified locally: the exact command the workflow composes, run against
-    `v0.4.1`, exits 0 with 19/19 identical. The end-to-end proof that a release
-    run goes green unattended can only come from the next release.
+    `v0.4.1`, exits 0 with 19/19 identical.
+
+  **Corrected the same evening, after 0.4.2 failed the same way.** The 0.4.2
+  publish run uploaded fine (PyPI answered `200 OK` twice) and the verification
+  died in 0.63 s with "there is no version of capstat-core==0.4.2" -- *without
+  printing a single retry line*. `await_index()` had found the version on its
+  first try and waved the install through, and the install then could not
+  resolve it.
+
+  * **Why no index page can answer this.** PyPI serves each view of a project
+    through a CDN with `cache-control: max-age=600` and `Vary: Accept`. The HTML
+    simple index, the PEP 691 JSON index a resolver reads, and the JSON API are
+    therefore three independently cached documents, and after an upload they
+    disagree for up to ten minutes -- per view *and* per CDN node. Measured that
+    evening on 0.4.2: the HTML index listed the version while the JSON index uv
+    reads did not; an hour later a local `curl` of the HTML index showed only up
+    to 0.4.1 while the JSON API already reported 0.4.2 as newest. Polling any of
+    them asks a different question than "can this be installed".
+  * **The real fix** is to retry the install itself, which is the only thing
+    that measures what the check needs, and to give it a budget that outlasts
+    the cache rather than merely the upload: `--wait 900 --delay 30` in
+    `publish.yml`, one deadline shared by every PyPI-facing step so a slow index
+    cannot spend the whole allowance before the install. `await_index()` and its
+    matcher are gone; they only bought false confidence.
+  * Retrying regardless of the failure reason is deliberate. A broken artefact
+    and an unpropagated one fail identically here, and telling them apart would
+    mean matching on resolver prose that changes between uv releases. Both still
+    fail the run; a genuinely broken release only takes longer to say so.
+  * Proved by stubbing `_install_once`: failing twice then succeeding, the
+    wrapper returns the interpreter after 3 attempts; failing always, it gives
+    up at the deadline and re-raises the real error rather than a generic one.
+    Negative control: calling `_install_once` directly -- the same code without
+    the wrapper -- fails on the first attempt, so the loop is what does the work.
+  * 0.4.2 itself was never in doubt: 19/19 files byte-identical to `v0.4.2`,
+    confirmed once the CDN caught up. **That a release run now goes green
+    unattended still cannot be claimed -- both previous attempts to claim it
+    were wrong. Only the next release settles it.**
 
 - T-0091 (2026-09-20) **v0.4.1 released and on PyPI -- the first release cut
   under T-0090's ordering, which it immediately needed.** The open release pull
