@@ -1,12 +1,13 @@
 # STATE.md — capstat
 
-Date: 2026-09-19
+Date: 2026-09-20
 
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.3.1;
-`capstat-core` 0.3.1 is on PyPI.
+Next.js frontend as a professional MIT open-source project. Released: v0.4.0;
+`capstat-core` 0.3.1 is on PyPI -- 0.4.0 is tagged but not published, the
+`publish` workflow is the maintainer's to run.
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -83,6 +84,13 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
+- **Publish 0.4.0 to PyPI, or decide not to yet.** The tag and the GitHub
+  release are out; `capstat-core` on PyPI is still 0.3.1. `publish` is manual
+  (Actions tab, tag `v0.4.0`) and stops at the `pypi` environment's reviewer,
+  so it is the maintainer's to run. The pre-build gate now also checks
+  `uv.lock`, which the tag satisfies -- verified at `v0.4.0`. Afterwards,
+  `uv run python scripts/verify_pypi_release.py 0.4.0` is the evidence of what
+  actually shipped.
 - **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
   decide there whether to discard it. Not this repo's to touch.
 
@@ -311,6 +319,15 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-09-20: **T-0090 — v0.4.0 cut; the lock stamp has to happen on the
+  release branch, not after the merge.** release-please left `uv.lock` at
+  0.3.1 in its release commit, which since T-0089 is what `publish` checks
+  against the tag — v0.4.0 would have been refused at its own gate,
+  permanently. `uv lock` was committed onto the release branch before merging,
+  so the tag is self-consistent (verified at `v0.4.0`). T-0089 and T-0087 both
+  said "after the merge" and are corrected in place. **PyPI is untouched: the
+  publish workflow is yours to run.**
 
 - 2026-09-19: **T-0089 — the release gate checks `uv.lock` too.**
   `scripts/check_lock_version.py` compares the lock's workspace members against

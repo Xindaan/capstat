@@ -455,6 +455,41 @@
 
 ## Done
 
+- T-0090 (2026-09-20) **v0.4.0 cut, and the ordering the new gate demanded
+  corrected in the three places that had it backwards.** The release was
+  merged as asked. Getting there turned up a defect in T-0089 itself, which is
+  the part worth keeping.
+  * **The release commit would have failed its own gate.** release-please's
+    branch bumped the six extra files to 0.4.0 and left `uv.lock` at 0.3.1.
+    Since T-0089 `publish` compares the lock against the tag before it builds,
+    and the tag is created *at the release commit* -- so v0.4.0 would have been
+    permanently unpublishable, with no correction available but another
+    version. Measured on the branch before touching it:
+
+    ```
+    $ uv run python scripts/check_lock_version.py v0.4.0
+    Versions do not all agree on 0.4.0:
+      uv.lock has capstat-api 0.3.1, expected 0.4.0
+      uv.lock has capstat-core 0.3.1, expected 0.4.0
+    ```
+
+  * Fixed where it had to be fixed: `uv lock` committed **onto the release
+    branch**, before the merge, so the squashed release commit carries it and
+    the tag is self-consistent. Confirmed at the tag (`v0.4.0` = `ad67993`):
+    `uv.lock: capstat-api, capstat-core all at 0.4.0`, exit `0`.
+  * **T-0089 and T-0087 both said "after the release merge".** That was true
+    while the drift was only cosmetic and became false the moment the gate
+    existed -- a rule written down one day and invalidated by the next commit
+    in the same series. Both entries are corrected in place rather than
+    reworded away, per the evidence rule in `AGENTS.md`;
+    `docs/deployment.md` now gives the branch-first sequence as runnable
+    commands, including why after-the-merge cannot work.
+  * Not done, deliberately: the PyPI upload. `publish` is manual and stops at
+    the `pypi` environment's reviewer; that gate is the maintainer's.
+  * Gates on the release tree before the merge: `uv sync --frozen`, ruff, ruff
+    format, mypy --strict, OpenAPI drift, 677 pytest passed, sources page,
+    mkdocs --strict.
+
 - T-0089 (2026-09-19) **The release gate now checks the one version-carrying
   file nothing else covered.** T-0087 found `uv.lock` two releases behind and
   fixed it by hand; T-0088 then made "the tag stamps the version in every file
@@ -479,7 +514,14 @@
     merging and the refresh commit landing. That trades a silent problem for a
     loud one in the wrong place. The release gate is where a stale lock has
     consequences, so that is where it is caught; `docs/deployment.md` carries
-    the manual refresh as the step after every release merge.
+    the manual refresh.
+    **Correction (T-0090): that entry, and T-0087's below, both said the
+    refresh happens *after* the release merge. Wrong, and wrong in a way this
+    very check created** -- the tag is cut at the release commit, so a lock
+    fixed afterwards never reaches the tag and `publish` would refuse the
+    release at its own gate, permanently. The refresh belongs on the release
+    branch, before the merge. 0.4.0 was one merge away from being the first
+    unpublishable tag; see T-0090.
   * Wiring the lock into release-please's `extra-files` was considered and
     dropped: its generic updater works off an annotated comment, and `uv lock`
     rewrites the file, so the annotation would survive until the first refresh
@@ -533,7 +575,9 @@
     Python range each scipy variant already resolves under, httpcore2's two
     dependencies to non-emscripten). No package version, source or hash moved,
     and `uv sync --frozen` then 677 tests stayed green. **Next release: the
-    lock needs this refresh by hand after the release PR merges.**
+    lock needs this refresh by hand.** ~~after the release PR merges~~ --
+    corrected by T-0090: before the merge, on the release branch, or the tag
+    carries a lock that `publish` will refuse.
 
 - T-0088 (2026-09-19) **Two working conventions that were practised but never
   written down are now rules, and the language split is stated in full.**

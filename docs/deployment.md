@@ -102,22 +102,38 @@ The repository carries **one version for everything**. The core, the API and the
 web app are built and released together, so independent version numbers would
 imply a freedom that does not exist.
 
-!!! warning "`uv.lock` is not on that list — refresh it after every release"
-    The lock records a version for each workspace member, release-please does
-    not update it, and `uv sync --frozen` takes the lock as it finds it rather
-    than checking it against the manifests. So merging a release pull request
-    leaves the lock one version behind, and nothing says so. Run this straight
-    after the merge:
+!!! warning "`uv.lock` is not on that list — stamp it **on the release branch**"
+    The lock records a version for each workspace member and release-please
+    does not update it, so its release commit bumps the six files above and
+    leaves the lock a version behind. `uv sync --frozen` takes the lock as it
+    finds it rather than checking it against the manifests, so nothing on
+    `main` reports that.
+
+    The refresh has to happen **before the merge, on the release branch**, not
+    after it. The tag is created at the release commit: a lock fixed afterwards
+    never reaches the tag, and `publish` checks the lock against the tag before
+    it builds — so the release would be refused at its own gate, permanently,
+    with no way to correct it but another version. This is not hypothetical;
+    0.4.0 was one merge away from exactly that.
+
+    So, with the release pull request open:
 
     ```bash
-    uv lock && uv run python scripts/check_lock_version.py
+    git fetch origin release-please--branches--main--components--capstat
+    git checkout -B release-lock FETCH_HEAD
+    uv lock
+    uv run python scripts/check_lock_version.py v0.4.0   # the tag being cut
+    git commit -am "chore(deps): stamp 0.4.0 into uv.lock with the rest of the release"
+    git push origin release-lock:release-please--branches--main--components--capstat
     ```
 
-    The same check runs in `publish` before the build, against the tag, so a
-    forgotten refresh stops the release rather than riding along in it. It is
-    not in CI on purpose: that would leave `main` red between the release merge
-    and the refresh commit, which trades one silent problem for a loud one in
-    the wrong place.
+    Then merge the release pull request. Squashing folds the stamp into the
+    release commit, which is where it belongs.
+
+    The check is not in CI on purpose: release-please's own commit would fail
+    it, so `main` would be red from the merge until a follow-up landed. The
+    release gate is where a stale lock has consequences, so that is where it
+    is caught.
 
 !!! note "The release PR does not run CI"
     Pull requests opened with the default `GITHUB_TOKEN` do not trigger other
