@@ -514,9 +514,17 @@
     Negative control: calling `_install_once` directly -- the same code without
     the wrapper -- fails on the first attempt, so the loop is what does the work.
   * 0.4.2 itself was never in doubt: 19/19 files byte-identical to `v0.4.2`,
-    confirmed once the CDN caught up. **That a release run now goes green
-    unattended still cannot be claimed -- both previous attempts to claim it
-    were wrong. Only the next release settles it.**
+    confirmed once the CDN caught up.
+  * **0.4.3 ended green unattended** -- every step `success`, 19/19 identical,
+    nothing re-run by hand. First release that did.
+  * **The retry did not fire, so the field proof is still missing.** The log has
+    zero `install attempt ... failed` lines: the sdist landed at 20:46:41.4, the
+    verification started at 20:46:42.6 and finished at 20:46:46.2, resolving on
+    its first try. PyPI was simply fast this time. What 0.4.3 proves is that the
+    rebuilt code runs correctly in the workflow and that a run *can* end green;
+    it does not prove the retry catches a real propagation gap, because there
+    was none to catch. That evidence arrives the next time PyPI is slow, and it
+    will look like `install attempt 1 failed ... retrying` in a green run.
 
 - T-0091 (2026-09-20) **v0.4.1 released and on PyPI -- the first release cut
   under T-0090's ordering, which it immediately needed.** The open release pull

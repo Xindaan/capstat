@@ -5,10 +5,11 @@ Date: 2026-09-20
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.4.1,
-and `capstat-core` 0.4.1 is on PyPI, verified byte-identical to its tag. v0.4.0
-is tagged but deliberately unpublished -- only a docs commit separates it from
-0.4.1. `publish` stays manual and the maintainer's to run.
+Next.js frontend as a professional MIT open-source project. Released: v0.4.3,
+and `capstat-core` 0.4.1, 0.4.2 and 0.4.3 are on PyPI, each verified
+byte-identical to its tag. v0.4.0 is tagged but deliberately unpublished --
+only a docs commit separates it from 0.4.1. `publish` stays manual and the
+maintainer's to run.
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -85,12 +86,12 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-- **Next release proves T-0093 -- and two claims that it was fixed have already
-  been wrong.** 0.4.2 shipped the first fix and failed on its own release. The
-  verification now retries the *install* (no index page is a valid stand-in:
-  PyPI caches each view for 600s with `Vary: Accept`) on a 900s budget. Do not
-  record it as working until a release run goes green unattended. Whenever that
-  release is cut, the lock stamp goes on the release branch *before* the merge.
+- **T-0093 is one green run in, and still not field-proven.** 0.4.3 published
+  and verified unattended, but with zero retry lines in the log -- PyPI resolved
+  on the first attempt, so the retry itself has never yet done any work. Treat
+  it as confirmed only after a green run that contains
+  `install attempt N failed ... retrying`. Until then the honest status is:
+  the code runs, the failure path is lab-tested only.
 - **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
   decide there whether to discard it. Not this repo's to touch.
 
@@ -320,6 +321,11 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-09-20: **0.4.3 released and verified on PyPI, and the first publish run
+  to end green unattended (T-0093).** Every step green, 19/19 files identical,
+  nothing re-run by hand. The retry never fired though -- zero
+  `install attempt` lines, the install resolved 1.2 s after the upload -- so
+  the fix is proven to run, not yet proven to work. See T-0093.
 - 2026-09-20: **0.4.2 released and verified on PyPI (19/19 byte-identical), and
   T-0093 fixed twice — the first fix was wrong and 0.4.2's own publish run is
   what proved it.** The verification waited on the simple index and then failed
