@@ -110,9 +110,21 @@ jobs:
       # still the difference between a yank and a surprise months later.
       #
       # `--no-project` because the script is stdlib-only: it needs an
-      # interpreter, not the workspace's dependencies. The script retries the
-      # PyPI API on its own while the index catches up with the upload.
+      # interpreter, not the workspace's dependencies.
+      #
+      # PyPI accepts an upload before it serves it, and this step starts about a
+      # second after the previous one finishes. On 0.4.1 that was enough to fail
+      # a perfectly good release: the wheel landed at 18:51:17, this step asked
+      # at 18:51:19 and was told there is no such version. The script now waits
+      # for the simple index -- the page a resolver actually reads -- before it
+      # installs (T-0093). The retry budget is raised over the script's default
+      # of 5x15s because the cost of waiting is a slow release, while the cost
+      # of giving up early is a red run on a healthy one, which is how a check
+      # stops being read. A version that is genuinely absent still fails, just
+      # later.
       - name: Verify the published artefact against the tag
         env:
           TAG: ${{ inputs.tag }}
-        run: uv run --no-project python scripts/verify_pypi_release.py "${TAG}"
+        run: >-
+          uv run --no-project python scripts/verify_pypi_release.py "${TAG}"
+          --retries 10 --delay 15

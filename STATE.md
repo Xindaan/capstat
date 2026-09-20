@@ -85,11 +85,10 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-- **Make the `publish` run end green on its own (T-0093).** 0.4.1 is published
-  and verified, but the run is red: the verification step queried PyPI 1.1 s
-  after the upload, before the index served the new version. Re-run by hand it
-  passes. A step that is red on every healthy release is a step people stop
-  reading, and it is the only check on what PyPI actually serves.
+- **Next release proves T-0093.** The publish run's verification now waits on
+  the simple index before installing, so it should go green unattended; that
+  can only be confirmed by an actual release. If PR #42 (0.4.2) is the one,
+  remember the lock stamp goes on the release branch *before* the merge.
 - **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
   decide there whether to discard it. Not this repo's to touch.
 
@@ -319,6 +318,13 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-09-20: **T-0093 — the publish run checked PyPI 1.1 s after uploading to
+  it, so every healthy release ended red.** A retry existed and was pointed at
+  the JSON API while the installer reads the simple index; on 0.4.1 those two
+  disagreed. Now blocks on the simple index before installing, with a raised
+  budget in `publish.yml`. A version that really is absent still fails (proved
+  by stubbing the check). A negative control caught a defect in the fix itself:
+  the first matcher let `0.3` match `0.3.1.tar.gz`.
 - 2026-09-20: **T-0091/T-0092 — v0.4.1 released to PyPI, and the lock check was
   found to lie when run the way its own docs told you to.** T-0090's ordering
   worked on its first real use: the release PR again left `uv.lock` a version
@@ -328,7 +334,7 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
   of it: a bare `uv run` syncs first and so hands the check an already-repaired
   lock (exit 0 on a stale tree — `publish.yml` was safe, the documented manual
   form was not), and the publish run verifies the upload 1.1 s after it, before
-  the index serves it, so every release ends red (T-0093, open).
+  the index serves it, so every release ends red (T-0093, fixed the same day).
 
 - 2026-09-20: **T-0090 — v0.4.0 cut; the lock stamp has to happen on the
   release branch, not after the merge.** release-please left `uv.lock` at

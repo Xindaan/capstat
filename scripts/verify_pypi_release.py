@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -60,6 +61,10 @@ SOURCE_PREFIX = "packages/capstat-core/src/capstat_core"
 # different one.
 INDEX_URL = "https://pypi.org/simple"
 PYPI_JSON = "https://pypi.org/pypi/{distribution}/{version}/json"
+# The simple index is what a resolver actually reads, and it trails the JSON API
+# by seconds after an upload. Waiting on the JSON API alone is what made the
+# publish run fail on a healthy 0.4.1 (T-0093).
+SIMPLE_INDEX = "https://pypi.org/simple/{distribution}/"
 
 # Verification failed: files differ, or the wrong version answered.
 EXIT_MISMATCH = 1
@@ -148,6 +153,56 @@ def pypi_artifacts(version: str, *, retries: int, delay: float) -> list[str]:
                 print(f"  PyPI not ready yet ({last}); retrying in {delay:.0f}s")
                 time.sleep(delay)
     raise CheckUnavailable(f"PyPI did not answer for {DISTRIBUTION} {version}: {last}")
+
+
+def index_lists_version(payload: str, version: str) -> bool:
+    """Does this simple-index page offer a file for exactly ``version``?
+
+    Anchored on what may follow the version in a filename -- ``-`` for a wheel
+    (``capstat_core-0.4.1-py3-none-any.whl``) and exactly ``.tar.gz`` for an
+    sdist. Both anchors are needed: without them ``0.4.1`` matches ``0.4.10``,
+    and allowing a bare ``.`` makes ``0.3`` match ``0.3.1.tar.gz``. Measured --
+    the looser ``[-.]`` form passed four cases and failed that last one.
+    """
+    pattern = re.compile(
+        rf"{re.escape(IMPORT_PACKAGE)}-{re.escape(version)}(?:-|\.tar\.gz)",
+        re.IGNORECASE,
+    )
+    return bool(pattern.search(payload))
+
+
+def await_index(version: str, *, retries: int, delay: float) -> None:
+    """Block until the simple index offers ``version``, or give up.
+
+    PyPI accepts an upload before it serves it, and `publish` runs this script
+    about a second after the upload finishes -- on 0.4.1 the wheel landed at
+    18:51:17 and the install failed at 18:51:19 with "there is no version of
+    capstat-core==0.4.1". The JSON API already answered for that version by
+    then; the simple index did not. So the wait belongs here, against the page
+    the resolver reads.
+
+    Giving up still raises: a version that is genuinely absent must fail the
+    run, only later than it used to.
+    """
+    url = SIMPLE_INDEX.format(distribution=DISTRIBUTION)
+    last = "not listed yet"
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                payload = response.read().decode("utf-8", "replace")
+            if index_lists_version(payload, version):
+                return
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last = str(exc)
+        if attempt + 1 < retries:
+            print(
+                f"  simple index has no {version} yet ({last}); "
+                f"retrying in {delay:.0f}s"
+            )
+            time.sleep(delay)
+    raise CheckUnavailable(
+        f"the simple index still does not offer {DISTRIBUTION} {version}: {last}"
+    )
 
 
 def install_into(env_dir: Path, version: str) -> Path:
@@ -290,6 +345,9 @@ def verify(version: str, tag: str, *, retries: int, delay: float, keep: bool) ->
         if wanted not in artifacts:
             failures.append(f"PyPI serves no {wanted} for {version}")
 
+    # Before installing, not after: the install is what raced the index.
+    await_index(version, retries=retries, delay=delay)
+
     env_root = Path(tempfile.mkdtemp(prefix=f"verify-{DISTRIBUTION}-"))
     try:
         python = install_into(env_root / "venv", version)
@@ -338,7 +396,8 @@ def main(argv: list[str] | None = None) -> int:
         "--retries",
         type=int,
         default=5,
-        help="attempts at the PyPI JSON API before giving up (default: 5)",
+        help="attempts at PyPI (JSON API and simple index) before giving up "
+        "(default: 5)",
     )
     parser.add_argument(
         "--delay",

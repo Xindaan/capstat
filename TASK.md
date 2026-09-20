@@ -12,19 +12,6 @@
   the work landed; a stale Doing block is the one that costs a session.)
 
 ## Backlog
-- T-0093 **`publish` verifies the upload before PyPI can serve it, so every
-  release run ends red.** On 2026-09-20 the wheel landed at 18:51:17.006, the
-  sdist at 18:51:18.364, and the verification step started at 18:51:19.454 --
-  1.1 s later -- and failed with `COULD NOT VERIFY: ... there is no version of
-  capstat-core==0.4.1`. The index had not propagated yet. Re-run by hand a few
-  minutes afterwards it passed, 19/19 files byte-identical to the tag, so the
-  release itself was fine and only the report was wrong.
-  This is not cosmetic: a step that is red on every healthy release teaches
-  people to ignore it, and that step is the only thing standing between a
-  mis-uploaded artefact and nobody noticing. Wanted: poll the index until the
-  version appears, with a bounded timeout, and keep a genuine absence a failure.
-  Acceptance: a release run ends green without hand-holding, and an artefact
-  that really does not match the tag still fails the run.
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four
   algorithmic/IO ones reproduced. One finding was wrong (see T-0062), the rest
@@ -468,6 +455,37 @@
 
 ## Done
 
+- T-0093 (2026-09-20) **The publish run verified the upload before PyPI could
+  serve it, so every healthy release ended red. The guard existed -- it was
+  watching the wrong page.** On 0.4.1 the wheel landed at 18:51:17.006 and the
+  verification asked at 18:51:19.454, 1.1 s later: `COULD NOT VERIFY: ... there
+  is no version of capstat-core==0.4.1`. Re-run by hand minutes later it passed,
+  19/19 files byte-identical to the tag. The release was never in doubt; the
+  report was.
+  * **Why the existing retry did not help.** `pypi_artifacts()` already retried,
+    deliberately, "because a freshly accepted upload takes a moment to become
+    visible". But it polls the JSON API, and the installer reads the *simple
+    index* -- and on 0.4.1 the JSON API answered for a version the simple index
+    did not yet list. Measured that evening: `/pypi/capstat-core/0.4.1/json`
+    returned 200 while the JSON *summary* still called 0.3.1 newest and the
+    simple index already carried 0.4.1. Three views of PyPI, three different
+    answers, and the guard was pointed at the one the resolver ignores.
+  * **The fix** is `await_index()`, which blocks on the simple index before the
+    install, and a raised retry budget in `publish.yml` (10x15s instead of the
+    script default 5x15s): waiting costs a slow release, giving up early costs a
+    red run on a healthy one, which is how a check stops being read.
+  * **A genuinely absent version still fails**, only later -- proved by stubbing
+    the index check to always report "missing" and confirming `install_into` was
+    never reached and the run exited 2, not 0.
+  * **A negative control caught a real defect in the fix.** The first matcher
+    anchored the version with `[-.]`, which passed the obvious trap (`0.4.1`
+    must not match `0.4.10`) and failed a subtler one: `0.3` matched
+    `capstat_core-0.3.1.tar.gz`. Now anchored on `-` (wheel) or exactly
+    `.tar.gz` (sdist); all five cases pass.
+  * Verified locally: the exact command the workflow composes, run against
+    `v0.4.1`, exits 0 with 19/19 identical. The end-to-end proof that a release
+    run goes green unattended can only come from the next release.
+
 - T-0091 (2026-09-20) **v0.4.1 released and on PyPI -- the first release cut
   under T-0090's ordering, which it immediately needed.** The open release pull
   request bumped the six files release-please knows about and left `uv.lock` at
@@ -491,8 +509,10 @@
     skipped** -- only a docs commit separates the two and the packaged code is
     identical, so publishing both would have been noise. The tag stays, so it
     can still be published if a reason appears.
-  * The publish run is red anyway; see T-0093. The upload succeeded and the
-    verification that follows it did not.
+  * The publish run went red anyway: the upload succeeded and the verification
+    that follows it did not, because it asked PyPI 1.1 s later. Fixed the same
+    day under T-0093, so this release is the last one that needed the check
+    re-run by hand.
 
 - T-0092 (2026-09-20) **A bare `uv run` makes the lock check report success on
   a stale lock; corrected everywhere it was recommended.** `uv run` syncs the
