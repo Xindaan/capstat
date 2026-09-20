@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/Xindaan/capstat/compare/v0.4.2...v0.4.3) (2026-09-20)
+
+
+### Bug fixes
+
+* **release:** retry the install, not an index page, after publishing (T-0093) ([a400ff9](https://github.com/Xindaan/capstat/commit/a400ff9ae85c16a9da2ef463cc780e362a36ef32))
+
 ## [0.4.2](https://github.com/Xindaan/capstat/compare/v0.4.1...v0.4.2) (2026-09-20)
 
 
