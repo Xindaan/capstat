@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/Xindaan/capstat/compare/v0.3.1...v0.4.0) (2026-09-19)
+
+
+### Features
+
+* **release:** check uv.lock against the tag before publishing (T-0089) ([f8a0dfb](https://github.com/Xindaan/capstat/commit/f8a0dfb40ec6c4098ad7e15d37a951133d27983e))
+* **release:** verify a published version against its tag (T-0087) ([7d25d4e](https://github.com/Xindaan/capstat/commit/7d25d4e2293c40320a81bde8ab8a8b13977f2175))
+
+
+### Documentation
+
+* **agents,claude:** write down two practised conventions (T-0088) ([#37](https://github.com/Xindaan/capstat/issues/37)) ([b9b131a](https://github.com/Xindaan/capstat/commit/b9b131a3e73cdb77cc20c00e486cfd914307e65b))
+* **task,state:** record the 0.3.1 publish, verified on PyPI ([a488222](https://github.com/Xindaan/capstat/commit/a488222221801f1e2eee6fa557c6bb0a5d23e17a))
+* **task,state:** record the 0.3.1 release and the cause of the rule rewrite ([05c73b7](https://github.com/Xindaan/capstat/commit/05c73b7d196b2e9fd1f47a1ebe54156009d5d3ed))
+
 ## [0.3.1](https://github.com/Xindaan/capstat/compare/v0.3.0...v0.3.1) (2026-09-18)
 
 
