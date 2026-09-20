@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/Xindaan/capstat/compare/v0.4.0...v0.4.1) (2026-09-20)
+
+
+### Documentation
+
+* **release:** the lock stamp goes on the release branch, not after the merge (T-0090) ([e4e5410](https://github.com/Xindaan/capstat/commit/e4e5410937bbdfe23eb9035e921c6312c1c233b1))
+
 ## [0.4.0](https://github.com/Xindaan/capstat/compare/v0.3.1...v0.4.0) (2026-09-19)
 
 
