@@ -12,6 +12,19 @@
   the work landed; a stale Doing block is the one that costs a session.)
 
 ## Backlog
+- T-0093 **`publish` verifies the upload before PyPI can serve it, so every
+  release run ends red.** On 2026-09-20 the wheel landed at 18:51:17.006, the
+  sdist at 18:51:18.364, and the verification step started at 18:51:19.454 --
+  1.1 s later -- and failed with `COULD NOT VERIFY: ... there is no version of
+  capstat-core==0.4.1`. The index had not propagated yet. Re-run by hand a few
+  minutes afterwards it passed, 19/19 files byte-identical to the tag, so the
+  release itself was fine and only the report was wrong.
+  This is not cosmetic: a step that is red on every healthy release teaches
+  people to ignore it, and that step is the only thing standing between a
+  mis-uploaded artefact and nobody noticing. Wanted: poll the index until the
+  version appears, with a bounded timeout, and keep a genuine absence a failure.
+  Acceptance: a release run ends green without hand-holding, and an artefact
+  that really does not match the tag still fails the run.
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four
   algorithmic/IO ones reproduced. One finding was wrong (see T-0062), the rest
@@ -454,6 +467,59 @@
   `output: "standalone"` Docker setup is for self-hosting, not that.
 
 ## Done
+
+- T-0091 (2026-09-20) **v0.4.1 released and on PyPI -- the first release cut
+  under T-0090's ordering, which it immediately needed.** The open release pull
+  request bumped the six files release-please knows about and left `uv.lock` at
+  0.4.0, exactly as T-0090 predicted. Stamped on the release branch before the
+  merge, so the stamp squashed into the release commit and the tag is
+  self-consistent:
+
+  ```
+  $ uv run --no-project python scripts/check_lock_version.py v0.4.1
+  uv.lock: capstat-api, capstat-core all at 0.4.1   # exit 0
+  ```
+
+  * `uv lock` also dropped three dependency markers already implied by their
+    package entry's `resolution-markers`. That is uv normalising the file, and
+    it only shows up at a release: on a consistent tree `uv lock` does not
+    rewrite the lock at all, so the normalisation has nowhere to appear. Checked
+    equivalent before committing -- `uv sync --frozen` resolves on 3.11 and
+    3.13, 677/677 tests pass on 3.11.
+  * PyPI now serves 0.4.1, verified against the tag: 19/19 installed source
+    files byte-identical to `v0.4.1` (`e0102ea`). **0.4.0 was deliberately
+    skipped** -- only a docs commit separates the two and the packaged code is
+    identical, so publishing both would have been noise. The tag stays, so it
+    can still be published if a reason appears.
+  * The publish run is red anyway; see T-0093. The upload succeeded and the
+    verification that follows it did not.
+
+- T-0092 (2026-09-20) **A bare `uv run` makes the lock check report success on
+  a stale lock; corrected everywhere it was recommended.** `uv run` syncs the
+  project before it runs anything, and the sync rewrites `uv.lock` to match the
+  manifests -- so `check_lock_version.py` reads a file uv repaired a moment
+  earlier and exits 0 on a tree that was stale. Found by accident: a negative
+  control for the T-0091 stamp came back green, and the reason was the harness,
+  not the check.
+
+  Measured on a deliberately stale lock (0.4.1 manifests, 0.4.0 lock):
+
+  ```
+  $ uv run python scripts/check_lock_version.py               # exit 0, lock rewritten
+  $ uv run --no-project python scripts/check_lock_version.py  # exit 1, lock untouched
+  ```
+
+  * **`publish.yml` was never affected** -- it has always used
+    `uv run --no-project` (line 99). The damage was confined to the form a human
+    is told to type, which is the worse half: the gate that runs unattended was
+    honest while the one run by hand before a release was blind.
+  * The same docstring also still said to run the check *after* merging the
+    release PR, the ordering T-0090 had already refuted in `docs/deployment.md`
+    but not here. Both corrected, in the docstring, in `docs/deployment.md`, and
+    in `verify_pypi_release.py` -- the last for consistency only, since nothing
+    there reads `uv.lock`.
+  * The historical block in T-0090 keeps the old spelling on purpose; it is a
+    record of what was run that day.
 
 - T-0090 (2026-09-20) **v0.4.0 cut, and the ordering the new gate demanded
   corrected in the three places that had it backwards.** The release was

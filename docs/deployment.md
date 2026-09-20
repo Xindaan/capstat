@@ -122,7 +122,9 @@ imply a freedom that does not exist.
     git fetch origin release-please--branches--main--components--capstat
     git checkout -B release-lock FETCH_HEAD
     uv lock
-    uv run python scripts/check_lock_version.py v0.4.0   # the tag being cut
+    uv run --no-project python scripts/check_lock_version.py v0.4.0   # the tag
+    # --no-project matters: a bare `uv run` syncs first, rewrites the lock,
+    # and the check then passes on a tree that was stale (T-0091).
     git commit -am "chore(deps): stamp 0.4.0 into uv.lock with the rest of the release"
     git push origin release-lock:release-please--branches--main--components--capstat
     ```
@@ -163,7 +165,7 @@ exactly that.
 So the workflow ends by asking PyPI instead of the runner:
 
 ```bash
-uv run python scripts/verify_pypi_release.py 0.3.1
+uv run --no-project python scripts/verify_pypi_release.py 0.3.1
 ```
 
 The script installs that version from pypi.org into a fresh environment with

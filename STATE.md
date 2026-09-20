@@ -5,9 +5,10 @@ Date: 2026-09-20
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.4.0;
-`capstat-core` 0.3.1 is on PyPI -- 0.4.0 is tagged but not published, the
-`publish` workflow is the maintainer's to run.
+Next.js frontend as a professional MIT open-source project. Released: v0.4.1,
+and `capstat-core` 0.4.1 is on PyPI, verified byte-identical to its tag. v0.4.0
+is tagged but deliberately unpublished -- only a docs commit separates it from
+0.4.1. `publish` stays manual and the maintainer's to run.
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -84,13 +85,11 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
-- **Publish 0.4.0 to PyPI, or decide not to yet.** The tag and the GitHub
-  release are out; `capstat-core` on PyPI is still 0.3.1. `publish` is manual
-  (Actions tab, tag `v0.4.0`) and stops at the `pypi` environment's reviewer,
-  so it is the maintainer's to run. The pre-build gate now also checks
-  `uv.lock`, which the tag satisfies -- verified at `v0.4.0`. Afterwards,
-  `uv run python scripts/verify_pypi_release.py 0.4.0` is the evidence of what
-  actually shipped.
+- **Make the `publish` run end green on its own (T-0093).** 0.4.1 is published
+  and verified, but the run is red: the verification step queried PyPI 1.1 s
+  after the upload, before the index served the new version. Re-run by hand it
+  passes. A step that is red on every healthy release is a step people stop
+  reading, and it is the only check on what PyPI actually serves.
 - **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
   decide there whether to discard it. Not this repo's to touch.
 
@@ -319,6 +318,17 @@ Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
 T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
+
+- 2026-09-20: **T-0091/T-0092 — v0.4.1 released to PyPI, and the lock check was
+  found to lie when run the way its own docs told you to.** T-0090's ordering
+  worked on its first real use: the release PR again left `uv.lock` a version
+  behind, the stamp went onto the release branch before the merge, and the tag
+  is self-consistent. PyPI serves 0.4.1, verified 19/19 files byte-identical to
+  `v0.4.1`. 0.4.0 stays tagged and unpublished on purpose. Two defects fell out
+  of it: a bare `uv run` syncs first and so hands the check an already-repaired
+  lock (exit 0 on a stale tree — `publish.yml` was safe, the documented manual
+  form was not), and the publish run verifies the upload 1.1 s after it, before
+  the index serves it, so every release ends red (T-0093, open).
 
 - 2026-09-20: **T-0090 — v0.4.0 cut; the lock stamp has to happen on the
   release branch, not after the merge.** release-please left `uv.lock` at

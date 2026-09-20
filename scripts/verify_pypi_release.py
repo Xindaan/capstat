@@ -22,8 +22,8 @@ needs no clean tree in CI.
 
 Usage::
 
-    uv run python scripts/verify_pypi_release.py 0.3.1
-    uv run python scripts/verify_pypi_release.py v0.3.1 --keep
+    uv run --no-project python scripts/verify_pypi_release.py 0.3.1
+    uv run --no-project python scripts/verify_pypi_release.py v0.3.1 --keep
 
 Exit codes: ``0`` verified, ``1`` a difference was found (this is the finding
 the script exists for), ``2`` the check could not be run at all -- an unknown

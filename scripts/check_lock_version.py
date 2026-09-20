@@ -13,11 +13,20 @@ the tag and PyPI had all moved to ``0.3.1`` (T-0087).
 covers. `publish.yml` runs it before the build, so a stale lock stops a release
 rather than riding along in it.
 
-Run it by hand after merging a release pull request -- that is the moment the
-lock goes stale::
+Run it by hand on the release branch, *before* merging the release pull
+request. That is the only moment a stamp can still reach the tag: the tag is
+created at the release commit, so a lock fixed after the merge never reaches it
+and the release is refused at this very gate, permanently (T-0090)::
 
-    uv run python scripts/check_lock_version.py           # against the packages
-    uv run python scripts/check_lock_version.py v0.4.0    # against a tag too
+    uv run --no-project python scripts/check_lock_version.py        # the packages
+    uv run --no-project python scripts/check_lock_version.py v0.4.1 # a tag too
+
+``--no-project`` is not optional. A bare ``uv run`` syncs the project first,
+and that rewrites ``uv.lock`` to match the manifests -- so the check reads a
+lock uv has just repaired and reports success for a tree that was stale a
+moment earlier. Measured 2026-09-20 on a deliberately stale lock: ``uv run``
+exited 0 and left the lock rewritten, ``uv run --no-project`` exited 1 and left
+it alone (T-0091).
 
 Exit codes: ``0`` the versions agree, ``1`` they do not (run ``uv lock``), ``2``
 the check could not be run.
