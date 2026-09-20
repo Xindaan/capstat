@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2](https://github.com/Xindaan/capstat/compare/v0.4.1...v0.4.2) (2026-09-20)
+
+
+### Bug fixes
+
+* **release:** wait for the simple index before verifying a publish (T-0093) ([c4366a7](https://github.com/Xindaan/capstat/commit/c4366a7da358afdb0877cf413bbe86659b17e15d))
+
+
+### Documentation
+
+* **scripts,deployment:** stop recommending the uv run that blinds the lock check (T-0092) ([53566d1](https://github.com/Xindaan/capstat/commit/53566d1c42357d530361e82a83291ed4e9035271))
+
 ## [0.4.1](https://github.com/Xindaan/capstat/compare/v0.4.0...v0.4.1) (2026-09-20)
 
 
