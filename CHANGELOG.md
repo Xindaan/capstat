@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/Xindaan/capstat/compare/v0.4.4...v0.4.5) (2026-09-21)
+
+
+### Documentation
+
+* **state:** record 0.4.4 as tagged and deliberately unpublished ([61f1223](https://github.com/Xindaan/capstat/commit/61f1223482b5b47502e8f6444cb2b9ea6f62d228))
+
 ## [0.4.4](https://github.com/Xindaan/capstat/compare/v0.4.3...v0.4.4) (2026-09-20)
 
 
