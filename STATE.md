@@ -323,6 +323,14 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-09-21: **T-0094 — steering-file commits are `chore`, because releasing
+  the project's own bookkeeping had put the release cycle into a loop.** A
+  merged release forces a STATE.md update; typed `docs` that opened the next
+  release PR, whose merge forced another. #44 and #45 both came from commits
+  carrying no packaged code. Fixed in the commit convention rather than by
+  hiding `docs`, which would also silence real documentation, and scoped to
+  every file the project runs itself with (`AGENTS.md` and `CLAUDE.md`
+  included) so the same loop cannot return through a different door.
 - 2026-09-21: **0.4.4 cut and tagged, deliberately not published.** Docs-only
   release (the T-0093 write-up). The lock stamp went onto the release branch
   before the merge as usual, so the tag is self-consistent and `publish` can be

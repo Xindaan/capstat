@@ -455,6 +455,30 @@
 
 ## Done
 
+- T-0094 (2026-09-21) **Releasing the project's own bookkeeping put the
+  release cycle into a loop; steering-file commits are now `chore`.** Merging a
+  release forces a STATE.md update, that commit was typed `docs`, `docs` is a
+  visible type in `release-please-config.json`, so it opened the next release
+  PR -- whose merge again required a STATE.md update. Measured: #44 came from a
+  commit changing only TASK.md and STATE.md, #45 from one changing only
+  STATE.md. Neither carried a byte of packaged code.
+  * **Fix is the commit type, not the config.** Setting `docs` to hidden would
+    also silence real documentation, which does belong in a release. Instead
+    `AGENTS.md` now says: a commit touching only the files the project runs
+    itself with -- `TASK.md`, `STATE.md`, `PLAN.md`, `AGENTS.md`, `CLAUDE.md`,
+    `.claude/` -- is `chore`. The test is who the change is for, not where the
+    file sits.
+  * Deliberately scoped wider than the symptom. The loop was caused by
+    TASK/STATE alone, but `AGENTS.md` and `CLAUDE.md` are the same class of
+    file and would have reintroduced it later -- this very commit changes
+    `AGENTS.md` and would otherwise have cut 0.4.5 to announce its own rule.
+  * Verified on this commit: typed `chore`, it must leave the open release PR
+    untouched and open no new one. Recorded rather than assumed -- see the
+    result noted in STATE.md.
+  * #45 stays open on purpose. It holds the earlier `docs(state)` commit and is
+    the normal resting state; it will collect the next real change instead of
+    releasing bookkeeping.
+
 - T-0093 (2026-09-20) **The publish run verified the upload before PyPI could
   serve it, so every healthy release ended red. The guard existed -- it was
   watching the wrong page.** On 0.4.1 the wheel landed at 18:51:17.006 and the

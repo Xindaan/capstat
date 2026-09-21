@@ -72,6 +72,22 @@ on this repository.
   the files changed and the verification command run.
 - Conventional Commits. A commit that changes code but not
   TASK.md/STATE.md is usually wrong.
+- **A commit touching only the project's own steering and rule files is
+  `chore`, never `docs`** -- `TASK.md`, `STATE.md`, `PLAN.md`, `AGENTS.md`,
+  `CLAUDE.md`, `.claude/`. `release-please-config.json` makes `feat`, `fix`,
+  `docs`, `test`, `refactor` and `perf` visible, and a visible type opens a
+  release pull request; `chore` and `ci` are hidden and do not. These files are
+  how the project runs itself, not something anyone reads to *use* capstat, so
+  cutting a version for them does not merely add noise -- it loops: merging a
+  release writes STATE.md, that commit opens the next release PR, merging that
+  one writes STATE.md again, and it never settles. Measured 2026-09-21: #44 came
+  from a commit changing only TASK.md and STATE.md, #45 from one changing only
+  STATE.md.
+
+  The test is who the change is for, not where the file sits. `docs` is for
+  documentation someone reads to use the project -- README, `docs/`, docstrings,
+  CLI help -- and that still earns a release. A commit that changes code *and*
+  steering files keeps the code's type, as before.
 - Definition of Done per session: TASK.md moves (Doing→Done), STATE.md
   refreshed (date, status, next actions), tests green with the pass
   count reported, README/docs updated on user-visible changes.
