@@ -330,7 +330,9 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
   carrying no packaged code. Fixed in the commit convention rather than by
   hiding `docs`, which would also silence real documentation, and scoped to
   every file the project runs itself with (`AGENTS.md` and `CLAUDE.md`
-  included) so the same loop cannot return through a different door.
+  included) so the same loop cannot return through a different door. Proved on
+  the fixing commit itself: typed `chore`, `b410bae` opened no release PR and
+  does not appear in #45's changelog.
 - 2026-09-21: **0.4.4 cut and tagged, deliberately not published.** Docs-only
   release (the T-0093 write-up). The lock stamp went onto the release branch
   before the merge as usual, so the tag is self-consistent and `publish` can be

@@ -472,9 +472,12 @@
     TASK/STATE alone, but `AGENTS.md` and `CLAUDE.md` are the same class of
     file and would have reintroduced it later -- this very commit changes
     `AGENTS.md` and would otherwise have cut 0.4.5 to announce its own rule.
-  * Verified on this commit: typed `chore`, it must leave the open release PR
-    untouched and open no new one. Recorded rather than assumed -- see the
-    result noted in STATE.md.
+  * **Verified on this commit** (`b410bae`, typed `chore`): release-please ran
+    to `success` and opened no new release PR. #45 stayed the only open one and
+    its changelog still lists only the earlier `docs(state)` commit `61f1223` --
+    `b410bae` does not appear in it at all. So a `chore` commit neither cuts a
+    version nor reaches the changelog, which is exactly the property the rule
+    depends on.
   * #45 stays open on purpose. It holds the earlier `docs(state)` commit and is
     the normal resting state; it will collect the next real change instead of
     releasing bookkeeping.
