@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/Xindaan/capstat/compare/v0.4.3...v0.4.4) (2026-09-20)
+
+
+### Documentation
+
+* **task,state:** 0.4.3 published, and what its green run does not prove (T-0093) ([8f44aa5](https://github.com/Xindaan/capstat/commit/8f44aa521ac55d2b727237813d947e25cb899e22))
+
 ## [0.4.3](https://github.com/Xindaan/capstat/compare/v0.4.2...v0.4.3) (2026-09-20)
 
 
