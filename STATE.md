@@ -1,15 +1,17 @@
 # STATE.md — capstat
 
-Date: 2026-09-20
+Date: 2026-09-21
 
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.4.3,
-and `capstat-core` 0.4.1, 0.4.2 and 0.4.3 are on PyPI, each verified
-byte-identical to its tag. v0.4.0 is tagged but deliberately unpublished --
-only a docs commit separates it from 0.4.1. `publish` stays manual and the
-maintainer's to run.
+Next.js frontend as a professional MIT open-source project. Released: v0.4.4.
+`capstat-core` 0.4.1, 0.4.2 and 0.4.3 are on PyPI, each verified
+byte-identical to its tag. **v0.4.4 is tagged and not published** -- it carries
+only the T-0093 write-up, and publishing was not asked for; v0.4.0 is unpublished
+for the same kind of reason. Both remain publishable at any time: their tags are
+self-consistent, v0.4.4 checked at `check_lock_version.py v0.4.4`, exit 0.
+`publish` stays manual and the maintainer's to run.
 
 Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
 M5 MSA, M6 release (report, deployment, docs, release).
@@ -321,6 +323,10 @@ T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
 
 ## Last done
 
+- 2026-09-21: **0.4.4 cut and tagged, deliberately not published.** Docs-only
+  release (the T-0093 write-up). The lock stamp went onto the release branch
+  before the merge as usual, so the tag is self-consistent and `publish` can be
+  run for it whenever there is a reason.
 - 2026-09-20: **0.4.3 released and verified on PyPI, and the first publish run
   to end green unattended (T-0093).** Every step green, 19/19 files identical,
   nothing re-run by hand. The retry never fired though -- zero
