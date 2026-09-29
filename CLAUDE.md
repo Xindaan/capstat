@@ -13,8 +13,10 @@ Additional notes for Claude Code sessions:
     English and plain ASCII per `AGENTS.md`, so a colon form never
     reaches a code identifier.
 - **Orchestrator mode:** the main model plans, reviews, and synthesizes;
-  delegate volume/boilerplate work to cheap subagents (Haiku default,
-  Sonnet only where real multi-step reasoning is needed). Never
+  delegate volume/boilerplate work to cheap subagents (Haiku only for
+  pure collection: file lists, grep hits, line pointers; Sonnet as soon
+  as the subagent has to interpret or summarize; always pass a model
+  when calling Explore, otherwise it inherits the main model). Never
   delegate: reference-value transcription and statistical formula
   review — verify those twice against the source yourself.
 - **Effort routing:** default `high`. `/effort xhigh` only for long
