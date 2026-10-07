@@ -12,6 +12,235 @@
   the work landed; a stale Doing block is the one that costs a session.)
 
 ## Backlog
+- **Third review 2026-10-01 (Opus 5.5 orchestrating nine Sonnet reviewers and
+  four Opus verification gates; source read plus execution, a live browser
+  run, and 589 hand-made mutants including a 65-mutant warning-code sweep).**
+  173 raw findings, 155 after merging duplicates. Every finding outside the
+  mutation run that a reviewer rated medium or higher (52) went to an
+  adversarial gate, plus three lower ones: of those 55, 44 confirmed, 11
+  narrowed, none refuted. The 16 medium-or-higher mutation findings carry
+  their reproduction by construction (a surviving mutant under a green suite).
+  Checked a second time in the orchestrating session -- by execution: CAP-1,
+  CAP-3, MSA-2, SAMP-1, SAMP-2, TQ-3 and the T-0095 file; by derivation or code
+  reading: CAP-2, CHART-2, CHART-6, MSA-1, SAMP-3. Filed as T-0095..T-0115,
+  grouped by error class rather than one ID per finding; the finding IDs
+  (CAP-, CHART-, MSA-, SAMP-, API-, WEB-, UX-, ARCH-, TQ-) are the reviewers'
+  and are quoted so the evidence can be traced (kept locally, outside git, in
+  `tmp/review-2026-10-01/`). Measured at HEAD b55623a: ruff, ruff format, mypy
+  --strict, tsc and eslint clean; 677 Python tests at 100 % coverage; 79
+  vitest. Mutation kill rate 66 % (71 % without equivalent mutants; the
+  agent's two tallies give 509 and 524 mutants for that figure) -- the suite is
+  broad, and thinner than the coverage figure suggests.
+  **Suggested order: T-0095..T-0099 first** -- they print a wrong number or
+  break a feature without saying so.
+
+- T-0095 **A German CSV with one column is read as wrong numbers, silently.**
+  (API-1, TQ-17, found a third time by the API gate.) A file `Wert\n9,79\n...`
+  has no separator, so the comma is taken as one; pandas makes the integer
+  part the row index and the column comes back as 79, 72, 70, ...
+  * Measured: 30 readings around 9.75, `capstat capability ... --lsl 9.6 --usl
+    9.9` -> Cp 0.0197, Cpk -8.61, no ingest warning, exit 0. The same values
+    with a decimal point: Cp 1.97, Cpk 1.91. A two-column `;` file is read
+    correctly and names what it detected -- so T-0067 covers `;` files only.
+  * Same family: data rows ending with a delimiter while the header does not
+    shift every label one column left (API-1); a header-less CSV loses its
+    first value to the column name (API-6). `index_col=False` alone does not
+    cure the one-column case (it yields 9, 9, 9).
+  * Acceptance: each case read correctly or refused with a named reason, one
+    test per case; the 13 surviving `tabular.py` mutants (TQ-14) killed.
+
+- T-0096 **"Zero spread" is decided by exact float equality, and Phase I does
+  not refuse it.**
+  * API-27: a constant series of 3.3 is not recognised as constant (its mean
+    is one ulp off), and the I-MR chart flags all 20 points; the same series of
+    5.0 is in control.
+  * MSA-2 / TQ-21: every reading of a part identical -- parts 2.1..3.0 give
+    verdict `good`, ndc 1.3e15, %SV 1e-13 and no zero-repeatability caveat;
+    parts 1..10 give verdict `None` and the caveat. Same study, the float
+    representation decides.
+  * CHART-4 / WEB-28: all ranges zero -> zero-width limits and a confident
+    verdict; the page shows a green "In control" pill next to a rules error
+    whose advice is wrong. On coarse-resolution gauge data `stability()` says
+    "the gage drifted" in 189 of 200 runs (gate G1).
+  * One fix class: decide "zero" against the data's scale, in `descriptive`,
+    `gage_rr` and the Phase I chart estimate alike.
+
+- T-0097 **The non-normal path is not unit-invariant, and tied data are
+  misrouted.**
+  * CAP-1: `percentile_capability` fits scipy distributions to the raw data;
+    near 1e-5 and below the optimiser stalls, and `_fit_score` cannot see it
+    because `anderson_darling` re-standardises the PIT. Measured: 40 of 120
+    seeds change Ppk by > 0.05 when data and limits are rescaled by
+    1e-5..1e-7; worst 1.325 -> 0.130 (fitted median 0.51 vs data 0.96). The
+    gate saw Ppk -12.9. Data in metres instead of millimetres is enough.
+  * CAP-6 / API-28: rounding to a realistic gauge step sends truly normal
+    data down the percentile path (40/40 runs at n = 1000); heavily tied data
+    give Pp around 2e7.
+  * UX-10 / ARCH-16: on the bundled example with only a USL, Box-Cox picks
+    lambda = -46, the transformed data collapse, Shapiro-Wilk returns NaN, and
+    the rationale says "every subgroup is constant" -- which is false. Not just
+    the example: with one spec limit and a small spread, every non-normal
+    sample of 200 simulated got a false constant-data sentence (gate G3b); with
+    both limits the sentence is right. This is the one-sided half of T-0027.
+  * TQ-6: a swapped Ppl denominator survives the suite (only symmetric fits
+    are tested).
+  * Acceptance: a unit-invariance test (scale data and limits by 1e-9..1e9,
+    Ppk unchanged) and a fully specified PIT score.
+
+- T-0098 **The control limits are not drawn on most in-control charts.**
+  (CHART-1 / WEB-8 / UX-3.) `control-chart.tsx` sets `yAxis {scale: true}`
+  with no min/max; ECharts fits the axis to the data and drops markLines
+  outside it. Live run: one of six in-control individuals charts showed both
+  limits, two showed neither; the bundled example only looks right because its
+  outlier stretches the axis. WEB-9: the limit values are never printed as
+  numbers either. Acceptance: the axis always contains UCL/LCL, and the values
+  are on the page and in the print.
+
+- T-0099 **"Decide the lot" always fails against the real API -- a regression
+  from T-0061.** (WEB-3 / UX-9.) The page posts the report's plan including
+  `rejection_number`; the endpoint forbids extra fields, answers 422, and the
+  whole result block is wiped. The e2e suite mocks the route and never
+  validates requests (WEB-21), and no CI job runs web and API together
+  (ARCH-8), so nothing could see it. Acceptance: the fix, plus a check that
+  validates every mocked request body against `openapi.json` (or one e2e run
+  against the real API).
+
+- T-0100 **Decimal commas in hand-entered data are split or swallowed.**
+  WEB-1 / UX-5: the textareas on `/msa` and `/acceptance-sampling` split
+  "36,1" into 36 and 1 -- ten readings become twenty and a verdict is still
+  returned. UX-6 (narrowed): `type=number` inputs follow the browser's number
+locale -- in an English-locale browser "3,29" becomes 329 and an LTPD typed as
+"2,5" designs n 13 / Ac 1 instead of n 667 / Ac 12, silently; in a German
+locale a lot size "5.000" becomes 5.
+  WEB-22: an Excel block pasted into a Gage R&R cell collapses into one number.
+  WEB-12: arrow keys change grid values. The upload path got this right in
+  T-0067; the typed paths did not.
+
+- T-0101 **Results stay on screen after their inputs change.** WEB-4 / UX-1 /
+  UX-4 on all four pages: editing a spec limit or a reading leaves the old
+  verdict standing, unmarked. WEB-27: a response arriving after an edit
+  overwrites the invalidation.
+
+- T-0102 **A dropped cell shifts every later subgroup.** CHART-2: `/ingest`
+  compacts the column and reports only a count; `lib/subgroups.ts` and the CLI
+  then cut subgroups from consecutive values, so every boundary after the gap
+  moves by one. API-9: the CLI never reports dropped cells at all, and `chart`
+  drops leftover values silently (`cli.py:203`).
+
+- T-0103 **Cpm -- needs a decision.** CAP-2: Cpm uses sigma_within (stated in
+  the module docstring, pinned by a test asserting Cpm == Cp on target); on a
+  drifting process capstat reports 3.43 where the NIST 6.1.6 estimator with the
+  sample sd gives 1.06. NIST uses `s` for every index, so it does not settle
+  within vs overall; Minitab files Cpm under overall capability (recalled, not
+  checked here). CAP-3: an off-midpoint target goes into the symmetric formula
+  -- measured Cpm 3.41 with Cpk 0.70 and 1.65 % beyond USL, where
+  min(USL-T, T-LSL)/(3 tau) gives 0.68; a target outside the limits is
+  accepted silently.
+
+- T-0104 **What "in control" and "stable" mean -- needs a decision.**
+  CHART-6: the pair verdict is location AND dispersion; the MR chart alone
+  signals on 0.92 % of points of a stable process (P(|Z| > 2.606)), so a stable
+  series reads "Out of control" 23 % of the time at N = 30 and 63 % at N = 100.
+  CHART-9 / WEB-14: the badge ignores the run rules listed under it, and so do
+  `stability()` and the CLI exit code. MSA-5: `stability()` -- 23 % false
+  alarms on a stable gauge, 49 % detection of a 3-sigma drift, wording "the
+  gage drifted" for any signal. CHART-7: one outlier counted as three points.
+  One fix covers all of them; count it once.
+
+- T-0105 **Non-finite and out-of-range parameters are accepted.** CAP-4,
+  CHART-3, API-2, MSA-8, SAMP-12: NaN/inf limits, targets, sigma, L/k/h,
+  alpha or multipliers pass the `<=` guards (every NaN comparison is False).
+  Measured: `--sigma nan --fail-on-signal` exits 0, so a CI gate passes;
+  NaN sigma gives a green "in control" with null limits. API-3: NaN in a field
+  that fails validation turns the 422 into a 500. One scalar validator in
+  `_validation`, used everywhere.
+
+- T-0106 **Hypergeometric AOQ and AOQL are optimistic.** SAMP-2: the Type B
+  formula Pa(N, D) p (N-n)/N is used for every model; the exact Type A value
+  needs P(Hyp(N-1, D-1, n) <= c). Measured against enumeration: ratio 0.50 at
+  (N 10, n 5, c 0, D 1), 0.88 at (200, 50, 2, 10). SAMP-1: for N > 1000 the
+  AOQL is read off a 1001-point grid without refinement -- n 2000, c 0,
+  N 20000: 1.09e-4 against 1.57e-4 by exhaustive search.
+
+- T-0107 **The switching-score fallback is not the conservative branch.**
+  SAMP-3: with the tighter-AQL question unanswered every accepted lot scores
+  +2, but for an Ac >= 2 plan a lot that would fail one step tighter resets the
+  score to 0 -- so the fallback reaches reduced inspection earlier than the
+  standard, while the docstring, docs and caveat call it the safe direction.
+  Mitigated by `reduced_inspection_authorised` defaulting to off. SAMP-14:
+  answering the question for an Ac <= 1 plan scores +3. SAMP-5: the
+  reduced-not-authorised caveat names a cause that did not apply.
+
+- T-0108 **Gage R&R results the user asked for are not shown.** MSA-1 / WEB-17
+  / UX-7: the Tolerance input is sent, %Tolerance is computed and never
+  rendered, and the verdict reads %Study Variation only -- a P/T of 31 % can sit
+  under a green "good". MSA-3 (narrowed): only the average-and-range method
+  flatters coarse-resolution data; ANOVA reacts correctly. MSA-4 (narrowed,
+  documented design): linearity judges the slope only; AIAG's intercept and
+  confidence-band rule (recalled) is not offered. MSA-6 / WEB-29: "No bias" in
+  green for three readings.
+
+- T-0109 **The web app hides or mangles what the core computed.** WEB-15 /
+  UX-2: normality warnings (autocorrelation, tests disagree) never rendered --
+  a trending series gets a green "Normal". WEB-16: no process mean, sigmas,
+  Cpl/Cpu, Cpm on the capability panel. WEB-6: variance components at mm scale
+  print as 0.00000. WEB-13: the print truncates the measurement data. UX-14
+  (narrowed): emerald-600 and amber-600 text reach 3.65:1 and 3.20:1 on white
+  (AA needs 4.5:1); the acceptance-sampling risk cards say nowhere what amber
+  means. WEB-2: the histogram crashes the page
+  above ~120k values (`Math.min(...values)`).
+
+- T-0110 **Ingest robustness beyond T-0095.** API-16: locale handling is
+  CSV-only and all-or-nothing. API-7: xlsx date and boolean columns arrive as
+  measurement columns. API-5: `inf` cells come back as JSON null inside a
+  `list[float]`. API-4 (narrowed): a small xlsx with one stray far-right cell
+  needs gigabytes of RAM.
+
+- T-0111 **Test-suite strength: what the mutants found.** Kill rate 66 % of
+  509 mutants (71 % without equivalents). High: TQ-1 / CHART-10 (R, S and MR
+  chart upper limits unpinned -- a x1.4 UCL passes all 677 tests); TQ-3 (the
+  interaction-kept branch of Gage R&R: the only test has no operator effect,
+  so var_operator is clamped to 0 and p*r -> o*r survives; re-measured here,
+  the code itself is correct); TQ-12 (26 of 49 API wiring mutants survive --
+  optional request fields can be dropped); TQ-13 (CLI output values largely
+  unpinned). Medium: TQ-18 (59 of 65 warning codes, the T-0074 contract, can
+  be renamed), TQ-4, TQ-5, TQ-7, TQ-8, TQ-10, TQ-15, TQ-19, TQ-22, TQ-23, TQ-27.
+
+- T-0112 **Caveats the data would justify but nobody raises.** CHART-5: no
+  autocorrelation check on I-MR / EWMA / CUSUM, though
+  `descriptive.lag1_autocorrelation` exists. CAP-5 (narrowed): the
+  short-series caveat fires below 20 while its own text cites AIAG's 25.
+  CAP-8: Shapiro-Wilk beyond n = 5000 without a caveat. MSA-7: no small-study
+  caution on Gage R&R.
+
+- T-0113 **Release and CI hardening.** ARCH-4: Dependabot covers `uv` and
+  Actions, not npm or Docker. ARCH-8: see T-0099. ARCH-14: the published wheel
+  and sdist carry no LICENSE file (the copyright line is in METADATA, the
+  permission text is not). ARCH-16: pytest does not fail on numpy
+  RuntimeWarnings (one test fails with `-W error::RuntimeWarning`, see T-0097).
+  ARCH-17 (narrowed) / ARCH-12: `main` is unprotected and `publish` does not
+  ask whether CI passed on the tag; in practice every release PR from 0.4.0 to
+  0.4.4 had green CI only because of the hand-made `uv.lock` commit -- so
+  automating that stamp (T-0082) removes the one CI run on the release tree,
+  and the two must be fixed together. OIDC token scoped to the whole job. ARCH-5: the declared numpy/scipy floors are never
+  tested (9 test-side failures at the floor). ARCH-10: the release gates have
+  no tests. ARCH-2: `apps/web/package-lock.json` still says 0.3.0.
+
+- T-0114 **Documentation drift.** ARCH-6 (README status v0.2.1, `mkdocs serve`
+  port), ARCH-7 (uploads over 1 MiB are spooled to disk; README and
+  `docs/deployment.md:193` say never),
+  ARCH-13 (API reference omits 26 of 87 exports, all of acceptance sampling),
+  CHART-8 (run-rule false-alarm cost quoted as flagged-point share, not ARL;
+  WE ARL0 measured 91.8), CHART-17 ("reproduced exactly"), CHART-13 (README on
+  k-of-m causality), ARCH-15 (AGENTS.md forbids what PLAN.md lists as out of
+  scope for v0.1, and acceptance sampling is built).
+
+- T-0115 **For the maintainer, report only: the steering files are mostly
+  history.** (ARCH-9.) TASK.md 2462 lines, STATE.md 774 lines against the
+  shared convention (STATE: goal, 2-6 status bullets, 1-3 next actions). Open
+  work is split between both files. Not acted on -- these files are the
+  maintainer's.
+
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four
   algorithmic/IO ones reproduced. One finding was wrong (see T-0062), the rest
@@ -75,6 +304,13 @@
   consistent without hand-editing -- either by teaching release-please to update
   `uv.lock` as an extra file, or by a release-time step that runs `uv lock` and
   commits the result.
+  **Update 2026-10-01 (third review, ARCH-1):** the extra-files route is
+  open after all -- release-please's `toml` extra-file type is path-based
+  (`GenericToml` with a jsonpath, no annotation), and the review's gate measured
+  it rewriting exactly the two workspace-member version lines (release-please
+  17.11.2; not re-checked in the orchestrating session). Fix together with
+  T-0113 / ARCH-17: today the hand-made lock commit is the only CI run on the
+  release tree, and automating it removes that run.
 
 - T-0081 **release-please dropped the breaking change from the release notes.**
   Found while cutting 0.3.0, and corrected by hand before the tag was made --
@@ -680,6 +916,9 @@
     rewrites the file, so the annotation would survive until the first refresh
     and then silently stop working -- the worst available failure mode for a
     check about silent drift.
+    **Corrected 2026-10-01:** that reason holds for the comment-annotation
+    updater only; the `toml` type is path-based and needs no annotation
+    (third review, ARCH-1, gate-measured -- see T-0082).
   * Exercised on all three outcomes against the current tree: bare and `v0.3.1`
     both report `capstat-api, capstat-core all at 0.3.1` and exit `0`; `v0.4.0`
     names the tag/manifest disagreement and both stale members and exits `1`.

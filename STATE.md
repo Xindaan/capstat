@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-09-21
+Date: 2026-10-01
 
 ## Goal
 
@@ -88,6 +88,15 @@ M5 MSA, M6 release (report, deployment, docs, release).
 
 ## Next actions
 
+- **Third review 2026-10-01 is filed as T-0095..T-0115** (Opus 5.5 with nine
+  Sonnet reviewers and four Opus gates, source plus execution: 155 unique
+  findings, 55 gated, 44 confirmed, 11 narrowed, none refuted). Start with
+  T-0095..T-0099, the ones that print a wrong number or break a feature without
+  saying so: a one-column German CSV read as wrong numbers (T-0095), zero spread
+  decided by exact float equality (T-0096), a non-normal path that is not
+  unit-invariant (T-0097), control limits not drawn on in-control charts
+  (T-0098), and "Decide the lot" failing on every call (T-0099). T-0103 (Cpm)
+  and T-0104 (what "in control" means) need a decision before code.
 - **T-0093 is one green run in, and still not field-proven.** 0.4.3 published
   and verified unattended, but with zero retry lines in the log -- PyPI resolved
   on the first attempt, so the retry itself has never yet done any work. Treat
