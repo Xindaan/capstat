@@ -11,9 +11,11 @@ import os
 
 from capstat_core import NELSON_RULES, WESTERN_ELECTRIC_RULES
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from capstat_api import __version__
+from capstat_api.errors import request_validation_error
 from capstat_api.limits import DEFAULT_MAX_COMPUTE_BYTES, ComputeBodyLimit
 from capstat_api.routers import compute, ingest
 
@@ -74,6 +76,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
+    # A 422 that can carry a NaN input without crashing into a 500 (API-3).
+    app.add_exception_handler(RequestValidationError, request_validation_error)
     app.include_router(compute.router)
     app.include_router(ingest.router)
 

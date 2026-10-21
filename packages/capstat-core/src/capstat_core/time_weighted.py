@@ -40,7 +40,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import as_sample, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.constants import d2
 
@@ -102,10 +102,13 @@ def _resolve(
                 "sigma from a known in-control period is better still.",
             )
         )
-    if sigma <= 0.0:
-        raise ValueError(f"sigma must be strictly positive, got {sigma}")
-
-    return target, sigma, warnings
+    # Through check_scalar, not ``sigma <= 0``: that is False for NaN, and a NaN
+    # target or sigma makes every limit NaN, which no point can cross.
+    return (
+        check_scalar("target", target),
+        check_scalar("sigma", sigma, above=0.0),
+        warnings,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,14 +176,13 @@ def ewma_chart(
     Raises
     ------
     ValueError
-        If ``lmbda`` is outside ``(0, 1]``, if ``L`` is not positive, if fewer
+        If ``lmbda`` is outside ``(0, 1]``, if ``L``, ``target`` or ``sigma``
+        is not finite or ``L`` or ``sigma`` not positive, if fewer
         than two observations are given, or if ``sigma`` is omitted and the
         moving ranges show zero spread at the resolution of the data.
     """
-    if not 0.0 < lmbda <= 1.0:
-        raise ValueError(f"lmbda must be in (0, 1], got {lmbda}")
-    if L <= 0.0:
-        raise ValueError(f"L must be strictly positive, got {L}")
+    check_scalar("lmbda", lmbda, above=0.0, at_most=1.0)
+    check_scalar("L", L, above=0.0)
 
     values = as_sample(data, minimum=2)
     target, sigma, warnings = _resolve(values, target, sigma)
@@ -293,14 +295,13 @@ def cusum_chart(
     Raises
     ------
     ValueError
-        If ``k`` or ``h`` is not strictly positive, if fewer than two
+        If ``k``, ``h``, ``target`` or ``sigma`` is not finite, or ``k``, ``h``
+        or ``sigma`` not strictly positive, if fewer than two
         observations are given, or if ``sigma`` is omitted and the moving
         ranges show zero spread at the resolution of the data.
     """
-    if k <= 0.0:
-        raise ValueError(f"k must be strictly positive, got {k}")
-    if h <= 0.0:
-        raise ValueError(f"h must be strictly positive, got {h}")
+    check_scalar("k", k, above=0.0)
+    check_scalar("h", h, above=0.0)
 
     values = as_sample(data, minimum=2)
     target, sigma, warnings = _resolve(values, target, sigma)

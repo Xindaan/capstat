@@ -369,6 +369,23 @@ def test_constant_subgroups_with_between_variation_are_rejected() -> None:
         capability(data, lsl=-5.0, usl=15.0, within_method="pooled")
 
 
+@pytest.mark.parametrize("field", ["lsl", "usl", "target"])
+@pytest.mark.parametrize("bad", [math.nan, math.inf, -math.inf])
+def test_non_finite_limits_and_target_are_rejected(field: str, bad: float) -> None:
+    """T-0105 / CAP-4: every comparison with NaN is False, so ``lsl >= usl``
+    let a NaN limit through. usl=nan returned Cp nan next to a Cpk computed
+    against the lower limit alone, usl=inf returned Cp inf, target=nan Cpm nan.
+    """
+    limits = {"lsl": 95.0, "usl": 105.0, "target": 100.0, field: bad}
+    with pytest.raises(ValueError, match=f"{field} must be a finite number"):
+        capability(
+            _stable_subgroups(),
+            lsl=limits["lsl"],
+            usl=limits["usl"],
+            target=limits["target"],
+        )
+
+
 def test_zero_spread_is_rejected_whatever_the_value() -> None:
     """T-0096 / API-27: the two tests above use 5.0 and integers, whose means are
     exact. With 3.3 the residue of the float mean used to pass for a sigma of

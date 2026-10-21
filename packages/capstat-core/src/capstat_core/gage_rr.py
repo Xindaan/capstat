@@ -74,7 +74,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import is_zero_spread
+from capstat_core._validation import check_scalar, is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.constants import d2, d2_star
 
@@ -259,6 +259,17 @@ class GageRRReport:
         return "unacceptable"
 
 
+def _check_parameters(tolerance: float | None, study_var_multiplier: float) -> None:
+    """Both methods' scalar parameters, finite and positive.
+
+    ``tolerance <= 0`` alone let NaN and inf through: %Tolerance came back NaN
+    or 0, and a negative multiplier gave a negative percentage (MSA-8).
+    """
+    if tolerance is not None:
+        check_scalar("tolerance", tolerance, above=0.0)
+    check_scalar("study_var_multiplier", study_var_multiplier, above=0.0)
+
+
 def _as_layout(x: npt.ArrayLike) -> npt.NDArray[np.float64]:
     """Coerce input to a 3-D (parts x operators x trials) array and validate it."""
     arr = np.asarray(x, dtype=np.float64)
@@ -315,10 +326,12 @@ def gage_rr(
     ------
     ValueError
         If the data is not 3-D, is non-finite, or has fewer than 2 parts,
-        2 operators, or 2 trials.
+        2 operators, or 2 trials; if ``tolerance`` or ``study_var_multiplier``
+        is not a finite positive number; or if ``interaction_alpha`` is not in
+        ``(0, 1)``.
     """
-    if tolerance is not None and tolerance <= 0.0:
-        raise ValueError(f"tolerance must be positive, got {tolerance}")
+    _check_parameters(tolerance, study_var_multiplier)
+    check_scalar("interaction_alpha", interaction_alpha, above=0.0, below=1.0)
 
     arr = _as_layout(data)
     p, o, r = arr.shape
@@ -466,8 +479,7 @@ def gage_rr_range(
     smaller than the repeatability it removes, ``AV`` would be imaginary; it is
     clamped to zero with a warning instead.
     """
-    if tolerance is not None and tolerance <= 0.0:
-        raise ValueError(f"tolerance must be positive, got {tolerance}")
+    _check_parameters(tolerance, study_var_multiplier)
 
     arr = _as_layout(data)
     p, o, r = arr.shape

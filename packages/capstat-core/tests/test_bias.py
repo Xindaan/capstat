@@ -148,6 +148,14 @@ def test_non_finite_is_rejected() -> None:
         bias([5.0, float("nan")], 5.0)
 
 
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_a_non_finite_reference_is_rejected(bad: float) -> None:
+    """T-0105 / MSA-8: reference=nan returned bias nan with bias_significant
+    True and the warning "biased by nan (reads low)"."""
+    with pytest.raises(ValueError, match="reference must be a finite number"):
+        bias([1.0, 1.1, 0.9, 1.05], bad)
+
+
 def test_bad_alpha_is_rejected() -> None:
     with pytest.raises(ValueError, match="alpha must be in"):
         bias([5.0, 6.0], 5.0, alpha=1.5)

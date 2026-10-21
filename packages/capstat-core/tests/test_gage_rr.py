@@ -392,11 +392,6 @@ def test_average_range_rejects_two_dimensional_data() -> None:
         gage_rr_range(np.zeros((3, 3)))
 
 
-def test_average_range_rejects_non_positive_tolerance() -> None:
-    with pytest.raises(ValueError, match="tolerance must be positive"):
-        gage_rr_range(_strong_interaction(), tolerance=-1.0)
-
-
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -429,9 +424,37 @@ def test_single_trial_is_rejected() -> None:
         gage_rr(np.zeros((3, 3, 1)))
 
 
-def test_non_positive_tolerance_is_rejected() -> None:
-    with pytest.raises(ValueError, match="tolerance must be positive"):
-        gage_rr(_strong_interaction(), tolerance=0.0)
+@pytest.mark.parametrize("method", [gage_rr, gage_rr_range])
+@pytest.mark.parametrize(
+    ("field", "bad", "message"),
+    [
+        ("tolerance", 0.0, "strictly positive"),
+        ("tolerance", -1.0, "strictly positive"),
+        ("tolerance", math.nan, "a finite number"),
+        ("tolerance", math.inf, "a finite number"),
+        ("study_var_multiplier", 0.0, "strictly positive"),
+        ("study_var_multiplier", -6.0, "strictly positive"),
+        ("study_var_multiplier", math.nan, "a finite number"),
+        ("study_var_multiplier", math.inf, "a finite number"),
+    ],
+)
+def test_out_of_range_parameters_are_rejected(
+    method: object, field: str, bad: float, message: str
+) -> None:
+    """T-0105 / MSA-8: only ``tolerance <= 0`` was checked, which NaN passes.
+
+    tolerance=inf gave %Tolerance 0, study_var_multiplier=-6 gave -596 %.
+    """
+    with pytest.raises(ValueError, match=f"{field} must be {message}"):
+        method(_strong_interaction(), **{field: bad})  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("bad", [0.0, 1.0, 5.0, -1.0, math.nan])
+def test_interaction_alpha_must_be_a_probability(bad: float) -> None:
+    """T-0105 / MSA-8: 25 typed as a percent kept every interaction; -1 or NaN
+    pooled every interaction, without a word."""
+    with pytest.raises(ValueError, match="interaction_alpha must be"):
+        gage_rr(_strong_interaction(), interaction_alpha=bad)
 
 
 def test_report_is_immutable() -> None:

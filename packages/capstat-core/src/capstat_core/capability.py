@@ -49,7 +49,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import is_zero_spread
+from capstat_core._validation import check_scalar, is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.constants import MAX_SUBGROUP_SIZE, c4, d2
 from capstat_core.descriptive import std_dev
@@ -238,8 +238,9 @@ def capability(
     Raises
     ------
     ValueError
-        If neither limit is given, if ``lsl >= usl``, if the data have fewer
-        than two subgroups, or if the estimated sigma is zero.
+        If neither limit is given, if a limit or the target is not a finite
+        number, if ``lsl >= usl``, if the data have fewer than two subgroups,
+        or if the estimated sigma is zero.
 
     Notes
     -----
@@ -252,6 +253,11 @@ def capability(
     """
     if lsl is None and usl is None:
         raise ValueError("at least one specification limit (lsl or usl) is required")
+    # Finite first: ``lsl >= usl`` is False for NaN, and an infinite limit is
+    # not a one-sided specification (omit the limit for that).
+    for name, value in (("lsl", lsl), ("usl", usl), ("target", target)):
+        if value is not None:
+            check_scalar(name, value)
     if lsl is not None and usl is not None and lsl >= usl:
         raise ValueError(f"lsl ({lsl}) must be strictly below usl ({usl})")
 

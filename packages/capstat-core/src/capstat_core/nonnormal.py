@@ -70,7 +70,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample
+from capstat_core._validation import as_sample, check_scalar
 from capstat_core.capability import CapabilityReport, capability
 from capstat_core.caveats import Caveat
 from capstat_core.normality import (
@@ -210,9 +210,20 @@ class PercentileCapability:
     warnings: tuple[Caveat, ...]
 
 
-def _check_limits(lsl: float | None, usl: float | None) -> None:
+def _check_limits(
+    lsl: float | None, usl: float | None, target: float | None = None
+) -> None:
+    """The specification checks :func:`~capstat_core.capability.capability` makes.
+
+    Finite first (:func:`~capstat_core._validation.check_scalar`): ``lsl >= usl``
+    is False for NaN, so a NaN limit used to pass and leave a Ppk computed
+    against the other limit alone.
+    """
     if lsl is None and usl is None:
         raise ValueError("at least one specification limit (lsl or usl) is required")
+    for name, value in (("lsl", lsl), ("usl", usl), ("target", target)):
+        if value is not None:
+            check_scalar(name, value)
     if lsl is not None and usl is not None and lsl >= usl:
         raise ValueError(f"lsl ({lsl}) must be strictly below usl ({usl})")
 
@@ -386,7 +397,7 @@ def box_cox_capability(
         (and shifting is a decision for the user to make and document, not for
         capstat to make silently).
     """
-    _check_limits(lsl, usl)
+    _check_limits(lsl, usl, target)
     arr = as_sample(data, minimum=AD_MIN_SAMPLE_SIZE)
 
     if np.any(arr <= 0.0):
@@ -538,7 +549,7 @@ def analyze_capability(
     branch was taken, so a caller who does not care about the machinery can read
     those two and the ``rationale``.
     """
-    _check_limits(lsl, usl)
+    _check_limits(lsl, usl, target)
     arr = as_sample(data, minimum=AD_MIN_SAMPLE_SIZE)
 
     normality = assess_normality(arr, alpha=alpha)

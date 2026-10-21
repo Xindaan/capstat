@@ -538,6 +538,31 @@ def test_inverted_limits_are_rejected(function: object) -> None:
         function(_lognormal(), lsl=60.0, usl=5.0)  # type: ignore[operator]
 
 
+@pytest.mark.parametrize(
+    "function", [analyze_capability, box_cox_capability, percentile_capability]
+)
+@pytest.mark.parametrize("field", ["lsl", "usl"])
+@pytest.mark.parametrize("bad", [math.nan, math.inf, -math.inf])
+def test_non_finite_limits_are_rejected(
+    function: object, field: str, bad: float
+) -> None:
+    """T-0105 / CAP-4: ``lsl >= usl`` is False for NaN, so a NaN limit passed.
+
+    analyze_capability(lsl=7, usl=nan) returned a Ppk against the lower limit
+    only, with no one-sided caveat.
+    """
+    limits = {"lsl": 5.0, "usl": 60.0, field: bad}
+    with pytest.raises(ValueError, match=f"{field} must be a finite number"):
+        function(_lognormal(), **limits)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("function", [analyze_capability, box_cox_capability])
+@pytest.mark.parametrize("bad", [math.nan, math.inf])
+def test_a_non_finite_target_is_rejected(function: object, bad: float) -> None:
+    with pytest.raises(ValueError, match="target must be a finite number"):
+        function(_lognormal(), lsl=5.0, usl=60.0, target=bad)  # type: ignore[operator]
+
+
 def test_one_sided_limits_are_supported() -> None:
     upper = percentile_capability(_lognormal(), usl=60.0)
     assert upper.pp is None and upper.ppl is None

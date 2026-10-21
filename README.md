@@ -667,6 +667,13 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
   deliberately *not* in the OpenAPI schema — it is a transport-level guard, so
   the contract and its generated client are unaffected, and a client learns the
   limit by receiving the 413.
+- **A request with `NaN` or `Infinity` is rejected with 422** — Python's `json`
+  writes those tokens, but no statistic here is defined on them: a NaN sigma or
+  limit used to slip past the positivity checks and come back as "in control".
+  Every float in a request, scalar or list item, must be finite; the 422 names
+  the field (`"loc": ["body", "sigma"]`). The library raises `ValueError` for
+  the same input, and the CLI exits 2 (`--sigma nan` included, so
+  `--fail-on-signal` cannot pass on it).
 
 ## Development
 

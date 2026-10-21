@@ -11,6 +11,8 @@ from __future__ import annotations
 import math
 from typing import ClassVar
 
+import pytest
+from capstat_api.main import create_app
 from capstat_core import (
     SamplingPlan,
     apply_switching_rules,
@@ -656,3 +658,91 @@ def test_half_a_baseline_is_a_422_with_the_core_s_message(client: TestClient) ->
     )
     assert resp.status_code == 422
     assert "both center and sigma" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Non-finite numbers in the request (T-0105: API-2, API-3)
+# ---------------------------------------------------------------------------
+
+# Python's json module (and so requests/httpx ``json=``) writes the tokens
+# NaN / Infinity; a browser cannot (JSON.stringify gives null), so these are
+# script callers. Each body has one scalar slot, "{}", filled with a bad token.
+_SERIES = "[10, 10.2, 9.9, 10.1, 25.0, 10.0, 9.8, 10.3]"
+_SCALAR_SLOTS = [
+    ("/compute/control-chart/i-mr", '{"data": S, "center": 10, "sigma": {}}'),
+    ("/compute/control-chart/i-mr", '{"data": S, "center": {}, "sigma": 0.5}'),
+    ("/compute/control-chart/ewma", '{"data": S, "target": {}, "sigma": 1}'),
+    ("/compute/control-chart/ewma", '{"data": S, "L": {}}'),
+    ("/compute/control-chart/cusum", '{"data": S, "h": {}}'),
+    ("/compute/capability", '{"data": S, "lsl": 9, "usl": {}}'),
+    ("/compute/capability/analyze", '{"data": S, "lsl": 9, "usl": 11, "target": {}}'),
+    ("/compute/bias", '{"measurements": S, "reference": {}}'),
+    (
+        "/compute/gage-rr",
+        '{"data": [[[1, 1.1], [1, 1.2]], [[2, 2.1], [2.2, 2]]], '
+        '"study_var_multiplier": {}}',
+    ),
+    (
+        "/compute/linearity",
+        '{"references": [1, 2], "measurements": [[1, 1.1], [2, 2.2]], '
+        '"process_variation": {}}',
+    ),
+    # The run rules take limits and points straight from the caller and are
+    # guarded only here: a NaN anywhere answered 200 [] (no violations).
+    (
+        "/compute/rules/nelson",
+        '{"points": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], '
+        '"limits": {"center": {}, "lower": -3, "upper": 3}}',
+    ),
+    (
+        "/compute/rules/nelson",
+        '{"points": [1, 1, 1, 1, 1, 1, 1, 1, {}, 1], '
+        '"limits": {"center": 0, "lower": -3, "upper": 3}}',
+    ),
+]
+
+
+@pytest.mark.parametrize(("path", "template"), _SCALAR_SLOTS)
+@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity", '"NaN"'])
+def test_a_non_finite_scalar_is_a_422(
+    client: TestClient, path: str, template: str, token: str
+) -> None:
+    """API-2: NaN passed every ``x <= 0`` guard and came back as a 200 with
+    null limits next to ``in_control: true`` (or ``bias_significant: true``,
+    "biased by nan"). The string "NaN" is coerced to the same float."""
+    body = template.replace("S", _SERIES).replace("{}", token)
+    resp = client.post(path, content=body, headers={"content-type": "application/json"})
+    assert resp.status_code == 422, resp.text
+
+
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        (  # a constrained float (ge=0, le=1)
+            "/compute/acceptance-sampling/evaluate",
+            '{"plan": {"sample_size": 5, "acceptance_number": 0}, '
+            '"aql": NaN, "ltpd": 0.1}',
+        ),
+        (  # an int
+            "/compute/acceptance-sampling/inspect",
+            '{"plan": {"sample_size": NaN, "acceptance_number": 0}, "defectives": 0}',
+        ),
+        (  # an enum
+            "/compute/acceptance-sampling/inspect",
+            '{"plan": {"sample_size": 5, "acceptance_number": 0}, "defectives": 0, '
+            '"model": Infinity}',
+        ),
+    ],
+)
+def test_a_non_finite_number_in_a_rejected_field_is_still_a_422(
+    path: str, body: str
+) -> None:
+    """API-3: the 422 echoes the offending input, and the JSON encoder cannot
+    write NaN -- so the error handler itself crashed and the caller got a
+    plain-text 500, outside CORS, instead of the 422 naming the field."""
+    client = TestClient(create_app(), raise_server_exceptions=False)
+    resp = client.post(path, content=body, headers={"content-type": "application/json"})
+    assert resp.status_code == 422, resp.text
+    detail = resp.json()["detail"]
+    assert isinstance(detail, list)
+    assert all("loc" in error and "msg" in error for error in detail)

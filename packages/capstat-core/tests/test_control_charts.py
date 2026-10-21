@@ -595,6 +595,30 @@ def test_phase_one_refuses_zero_spread(chart: object, data: object) -> None:
         chart(data)  # type: ignore[operator]
 
 
+@pytest.mark.parametrize("chart", [i_mr_chart, xbar_r_chart, xbar_s_chart])
+@pytest.mark.parametrize(
+    ("field", "bad"),
+    [
+        ("center", math.nan),
+        ("center", math.inf),
+        ("sigma", math.nan),
+        ("sigma", math.inf),
+    ],
+)
+def test_a_non_finite_baseline_is_rejected(
+    chart: object, field: str, bad: float
+) -> None:
+    """T-0105 / CHART-3: a NaN sigma passed ``sigma <= 0`` and produced NaN
+    limits that no point can cross -- a green "in control" for the shaft
+    example's outlier. An infinite sigma did the same with infinite limits.
+    """
+    groups = np.random.default_rng(5).normal(10.0, 1.0, size=(10, 4))
+    data = groups.ravel() if chart is i_mr_chart else groups
+    baseline = {"center": 10.0, "sigma": 1.0, field: bad}
+    with pytest.raises(ValueError, match=f"{field} must be a finite number"):
+        chart(data, **baseline)  # type: ignore[operator]
+
+
 def test_a_baseline_sigma_still_judges_constant_data() -> None:
     """The refusal is about the *estimate*; a supplied sigma is a known fact."""
     pair = i_mr_chart([5.0] * 8, center=5.0, sigma=0.1)

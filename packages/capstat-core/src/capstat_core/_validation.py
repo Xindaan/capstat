@@ -10,7 +10,62 @@ import math
 import numpy as np
 import numpy.typing as npt
 
-__all__ = ["ZERO_SPREAD_RELATIVE", "as_sample", "is_zero_spread"]
+__all__ = ["ZERO_SPREAD_RELATIVE", "as_sample", "check_scalar", "is_zero_spread"]
+
+
+def check_scalar(
+    name: str,
+    value: float,
+    *,
+    above: float | None = None,
+    below: float | None = None,
+    at_most: float | None = None,
+) -> float:
+    """Validate one scalar parameter: finite, and optionally inside a range.
+
+    Every scalar a caller hands to a statistic -- a specification limit, a
+    baseline sigma, a design parameter such as L, k or h, a significance level
+    -- passes through here, because the obvious guard is wrong: ``sigma <= 0``
+    is False for NaN, so a NaN sigma used to sail through and produce NaN
+    limits that no point can cross, i.e. a green "in control". Testing
+    finiteness first, with :func:`math.isfinite`, closes that for every bound.
+
+    Parameters
+    ----------
+    name:
+        The argument's name, as the caller typed it; it leads the message.
+    above:
+        Strict lower bound (``value > above``).
+    below, at_most:
+        Strict or inclusive upper bound; give at most one.
+
+    Returns
+    -------
+    float
+        ``value`` as a float, so a caller can validate and assign in one step.
+
+    Raises
+    ------
+    ValueError
+        ``"<name> must be a finite number, got nan"``, ``"<name> must be
+        strictly positive, got -1.0"``, ``"<name> must be in (0, 1), got 5.0"``.
+    """
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be a finite number, got {value}")
+    upper = below if below is not None else at_most
+    if upper is None:
+        if above is not None and not value > above:
+            bound = "strictly positive" if above == 0.0 else f"greater than {above:g}"
+            raise ValueError(f"{name} must be {bound}, got {value}")
+        return float(value)
+    in_upper = value < upper if below is not None else value <= upper
+    in_lower = above is None or value > above
+    if not (in_lower and in_upper):
+        low = "(-inf" if above is None else f"({above:g}"
+        high = f"{upper:g})" if below is not None else f"{upper:g}]"
+        raise ValueError(f"{name} must be in {low}, {high}, got {value}")
+    return float(value)
+
 
 #: A spread counts as zero when its root mean square is at most this fraction of
 #: the largest magnitude in the data: 2**-43 ~= 1.1e-13, i.e. 1024 units in the

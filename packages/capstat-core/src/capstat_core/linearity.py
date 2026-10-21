@@ -39,7 +39,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_spread
 from capstat_core.caveats import Caveat
 
 __all__ = [
@@ -107,10 +107,13 @@ def linearity(
     ValueError
         If fewer than two parts are given, the two sequences differ in length,
         the references are all equal, there are fewer than three readings in
-        total, any data is non-finite, or ``alpha`` is not in ``(0, 1)``.
+        total, any data is non-finite, ``alpha`` is not in ``(0, 1)``, or
+        ``process_variation`` is given and is not a finite positive number.
     """
-    if not 0.0 < alpha < 1.0:
-        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+    check_scalar("alpha", alpha, above=0.0, below=1.0)
+    if process_variation is not None:
+        # Unchecked before: -6 gave a negative absolute linearity (MSA-8).
+        check_scalar("process_variation", process_variation, above=0.0)
     if len(references) != len(measurements):
         raise ValueError(
             f"references ({len(references)}) and measurements "

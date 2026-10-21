@@ -57,7 +57,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import as_sample, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, MAX_SUBGROUP_SIZE, c4, d2
 
@@ -180,9 +180,9 @@ def _resolve_baseline(
                 f"these data"
             )
         return estimated_center, estimated_sigma, "I"
-    if sigma <= 0.0:
-        raise ValueError(f"sigma must be strictly positive, got {sigma}")
-    return center, sigma, "II"
+    # Through check_scalar, not ``sigma <= 0``: that is False for NaN, and NaN
+    # limits can never be crossed, so a NaN baseline read as "in control".
+    return check_scalar("center", center), check_scalar("sigma", sigma, above=0.0), "II"
 
 
 def _as_subgroups(x: npt.ArrayLike) -> npt.NDArray[np.float64]:

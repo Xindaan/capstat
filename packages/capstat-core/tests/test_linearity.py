@@ -166,6 +166,25 @@ def test_non_finite_reference_is_rejected() -> None:
         linearity([1.0, float("nan")], [[1.0, 1.1], [2.0, 2.1]])
 
 
+@pytest.mark.parametrize(
+    ("bad", "message"),
+    [
+        (0.0, "strictly positive"),
+        (-6.0, "strictly positive"),
+        (float("nan"), "a finite number"),
+        (float("inf"), "a finite number"),
+    ],
+)
+def test_process_variation_must_be_positive_and_finite(
+    bad: float, message: str
+) -> None:
+    """T-0105 / MSA-8: nothing was checked; -6 gave a negative absolute
+    linearity (-0.16) and NaN a NaN one."""
+    refs = [2.0, 4.0, 6.0]
+    with pytest.raises(ValueError, match=f"process_variation must be {message}"):
+        linearity(refs, _reconstruct(refs, [0.0, 0.1, 0.2]), process_variation=bad)
+
+
 def test_bad_alpha_is_rejected() -> None:
     with pytest.raises(ValueError, match="alpha must be in"):
         linearity([1.0, 2.0], [[1.0, 1.1], [2.0, 2.1]], alpha=0.0)

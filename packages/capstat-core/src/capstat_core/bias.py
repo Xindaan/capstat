@@ -39,7 +39,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.descriptive import mean as _mean
 from capstat_core.descriptive import std_dev
@@ -98,11 +98,13 @@ def bias(
     Raises
     ------
     ValueError
-        If fewer than two measurements are given, the data is non-finite, or
-        ``alpha`` is not in ``(0, 1)``.
+        If fewer than two measurements are given, the data or ``reference`` is
+        non-finite, or ``alpha`` is not in ``(0, 1)``.
     """
-    if not 0.0 < alpha < 1.0:
-        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+    check_scalar("alpha", alpha, above=0.0, below=1.0)
+    # A NaN reference made the bias NaN, and the interval test then read
+    # "significant" with the warning "biased by nan" (MSA-8).
+    check_scalar("reference", reference)
 
     x = as_sample(measurements, minimum=2)
     n = int(x.size)
