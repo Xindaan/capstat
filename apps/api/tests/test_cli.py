@@ -293,3 +293,32 @@ def test_the_chart_command_follows_the_subgroup_size_to_the_right_pair(
     deviation = json.loads(out)
     assert deviation["location"]["name"] == "X-bar"
     assert deviation["dispersion"]["name"] == "s"
+
+
+def test_a_one_column_german_csv_gives_the_same_indices_as_its_dot_twin(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """The report that started T-0095: Cp 1.97 became 0.0197 and Cpk -8.61.
+
+    A file `Wert / 9,79 / ...` has no separator, so the comma was taken for one
+    and the integer part became the row index. The same readings with a decimal
+    point are the reference; the German file must reproduce them exactly.
+    """
+    rows = [line.split(",")[2] for line in DEMO.read_text().splitlines()[1:]]
+    dot = tmp_path / "dot.csv"
+    dot.write_text("Wert\n" + "\n".join(rows) + "\n")
+    german = tmp_path / "de.csv"
+    german.write_text("Wert\n" + "\n".join(r.replace(".", ",") for r in rows) + "\n")
+    args = ("--lsl", "9.7", "--usl", "10.3")
+
+    code_dot, out_dot, _ = run(capsys, "capability", str(dot), *args)
+    code_de, out_de, _ = run(capsys, "capability", str(german), *args)
+
+    assert code_dot == code_de == EXIT_OK
+
+    def indices(out: str) -> list[str]:
+        return [line for line in out.splitlines() if line.startswith("  C")]
+
+    assert indices(out_de) == indices(out_dot)
+    assert len(indices(out_de)) == 2
+    assert "[ingest.single-column-detected]" in out_de

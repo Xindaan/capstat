@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import io
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -273,3 +273,354 @@ def test_an_empty_column_is_not_reported_as_repaired() -> None:
     )
     assert repair_decimal_commas(frame) == ["real"]
     assert frame["real"].tolist() == [9.71, 9.80]
+
+
+# --- T-0095: files pandas read silently wrong ---------------------------------
+
+
+def _ingest(client: TestClient, name: str, data: bytes) -> dict[str, Any]:
+    resp = client.post("/ingest", files={"file": (name, data, "text/csv")})
+    assert resp.status_code == 200, resp.text
+    return cast(dict[str, Any], resp.json())
+
+
+def _codes(body: dict[str, Any]) -> list[str]:
+    return [w["code"] for w in body["warnings"]]
+
+
+def _values(body: dict[str, Any]) -> dict[str, list[float]]:
+    return {c["name"]: c["values"] for c in body["columns"]}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"Wert\n9,79\n9,72\n9,70\n",
+        b"Wert\r\n9,79\r\n9,72\r\n9,70\r\n",
+        "﻿Wert\r\n9,79\r\n9,72\r\n9,70\r\n".encode(),
+        b"Wert\n\n9,79\n9,72\n9,70\n",
+    ],
+    ids=["lf", "crlf", "bom-crlf", "blank-line"],
+)
+def test_a_one_column_german_csv_is_read_as_decimals_not_as_an_index(
+    client: TestClient, raw: bytes
+) -> None:
+    """No separator exists in a one-column export, so every comma is a decimal mark.
+
+    pandas took the comma as the separator and made the integer part the row
+    index: 9,79 came back as 79 and a Cpk of 1.9 as -8.6, with no warning
+    (API-1 / TQ-17).
+    """
+    body = _ingest(client, "m.csv", raw)
+    assert _values(body) == {"Wert": [9.79, 9.72, 9.70]}
+    assert body["ignored_columns"] == []
+    # What was detected is named, not applied behind the user's back.
+    assert "ingest.single-column-detected" in _codes(body)
+    assert "ingest.decimal-comma-detected" in _codes(body)
+
+
+def test_a_one_column_german_cp1252_file_keeps_its_umlaut_and_its_decimals(
+    client: TestClient,
+) -> None:
+    raw = "Durchmesser \xd8\n9,71\n9,72\n10,05\n".encode("cp1252")
+    body = _ingest(client, "m.csv", raw)
+    assert _values(body) == {"Durchmesser \xd8": [9.71, 9.72, 10.05]}
+
+
+def test_a_one_column_file_of_plain_decimals_gets_no_detection_note(
+    client: TestClient,
+) -> None:
+    """The negative side: nothing was guessed, so nothing is announced."""
+    body = _ingest(client, "m.csv", b"Wert\n9.79\n9.72\n")
+    assert _values(body) == {"Wert": [9.79, 9.72]}
+    assert _codes(body) == []
+
+
+def test_a_one_column_text_file_with_commas_stays_text(client: TestClient) -> None:
+    """Only a column that is entirely decimals is repaired; the rest is named."""
+    body = _ingest(client, "t.csv", b"Kommentar\nok, aber Kratzer\nnicht ok, Riss\n")
+    assert body["columns"] == []
+    assert body["ignored_columns"] == ["Kommentar"]
+    assert "ingest.decimal-comma-detected" not in _codes(body)
+
+
+@pytest.mark.parametrize(
+    ("raw", "codes"),
+    [
+        (b"a,b,c\n1,2,3,\n4,5,6,\n7,8,9,\n", []),
+        (b"a;b;c\n1;2;3;\n4;5;6;\n7;8;9;\n", ["ingest.separator-detected"]),
+        (b"a,b,c\n1,2,3,\n4,5,6\n7,8,9,\n", []),  # only some rows end in one
+        (b"a,b,c\n1,2,3,\n", []),  # only the first row does
+    ],
+    ids=["comma", "semicolon", "mixed", "first-row-only"],
+)
+def test_a_trailing_delimiter_on_the_data_rows_does_not_shift_the_labels(
+    client: TestClient, raw: bytes, codes: list[str]
+) -> None:
+    """Data rows ending in a delimiter the header lacks made pandas use the first
+    field as the row index: column a held b's values and c vanished (API-1)."""
+    body = _ingest(client, "t.csv", raw)
+    values = _values(body)
+    assert list(values) == ["a", "b", "c"]
+    assert values["a"][0] == 1.0
+    assert values["b"][0] == 2.0
+    assert values["c"][0] == 3.0
+    assert body["ignored_columns"] == []
+    assert _codes(body) == codes
+
+
+def test_a_data_row_wider_than_the_header_is_refused_with_its_line(
+    client: TestClient,
+) -> None:
+    """capstat will not guess which column an extra field belongs to."""
+    resp = client.post(
+        "/ingest",
+        files={"file": ("w.csv", b"a,b\n1,2\n3,4,5\n6,7\n", "text/csv")},
+    )
+    assert resp.status_code == 422
+    assert "Line 3 has 3 fields but the header has 2" in resp.json()["detail"]
+
+
+def test_a_wide_first_row_is_refused_not_shifted(client: TestClient) -> None:
+    resp = client.post(
+        "/ingest", files={"file": ("w.csv", b"x,y\n1,2,3\n4,5\n", "text/csv")}
+    )
+    assert resp.status_code == 422
+    assert "Line 2 has 3 fields" in resp.json()["detail"]
+
+
+def test_a_headerless_column_keeps_its_first_value(client: TestClient) -> None:
+    """The first measurement was swallowed as the column's name (API-6)."""
+    body = _ingest(client, "n.csv", b"9.71\n9.72\n9.70\n9.73\n")
+    assert _values(body) == {"column 1": [9.71, 9.72, 9.70, 9.73]}
+    assert body["n_rows"] == 4
+    assert _codes(body) == ["ingest.header-missing"]
+
+
+def test_a_headerless_table_is_named_by_position(client: TestClient) -> None:
+    body = _ingest(client, "n.csv", b"1.5,2.5,3.5\n4.5,5.5,6.5\n")
+    assert _values(body) == {
+        "column 1": [1.5, 4.5],
+        "column 2": [2.5, 5.5],
+        "column 3": [3.5, 6.5],
+    }
+    assert body["n_rows"] == 2
+
+
+def test_a_headerless_german_semicolon_file_is_read_as_such(
+    client: TestClient,
+) -> None:
+    """9,71;1 splits into two fields on either character; the decimal comma is
+    what makes the comma fit, so the semicolon is the separator."""
+    body = _ingest(client, "n.csv", b"9,71;1\n9,72;2\n9,70;3\n")
+    assert _values(body) == {
+        "column 1": [9.71, 9.72, 9.70],
+        "column 2": [1.0, 2.0, 3.0],
+    }
+    assert _codes(body) == [
+        "ingest.separator-detected",
+        "ingest.header-missing",
+        "ingest.decimal-comma-detected",
+    ]
+
+
+def test_a_headerless_file_of_9_71_is_refused_as_ambiguous(
+    client: TestClient,
+) -> None:
+    """One column of decimals or two of integers: the bytes do not say."""
+    resp = client.post(
+        "/ingest", files={"file": ("n.csv", b"9,71\n9,72\n9,70\n", "text/csv")}
+    )
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert "cannot tell" in detail
+    assert "header row" in detail
+
+
+def test_a_header_with_one_number_among_names_is_still_a_header(
+    client: TestClient,
+) -> None:
+    body = _ingest(client, "h.csv", b"2024,wert\n1,9.7\n2,9.8\n")
+    assert _values(body) == {"2024": [1.0, 2.0], "wert": [9.7, 9.8]}
+    assert _codes(body) == []
+
+
+def test_a_headerless_workbook_keeps_its_first_value(client: TestClient) -> None:
+    buffer = io.BytesIO()
+    pd.DataFrame([[9.71], [9.72], [9.70]]).to_excel(
+        buffer, index=False, header=False, engine="openpyxl"
+    )
+    body = client.post(
+        "/ingest", files={"file": ("n.xlsx", buffer.getvalue(), "application/x")}
+    ).json()
+    assert _values(body) == {"column 1": [9.71, 9.72, 9.70]}
+    assert [w["code"] for w in body["warnings"]] == ["ingest.header-missing"]
+
+
+# --- TQ-14: the surviving tabular / ingest mutants ----------------------------
+
+
+def test_negative_and_thousands_decimal_commas_are_repaired(
+    client: TestClient,
+) -> None:
+    """A bias study is full of negatives; a thousands dot is routine in euros."""
+    body = _ingest(
+        client,
+        "d.csv",
+        b"abw;umsatz\n-0,5;1.234,56\n0,3;2.000,5\n-1,2;10,25\n",
+    )
+    assert _values(body) == {
+        "abw": [-0.5, 0.3, -1.2],
+        "umsatz": [1234.56, 2000.5, 10.25],
+    }
+    assert body["ignored_columns"] == []
+
+
+def test_a_text_column_of_comma_separated_digits_is_not_repaired(
+    client: TestClient,
+) -> None:
+    """'1,2,3' is a list, not a decimal: the anchors keep it text."""
+    body = _ingest(client, "t.csv", b'code,x\n"1,2,3",1\n"4,5,6",2\n')
+    assert body["ignored_columns"] == ["code"]
+    assert "ingest.decimal-comma-detected" not in _codes(body)
+
+
+def test_a_pipe_separated_file_is_split(client: TestClient) -> None:
+    body = _ingest(client, "p.csv", b"a|b\n1|2\n3|4\n")
+    assert _values(body) == {"a": [1.0, 3.0], "b": [2.0, 4.0]}
+    assert _codes(body) == ["ingest.separator-detected"]
+
+
+def test_a_tab_separated_file_is_split(client: TestClient) -> None:
+    body = _ingest(client, "p.csv", b"a\tb\n1\t2\n3\t4\n")
+    assert _values(body) == {"a": [1.0, 3.0], "b": [2.0, 4.0]}
+
+
+@pytest.mark.parametrize("name", ["DATA.CSV", "Data.Csv"])
+def test_the_extension_is_matched_without_regard_to_case(
+    client: TestClient, name: str
+) -> None:
+    """Instrument exports are routinely upper-case."""
+    assert _values(_ingest(client, name, b"a\n1\n2\n")) == {"a": [1.0, 2.0]}
+
+
+def test_an_xlsm_workbook_is_accepted(client: TestClient) -> None:
+    resp = client.post(
+        "/ingest",
+        files={"file": ("m.XLSM", _xlsx(pd.DataFrame({"m": [1.0, 2.0]})), "x/y")},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["columns"][0]["values"] == [1.0, 2.0]
+
+
+def test_a_single_sheet_workbook_gets_no_sheet_note(client: TestClient) -> None:
+    body = client.post(
+        "/ingest",
+        files={"file": ("s.xlsx", _xlsx(pd.DataFrame({"m": [1.0]})), "x/y")},
+    ).json()
+    assert body["warnings"] == []
+
+
+def test_a_junk_cell_is_counted_and_warned_about_exactly_once(
+    client: TestClient,
+) -> None:
+    """The count includes non-numeric cells, and only the dirty column warns.
+
+    The old assertion was `any('dropped' in w ...)`, which an inverted condition
+    (warn about every clean column, stay silent about the dirty one) also met.
+    """
+    body = _ingest(client, "d.csv", b"d,x\n1.0,1\nabc,2\n3.0,3\n")
+    columns = {c["name"]: c for c in body["columns"]}
+    assert columns["d"]["values"] == [1.0, 3.0]
+    assert columns["d"]["dropped_missing"] == 1
+    assert columns["x"]["dropped_missing"] == 0
+    dropped = [w for w in body["warnings"] if w["code"] == "ingest.cells-dropped"]
+    assert len(dropped) == 1
+    assert "'d'" in dropped[0]["message"]
+    assert "dropped 1 " in dropped[0]["message"]
+
+
+def test_a_one_column_file_with_the_unit_separator_character_is_refused(
+    client: TestClient,
+) -> None:
+    """The one-column reading splits on a character absent from the text."""
+    resp = client.post(
+        "/ingest",
+        files={"file": ("c.csv", b"Wert\n9,7\x1f1\n9,72\n", "text/csv")},
+    )
+    assert resp.status_code == 422
+    assert "control characters" in resp.json()["detail"]
+
+
+def _refused(client: TestClient, raw: bytes) -> str:
+    resp = client.post("/ingest", files={"file": ("w.csv", raw, "text/csv")})
+    assert resp.status_code == 422, resp.text
+    return str(resp.json()["detail"])
+
+
+def test_a_row_with_a_real_extra_field_is_refused_even_in_a_trailing_file(
+    client: TestClient,
+) -> None:
+    """The empty field of a trailing delimiter is the only excess allowed."""
+    detail = _refused(client, b"a,b,c\n1,2,3,\n4,5,6,7\n")
+    assert "Line 3 has 4 fields but the header has 3" in detail
+
+
+def test_two_extra_fields_are_not_one_trailing_delimiter(client: TestClient) -> None:
+    rows = b"".join(b"%d,%d,\n" % (i, i) for i in range(30))
+    detail = _refused(client, b"a,b\n" + rows + b"31,31,,\n")
+    assert "Line 32 has 4 fields but the header has 2" in detail
+
+
+def test_a_stray_field_after_the_detection_window_is_still_refused_by_line(
+    client: TestClient,
+) -> None:
+    """Layout is judged on the first lines; the whole file is still checked."""
+    rows = b"".join(b"%d,%d\n" % (i, i) for i in range(30))
+    detail = _refused(client, b"a,b\n" + rows + b"31,31,\n")
+    assert "Line 32 has 3 fields but the header has 2" in detail
+
+
+def test_a_leading_blank_line_does_not_make_the_next_line_the_header(
+    client: TestClient,
+) -> None:
+    body = _ingest(client, "b.csv", b"\na,b\n1,2\n3,4\n")
+    assert _values(body) == {"a": [1.0, 3.0], "b": [2.0, 4.0]}
+
+
+def test_a_headerless_row_with_an_empty_cell_is_still_data(client: TestClient) -> None:
+    """An empty cell is a missing value, not a reason to call the row a header."""
+    body = _ingest(client, "n.csv", b"1.5,,3.5\n4.5,5.5,6.5\n")
+    assert _values(body) == {
+        "column 1": [1.5, 4.5],
+        "column 2": [5.5],
+        "column 3": [3.5, 6.5],
+    }
+    assert "ingest.header-missing" in _codes(body)
+
+
+def test_the_ambiguity_refusal_needs_every_row_to_have_the_form_9_71(
+    client: TestClient,
+) -> None:
+    """A lone '10' shows the file is not a column of decimals: read it as data."""
+    body = _ingest(client, "n.csv", b"9,71\n9,72\n10\n")
+    assert _values(body) == {"column 1": [9.0, 9.0, 10.0], "column 2": [71.0, 72.0]}
+    assert "ingest.header-missing" in _codes(body)
+
+
+def test_a_workbook_whose_header_cells_are_booleans_has_a_header(
+    client: TestClient,
+) -> None:
+    """True/False labels are names, however Python spells them."""
+    body = client.post(
+        "/ingest",
+        files={
+            "file": (
+                "b.xlsx",
+                _xlsx(pd.DataFrame({True: [1.0, 2.0], False: [3.0, 4.0]})),
+                "x/y",
+            )
+        },
+    ).json()
+    assert _values(body) == {"True": [1.0, 2.0], "False": [3.0, 4.0]}
+    assert body["warnings"] == []

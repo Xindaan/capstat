@@ -657,6 +657,16 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
 - **An upload is rejected with 413** — `/ingest` caps a file at 10 MB. The body
   is read in chunks and refused at the first one that crosses the limit, so an
   oversized upload is turned away before it is resident, not after.
+- **How a CSV is read, and what is refused** — the separator (comma,
+  semicolon, tab, pipe), the encoding and a decimal comma are detected and
+  named in the warnings, never applied silently. A file with a single column
+  has no separator, so its commas are read as decimal marks (`9,79` is 9.79).
+  Data rows that all end in a delimiter the header lacks keep their labels. A
+  first row that holds only numbers is read as data, not as column names
+  (`column 1`, `column 2`, ...), with a warning, so no measurement is lost to a
+  header. Refused with a named reason (422, exit 2): a data row with more fields
+  than the header, and a header-less file of rows like `9,71`, which could be
+  one column of decimals or two of integers. Add a header row to either.
 - **A compute request is rejected with 413** — `/compute/*` caps a request body
   at 10 MB, the same ceiling `/ingest` uses. That is about 1.5 million points,
   three orders of magnitude beyond a capability study. The limit exists because
