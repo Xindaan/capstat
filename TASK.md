@@ -136,6 +136,9 @@ locale a lot size "5.000" becomes 5.
   -- measured Cpm 3.41 with Cpk 0.70 and 1.65 % beyond USL, where
   min(USL-T, T-LSL)/(3 tau) gives 0.68; a target outside the limits is
   accepted silently.
+  **Decided 2026-10-07 (maintainer): sigma_overall.** Cpm moves to the
+  performance family; an off-midpoint target uses min(USL-T, T-LSL)/(3 tau);
+  a target outside [LSL, USL] is refused. Breaking (`fix(capability)!:`).
 
 - T-0104 **What "in control" and "stable" mean -- needs a decision.**
   CHART-6: the pair verdict is location AND dispersion; the MR chart alone
@@ -146,6 +149,10 @@ locale a lot size "5.000" becomes 5.
   alarms on a stable gauge, 49 % detection of a 3-sigma drift, wording "the
   gage drifted" for any signal. CHART-7: one outlier counted as three points.
   One fix covers all of them; count it once.
+  **Decided 2026-10-07 (maintainer): the switched-on run rules count.** Badge,
+  `stability()` and `--fail-on-signal` include them; the wording names the
+  chart that signalled instead of "the gage drifted"; the pair false-alarm
+  rate is documented. Breaking.
 
 - T-0105 **Non-finite and out-of-range parameters are accepted.** CAP-4,
   CHART-3, API-2, MSA-8, SAMP-12: NaN/inf limits, targets, sigma, L/k/h,
@@ -179,6 +186,9 @@ locale a lot size "5.000" becomes 5.
   documented design): linearity judges the slope only; AIAG's intercept and
   confidence-band rule (recalled) is not offered. MSA-6 / WEB-29: "No bias" in
   green for three readings.
+  **Decided 2026-10-07 (maintainer), MSA-4:** add the intercept test (SE, t, p)
+  and the confidence band to the linearity output; the verdict stays on the
+  slope, with a caveat when the offset is significant. Not breaking.
 
 - T-0109 **The web app hides or mangles what the core computed.** WEB-15 /
   UX-2: normality warnings (autocorrelation, tests disagree) never rendered --

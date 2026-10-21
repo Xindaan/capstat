@@ -25,7 +25,8 @@ byte-verified release.
 - **Gates at b55623a (2026-10-01):** 677 Python tests, 100 % coverage, mypy
   strict, ruff, 79 vitest clean; mutation kill rate 66 %.
 - **Third review 2026-10-01 is filed as T-0095..T-0115** (155 findings, 44 of
-  55 gated confirmed, none refuted). None of it is fixed; Doing is empty.
+  55 gated confirmed, none refuted). T-0103/T-0104/T-0108 decided 2026-10-07;
+  fixes in progress on branch `fix/review-2026-10-01`.
 - **Release path is hardened but one proof short** (T-0093, T-0047): 0.4.3 was
   the first unattended green publish, yet the install retry has never fired.
 - Steering-file commits are `chore` (T-0094); release PR #45 (0.4.5) is the
@@ -49,8 +50,6 @@ byte-verified release.
 
 ## With Andre
 
-- **Decide T-0103** (Cpm: sigma_within or overall; off-midpoint target) and
-  **T-0104** (what "in control" / "stable" mean) before any code is written.
 - **T-0116** Dependabot: merge or close the open update PRs.
 - Optional: prune Discussions categories to Q&A + Announcements (T-0043).
 - Confirm or edit the proposed success criterion above (Outcome is yours).
