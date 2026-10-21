@@ -8,6 +8,8 @@ import {
   intoSubgroups,
   parseSubgroupSize,
 } from "@/lib/subgroups";
+import { readCount } from "@/lib/numbers";
+import { NumericInput } from "./numeric-input";
 import { UploadPanel } from "./upload-panel";
 import { CapabilityDashboard } from "./capability-dashboard";
 import { ControlChartPanel } from "./control-chart-panel";
@@ -33,7 +35,10 @@ export function Workspace() {
     setGeneration((n) => n + 1);
   }, []);
 
-  const size = parseSubgroupSize(sizeText);
+  // Read by the shared number reader first (T-0100): "3,5" and "1.000" are
+  // refused there with a reason instead of being mangled by the field.
+  const sizeRead = readCount(sizeText);
+  const size = sizeRead.ok ? parseSubgroupSize(String(sizeRead.value)) : null;
   const values = column?.values ?? [];
   const grouping = size == null ? null : intoSubgroups(values, size);
   const usable =
@@ -98,12 +103,12 @@ function SubgroupControl({
           <span className="text-xs uppercase tracking-wide text-muted">
             Subgroup size
           </span>
-          <input
-            type="number"
+          <NumericInput
+            kind="integer"
             min={1}
             max={MAX_SUBGROUP_SIZE}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={onChange}
             aria-label="Subgroup size"
             className="h-10 w-24 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
           />

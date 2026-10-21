@@ -16,25 +16,6 @@ export interface Bins {
 }
 
 /**
- * Parse a free-typed list of numbers (commas, spaces, newlines, or any mix).
- *
- * Returns null when the text is empty or holds a token that is not a finite
- * number -- the caller shows a hint rather than silently dropping data, which is
- * exactly the failure mode this project exists to avoid.
- */
-export function parseNumberList(text: string): number[] | null {
-  const tokens = text.split(/[\s,;]+/).filter((t) => t !== "");
-  if (tokens.length === 0) return null;
-  const values: number[] = [];
-  for (const token of tokens) {
-    const value = Number(token);
-    if (!Number.isFinite(value)) return null;
-    values.push(value);
-  }
-  return values;
-}
-
-/**
  * Does this column look like a row index (1, 2, 3, ...) rather than a
  * measurement?
  *

@@ -15,9 +15,11 @@ import {
   type SamplingPlanReport,
 } from "@/lib/api-client";
 import { callApi } from "@/lib/call-api";
+import { readCount, readDecimal } from "@/lib/numbers";
 
 import { OcCurveChart } from "./oc-curve-chart";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput } from "./numeric-input";
 
 // The AccSamplingDesign vignette's worked example: 1 % acceptable at 2 %
 // producer's risk, 5 % rejectable at 15 % consumer's risk. It designs to
@@ -73,17 +75,14 @@ function riskTone(risk: number | null, allowed: number): string {
 
 /** Percent in the box, fraction on the wire. Returns null when unusable. */
 function asFraction(text: string): number | null {
-  if (text.trim() === "") return null;
-  const value = Number(text);
-  if (!Number.isFinite(value) || value < 0 || value > 100) return null;
-  return value / 100;
+  const read = readDecimal(text);
+  if (!read.ok || read.value < 0 || read.value > 100) return null;
+  return read.value / 100;
 }
 
 function asCount(text: string, minimum: number): number | null {
-  if (text.trim() === "") return null;
-  const value = Number(text);
-  if (!Number.isInteger(value) || value < minimum) return null;
-  return value;
+  const read = readCount(text, { min: minimum });
+  return read.ok ? read.value : null;
 }
 
 /**
@@ -324,16 +323,19 @@ export function AcceptanceSamplingPanel({
             value={lotText}
             onChange={setLotText}
             hint="Blank = treat as large"
+            kind="integer"
           />
           <Field
             label="Sample size n"
             value={sampleText}
             onChange={setSampleText}
+            kind="integer"
           />
           <Field
             label="Accept on Ac"
             value={acceptText}
             onChange={setAcceptText}
+            kind="integer"
           />
           <label className="no-print flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-muted">
@@ -461,12 +463,12 @@ export function AcceptanceSamplingPanel({
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <span className="text-foreground/60">Defectives found</span>
-                <input
+                <NumericInput
                   aria-label="Defectives found in the sample"
-                  type="number"
+                  kind="integer"
                   min={0}
                   value={defectivesText}
-                  onChange={(e) => setDefectivesText(e.target.value)}
+                  onChange={setDefectivesText}
                   className="h-9 w-24 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
                 />
               </label>
@@ -523,23 +525,24 @@ function Field({
   value,
   onChange,
   hint,
+  kind = "decimal",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   hint?: string;
+  kind?: "decimal" | "integer";
 }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
-      <input
+      <NumericInput
         aria-label={label}
-        type="number"
-        step="any"
+        kind={kind}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         className="h-10 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
       />
       {hint && <span className="text-[11px] text-muted">{hint}</span>}
