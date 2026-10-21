@@ -624,3 +624,58 @@ def test_a_workbook_whose_header_cells_are_booleans_has_a_header(
     ).json()
     assert _values(body) == {"True": [1.0, 2.0], "False": [3.0, 4.0]}
     assert body["warnings"] == []
+
+
+# --- T-0102: row positions survive the compaction -----------------------------
+
+
+def test_each_value_carries_the_row_it_came_from(client: TestClient) -> None:
+    """`values` is compacted; `rows` is what lets a consumer cut by row."""
+    body = _ingest(client, "g.csv", b"x,y\n1.0,2.0\n,4.0\n5.0,6.0\nabc,7.0\n9.0,8.0\n")
+    columns = {c["name"]: c for c in body["columns"]}
+    assert columns["x"]["values"] == [1.0, 5.0, 9.0]
+    assert columns["x"]["rows"] == [0, 2, 4]
+    assert columns["y"]["rows"] == [0, 1, 2, 3, 4]
+    assert body["n_rows"] == 5
+
+
+def test_the_dropped_rows_are_named_the_way_a_person_counts_them(
+    client: TestClient,
+) -> None:
+    body = _ingest(client, "g.csv", b"x,y\n1.0,2.0\n,4.0\n5.0,6.0\nabc,7.0\n9.0,8.0\n")
+    [dropped] = [w for w in body["warnings"] if w["code"] == "ingest.cells-dropped"]
+    assert dropped["message"] == (
+        "Column 'x': dropped 2 missing/non-numeric cell(s) at data row(s) 2, 4."
+    )
+
+
+def test_a_long_list_of_dropped_rows_is_cut_short_and_says_so(
+    client: TestClient,
+) -> None:
+    rows = b"".join(b",%d\n" % i if i % 2 else b"%d,%d\n" % (i, i) for i in range(30))
+    body = _ingest(client, "g.csv", b"x,y\n" + rows)
+    [dropped] = [w for w in body["warnings"] if w["code"] == "ingest.cells-dropped"]
+    assert dropped["message"].endswith(
+        "data row(s) 2, 4, 6, 8, 10, 12, 14, 16, 18, 20 and 5 more."
+    )
+
+
+def test_exactly_ten_dropped_rows_are_all_listed_without_a_more(
+    client: TestClient,
+) -> None:
+    rows = b"".join(b",%d\n" % i if i % 2 else b"%d,%d\n" % (i, i) for i in range(20))
+    body = _ingest(client, "g.csv", b"x,y\n" + rows)
+    [dropped] = [w for w in body["warnings"] if w["code"] == "ingest.cells-dropped"]
+    assert dropped["message"].endswith(
+        "data row(s) 2, 4, 6, 8, 10, 12, 14, 16, 18, 20."
+    )
+
+
+def test_trailing_blanks_leave_the_earlier_rows_where_they_were(
+    client: TestClient,
+) -> None:
+    """A column shorter than its neighbour has no gap *inside* it."""
+    body = _ingest(client, "g.csv", b"x,y\n1.0,2.0\n3.0,4.0\n,5.0\n,6.0\n")
+    columns = {c["name"]: c for c in body["columns"]}
+    assert columns["x"]["rows"] == [0, 1]
+    assert columns["x"]["dropped_missing"] == 2

@@ -667,6 +667,13 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
   header. Refused with a named reason (422, exit 2): a data row with more fields
   than the header, and a header-less file of rows like `9,71`, which could be
   one column of decimals or two of integers. Add a header row to either.
+- **A blank cell and subgroups** — a subgroup is a block of `n` consecutive
+  file *rows*, in the web app and in `capstat capability|chart --subgroup-size`
+  alike. A blank or non-numeric cell does not move later boundaries: the block
+  that lost a cell is left out and named (`subgroups.incomplete`), rows after
+  the last full block are reported (`subgroups.leftover`), and dropped cells are
+  listed by data row (`ingest.cells-dropped`). `/ingest` returns each value's
+  row in `rows`, next to the compacted `values`.
 - **A compute request is rejected with 413** — `/compute/*` caps a request body
   at 10 MB, the same ceiling `/ingest` uses. That is about 1.5 million points,
   three orders of magnitude beyond a capability study. The limit exists because

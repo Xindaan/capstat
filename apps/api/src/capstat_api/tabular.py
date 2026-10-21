@@ -306,3 +306,103 @@ def read_frame(filename: str, raw: bytes) -> tuple[pd.DataFrame, list[Caveat]]:
         return frame, notes
 
     raise UnsupportedFile(f"Unsupported file type: {filename!r}. Use .csv or .xlsx.")
+
+
+@dataclass(frozen=True)
+class Column:
+    """One numeric column, with the position of every value it kept.
+
+    ``rows[i]`` is the 0-based data row ``values[i]`` came from. Dropping the
+    empty cells compacts ``values``, and a consumer that cuts subgroups from
+    consecutive values then moves every boundary after a gap; the positions let
+    it cut by row instead (T-0102 / CHART-2).
+    """
+
+    name: str
+    values: list[float]
+    rows: list[int]
+    dropped_missing: int
+    dropped_rows: list[int]
+
+
+@dataclass(frozen=True)
+class Extraction:
+    """What a parsed table holds: numeric columns, ignored names, caveats."""
+
+    n_rows: int
+    columns: list[Column]
+    ignored: list[str]
+    warnings: list[Caveat]
+
+
+_ROWS_SHOWN = 10
+
+
+def _rows_text(rows: list[int]) -> str:
+    """1-based data rows, the way a person counts them, capped for the eye."""
+    shown = ", ".join(str(r + 1) for r in rows[:_ROWS_SHOWN])
+    more = len(rows) - _ROWS_SHOWN
+    return f"{shown} and {more} more" if more > 0 else shown
+
+
+def extract_columns(frame: pd.DataFrame, notes: list[Caveat]) -> Extraction:
+    """The numeric columns of ``frame``, and what was left out and why.
+
+    One implementation for the HTTP endpoint and the CLI -- the two used to keep
+    their own copy of "which columns and values", and the copies disagreed about
+    what to report (API-9).
+
+    What the caller is told, not just given:
+    * non-numeric columns are ignored and named (so a mistyped column is visible);
+    * missing cells are dropped per column, counted, and located by row (JSON
+      cannot carry ``NaN``, and a silent drop would misstate the sample size);
+    * what was *detected* while reading the file comes first, because it
+      explains the column list below it.
+    """
+    columns: list[Column] = []
+    ignored: list[str] = []
+    warnings: list[Caveat] = list(notes)
+
+    for name in frame.columns:
+        series = frame[name]
+        numeric = pd.to_numeric(series, errors="coerce")
+        # A genuinely non-numeric column coerces entirely to NaN; ignore it.
+        if numeric.notna().sum() == 0:
+            ignored.append(str(name))
+            continue
+        keep = numeric.notna().to_numpy()
+        positions = [int(i) for i in keep.nonzero()[0]]
+        dropped_rows = [int(i) for i in (~keep).nonzero()[0]]
+        columns.append(
+            Column(
+                name=str(name),
+                values=[float(v) for v in numeric.to_numpy()[keep]],
+                rows=positions,
+                dropped_missing=len(dropped_rows),
+                dropped_rows=dropped_rows,
+            )
+        )
+
+    if ignored:
+        warnings.append(
+            Caveat(
+                "ingest.non-numeric-columns-ignored",
+                f"Ignored non-numeric column(s): {', '.join(ignored)}.",
+            )
+        )
+    for col in columns:
+        if col.dropped_missing:
+            warnings.append(
+                Caveat(
+                    "ingest.cells-dropped",
+                    f"Column {col.name!r}: dropped {col.dropped_missing} "
+                    f"missing/non-numeric cell(s) at data row(s) "
+                    f"{_rows_text(col.dropped_rows)}.",
+                )
+            )
+    if not columns:
+        warnings.append(
+            Caveat("ingest.no-numeric-columns", "No numeric columns found.")
+        )
+
+    return Extraction(len(frame), columns, ignored, warnings)

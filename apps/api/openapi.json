@@ -1677,6 +1677,13 @@
             "title": "Name",
             "type": "string"
           },
+          "rows": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
           "values": {
             "items": {
               "type": "number"
@@ -1688,6 +1695,7 @@
         "required": [
           "name",
           "values",
+          "rows",
           "dropped_missing"
         ],
         "title": "IngestColumn",
