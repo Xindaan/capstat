@@ -236,6 +236,58 @@ def test_perfect_gage_has_no_distinct_category_ceiling() -> None:
     assert report.ndc is None
 
 
+def _identical_replicates(parts: list[float], trials: int = 3) -> np.ndarray:
+    """Every operator reads every part the same number every time."""
+    arr = np.asarray(parts, dtype=np.float64)
+    return np.repeat(arr[:, None, None], 3, axis=1).repeat(trials, axis=2)
+
+
+@pytest.mark.parametrize(
+    ("parts", "trials"),
+    [
+        ([2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0], 3),
+        ([5.07, 5.17, 5.27, 5.37, 5.47, 5.57, 5.67, 5.77, 5.87, 5.97], 3),
+        ([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], 3),
+        ([0.1, 0.2, 0.3, 0.7, 1.1, 1.3], 3),
+        ([0.1, 0.2, 0.3, 0.7, 1.1, 1.3], 2),
+        ([3.3] * 10, 3),
+        ([5.0] * 10, 3),
+    ],
+    ids=[
+        "2.1..3.0",
+        "5.07..5.97",
+        "1..10",
+        "0.1..1.3",
+        "0.1..1.3-two-trials",
+        "all-3.3",
+        "all-5.0",
+    ],
+)
+def test_identical_replicates_give_one_answer_whatever_the_numbers(
+    parts: list[float], trials: int
+) -> None:
+    """T-0096 / MSA-2 / TQ-21: zero repeatability, decided against the data's scale.
+
+    The same study used to come out three ways depending on how the part values
+    round: parts 1..10 gave no verdict and the zero-repeatability caveat; parts
+    2.1..3.0 gave verdict "good" with ndc ~1e15 from float residue and no caveat;
+    all-3.3 gave "unacceptable". The cell means of 2.1 are not bit-identical to
+    2.1, so ``ms_error`` was 1e-32 instead of 0.
+    """
+    report = gage_rr(_identical_replicates(parts, trials))
+    assert report.var_repeatability == 0.0
+    assert report.var_operator == 0.0
+    assert report.var_interaction == 0.0
+    assert report.verdict is None
+    assert report.ndc is None
+    assert report.ndc_adequate is None
+    # The interaction F-test divides by MS_error = 0: there is no p-value.
+    assert report.interaction_pvalue is None
+    assert [w.code for w in report.warnings] == ["gage-rr.zero-repeatability"]
+    # The average-and-range method agrees on the same data.
+    assert gage_rr_range(_identical_replicates(parts, trials)).verdict is None
+
+
 # ---------------------------------------------------------------------------
 # Average-and-range method (and its d2* constant)
 # ---------------------------------------------------------------------------

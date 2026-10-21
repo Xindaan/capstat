@@ -49,6 +49,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
+from capstat_core._validation import is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.constants import MAX_SUBGROUP_SIZE, c4, d2
 from capstat_core.descriptive import std_dev
@@ -267,12 +268,15 @@ def capability(
             f"scale estimator that large. Use within_method='pooled' or 'sbar_c4'."
         )
 
+    # std_dev returns an exact 0.0 for a sample with zero spread at the data's
+    # resolution; sigma_within comes from numpy row statistics and carries the
+    # float residue of identical readings, so it is judged by the same rule.
     sigma_overall = std_dev(flat)
     if sigma_overall == 0.0:
         raise ValueError("data have zero variance; capability is undefined")
 
     sigma_within = _sigma_within(groups, within_method)
-    if sigma_within == 0.0:
+    if is_zero_spread(sigma_within**2, flat):
         raise ValueError(
             "the estimated within-subgroup sigma is zero (every subgroup is "
             "constant); capability is undefined"

@@ -443,6 +443,22 @@ def test_non_positive_sigma_is_rejected(chart: object) -> None:
 
 
 @pytest.mark.parametrize("chart", [ewma_chart, cusum_chart])
+@pytest.mark.parametrize(
+    "data",
+    [[3.3] * 8, [3.3, float(np.nextafter(3.3, 4.0))] * 4],
+    ids=["constant", "one-ulp-apart"],
+)
+def test_an_estimated_zero_spread_is_refused(chart: object, data: list[float]) -> None:
+    """T-0096: the moving-range estimate is judged against the data's scale.
+
+    Readings one ulp apart have a moving range of 4e-16: not zero in float, but
+    zero spread for any instrument. Exact zero was already refused.
+    """
+    with pytest.raises(ValueError, match="zero spread"):
+        chart(data)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("chart", [ewma_chart, cusum_chart])
 def test_charts_need_two_observations(chart: object) -> None:
     with pytest.raises(ValueError, match="at least 2 observation"):
         chart([1.0])  # type: ignore[operator]

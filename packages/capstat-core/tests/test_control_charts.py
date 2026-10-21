@@ -557,3 +557,45 @@ def test_a_baseline_sigma_must_be_positive() -> None:
     for bad in (0.0, -1.0):
         with pytest.raises(ValueError, match="strictly positive"):
             xbar_r_chart(groups, center=10.0, sigma=bad)
+
+
+# One ulp above 3.3: readings that differ only in the last bit of a double.
+_ONE_ULP_ABOVE_3_3 = float(np.nextafter(3.3, 4.0))
+
+
+@pytest.mark.parametrize(
+    ("chart", "data"),
+    [
+        (i_mr_chart, [3.3] * 20),
+        (i_mr_chart, [5.0] * 8),
+        (i_mr_chart, [3.3, _ONE_ULP_ABOVE_3_3] * 10),
+        (xbar_r_chart, [[10.0, 10.0], [10.1, 10.1], [10.0, 10.0], [9.9, 9.9]]),
+        (xbar_s_chart, [[10.0, 10.0], [10.1, 10.1], [10.0, 10.0], [9.9, 9.9]]),
+        (xbar_s_chart, [[3.3] * 3] * 8),
+    ],
+    ids=[
+        "imr-constant-3.3",
+        "imr-constant-5.0",
+        "imr-one-ulp-apart",
+        "xbar-r-constant-within",
+        "xbar-s-constant-within",
+        "xbar-s-constant-3.3",
+    ],
+)
+def test_phase_one_refuses_zero_spread(chart: object, data: object) -> None:
+    """T-0096 / CHART-4: no within spread means no limits, not zero-width ones.
+
+    Phase II, EWMA, CUSUM and capability already refuse a zero sigma. A Phase I
+    Shewhart chart used to draw every limit on the centre line instead: constant
+    5.0 came out "in control", constant 3.3 (whose float mean is one ulp off)
+    flagged all 20 points, and identical readings inside each subgroup flagged
+    every subgroup whose mean differs from the grand mean.
+    """
+    with pytest.raises(ValueError, match="zero spread"):
+        chart(data)  # type: ignore[operator]
+
+
+def test_a_baseline_sigma_still_judges_constant_data() -> None:
+    """The refusal is about the *estimate*; a supplied sigma is a known fact."""
+    pair = i_mr_chart([5.0] * 8, center=5.0, sigma=0.1)
+    assert pair.in_control

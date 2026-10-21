@@ -14,7 +14,7 @@ import math
 import numpy as np
 import pytest
 import yaml
-from capstat_core import c4, capability, d2
+from capstat_core import analyze_capability, c4, capability, d2
 from capstat_core.capability import STABILITY_RATIO, _indices
 from capstat_core.constants import MAX_SUBGROUP_SIZE
 from conftest import REFERENCES
@@ -367,6 +367,22 @@ def test_constant_subgroups_with_between_variation_are_rejected() -> None:
     data = [[float(i)] * 5 for i in range(10)]
     with pytest.raises(ValueError, match="within-subgroup sigma is zero"):
         capability(data, lsl=-5.0, usl=15.0, within_method="pooled")
+
+
+def test_zero_spread_is_rejected_whatever_the_value() -> None:
+    """T-0096 / API-27: the two tests above use 5.0 and integers, whose means are
+    exact. With 3.3 the residue of the float mean used to pass for a sigma of
+    5e-16 and came back as Cp ~1e15; analyze_capability crashed with a
+    ZeroDivisionError for some sample sizes and returned Pp ~3e14 for others.
+    """
+    with pytest.raises(ValueError, match="zero variance"):
+        capability([[3.3] * 3] * 8, lsl=1.0, usl=5.0)
+    every_subgroup_constant = [[3.3 + 0.1 * i] * 3 for i in range(8)]
+    with pytest.raises(ValueError, match="within-subgroup sigma is zero"):
+        capability(every_subgroup_constant, lsl=1.0, usl=5.0)
+    for n in range(8, 61):
+        with pytest.raises(ValueError, match="zero variance"):
+            analyze_capability([3.3] * n, lsl=1.0, usl=5.0)
 
 
 def test_too_few_subgroups_is_rejected() -> None:

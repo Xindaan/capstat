@@ -74,6 +74,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
+from capstat_core._validation import is_zero_spread
 from capstat_core.caveats import Caveat
 from capstat_core.constants import d2, d2_star
 
@@ -140,6 +141,8 @@ class GageRRReport:
 
     # ANOVA only; the average-and-range method does not model an interaction, so
     # ``interaction_pvalue`` is ``None`` and ``var_interaction`` is zero there.
+    # It is ``None`` on ANOVA too when repeatability is zero: the F-test divides
+    # by MS_error, so there is no p-value to report (the interaction is kept).
     interaction_included: bool
     interaction_pvalue: float | None
 
@@ -334,6 +337,17 @@ def gage_rr(
     )
     ss_error = float(((arr - cell_means[:, :, None]) ** 2).sum())
 
+    # Each sum of squares runs over all p*o*r observations (the replication
+    # weights o*r, p*r and r count every observation once), so SS / (p*o*r) is
+    # a per-observation mean square, judged against the data's scale. Identical
+    # replicates of 2.1 have cell means that are not bit-identical to 2.1; their
+    # SS_error is 1e-31, not 0, and without this the zero-repeatability branch
+    # below depended on how the part values round (T-0096, MSA-2).
+    ss_part, ss_operator, ss_interaction, ss_error = (
+        0.0 if is_zero_spread(ss / arr.size, arr) else ss
+        for ss in (ss_part, ss_operator, ss_interaction, ss_error)
+    )
+
     df_part = p - 1
     df_operator = o - 1
     df_interaction = (p - 1) * (o - 1)
@@ -348,21 +362,23 @@ def gage_rr(
 
     # Interaction F-test: MS_interaction against MS_error. A zero error mean
     # square (perfect repeatability) leaves the test undefined -- keep the
-    # interaction in that case and say so.
+    # interaction in that case, report no p-value, and say so.
+    p_interaction: float | None
     if ms_error > 0.0:
         f_interaction = ms_interaction / ms_error
         p_interaction = float(stats.f.sf(f_interaction, df_interaction, df_error))
+        interaction_included = p_interaction <= interaction_alpha
     else:
-        p_interaction = 0.0
+        p_interaction = None
+        interaction_included = True
         warnings.append(
             Caveat(
                 "gage-rr.zero-repeatability",
-                "repeatability is exactly zero (identical replicates); the "
-                "interaction test is undefined and the interaction was kept",
+                "repeatability is zero (every part-operator cell holds identical "
+                "readings, at the resolution of the data); the interaction test "
+                "is undefined and the interaction was kept",
             )
         )
-
-    interaction_included = p_interaction <= interaction_alpha
 
     if interaction_included:
         var_repeatability = ms_error

@@ -53,6 +53,15 @@ Two things routinely go wrong, and both are handled explicitly:
     and reported honestly as "indistinguishable from zero" — not printed as a
     negative number, and not silently dropped.
 
+!!! note "Zero repeatability gives no verdict"
+    When every part-operator cell holds identical readings, repeatability is
+    zero: the interaction F-test divides by it, so `interaction_pvalue` is
+    `null` and the interaction is kept, and with no gage variance there is no
+    `verdict` and no `ndc` — that is not the same as "good". The warning
+    `gage-rr.zero-repeatability` says so. "Zero" is judged against the data's
+    magnitude, so parts read as 2.1, 2.2, … behave exactly like parts read as
+    1, 2, … (their cell means differ from the readings in the last bit).
+
 ### Reading the result
 
 **%Contribution** is variance-based, so the components sum to 100 %.
