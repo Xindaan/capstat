@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// The port is overridable (E2E_PORT) so several checkouts can run the suite at
+// the same time; 3000 stays the default.
+const PORT = Number(process.env.E2E_PORT ?? 3000);
+
 // A single-browser smoke test. The API is mocked per-test (see e2e/smoke.spec),
 // so this needs only the Next dev server -- no Python backend, no network.
 export default defineConfig({
@@ -11,13 +15,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "line" : "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
+    command: `npm run dev -- --port ${PORT}`,
+    url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

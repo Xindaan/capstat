@@ -619,7 +619,9 @@ test("the charts carry an accessible name that says what they show", async ({
   });
 
   await expect(
-    page.getByRole("img", { name: /Individuals chart, 30 points, in control/ }),
+    page.getByRole("img", {
+      name: /Individuals chart, 30 points, limits CL 10, UCL 10.2, LCL 9.8, in control/,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("img", { name: /Moving range chart/ }),
@@ -644,9 +646,51 @@ test("an out-of-control chart names the points, not just the state", async ({
 
   await expect(
     page.getByRole("img", {
-      name: /Individuals chart, 30 points, out of control at points 3, 6/,
+      name: /Individuals chart, 30 points, limits .*, out of control at points 3, 6/,
     }),
   ).toBeVisible();
+});
+
+test("an in-control chart draws and prints its control limits", async ({
+  page,
+}) => {
+  // T-0098. The mocked series stays well inside its limits (9.9..10.1 against
+  // 9.8 and 10.2) -- an ordinary in-control process. The y-axis used to be
+  // fitted to the data alone, so ECharts clipped both limit lines, and their
+  // labels with them, exactly when nothing was wrong. Reading the drawn SVG
+  // text is the only check that sees what the reader sees.
+  await mockApi(page);
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+
+  const individuals = page.getByRole("img", { name: /^Individuals chart/ });
+  await expect(
+    individuals.locator("svg text", { hasText: /^CL 10$/ }),
+  ).toBeVisible();
+  await expect(
+    individuals.locator("svg text", { hasText: /^UCL 10\.2$/ }),
+  ).toBeVisible();
+  await expect(
+    individuals.locator("svg text", { hasText: /^LCL 9\.8$/ }),
+  ).toBeVisible();
+  // The moving range has a floor at 0 that the data never reach either.
+  const range = page.getByRole("img", { name: /^Moving range chart/ });
+  await expect(
+    range.locator("svg text", { hasText: /^UCL 0\.2$/ }),
+  ).toBeVisible();
+  await expect(range.locator("svg text", { hasText: /^LCL 0$/ })).toBeVisible();
+
+  // The numbers are also plain text under each chart, which is what a printed
+  // report and a screen reader carry.
+  const captions = page.getByTestId("chart-limits");
+  await expect(captions).toHaveText([
+    "CL 10, UCL 10.2, LCL 9.8",
+    "CL 0.06, UCL 0.2, LCL 0",
+  ]);
 });
 
 test("a second file replaces the analyses rather than reusing them", async ({
