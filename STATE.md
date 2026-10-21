@@ -1,70 +1,83 @@
 # STATE.md — capstat
 
-Date: 2026-10-01
+Date: 2026-10-21
 
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
 Next.js frontend as a professional MIT open-source project. Released: v0.4.4.
 `capstat-core` 0.4.1, 0.4.2 and 0.4.3 are on PyPI, each verified
-byte-identical to its tag. **v0.4.4 is tagged and not published** -- it carries
-only the T-0093 write-up, and publishing was not asked for; v0.4.0 is unpublished
-for the same kind of reason. Both remain publishable at any time: their tags are
-self-consistent, v0.4.4 checked at `check_lock_version.py v0.4.4`, exit 0.
-`publish` stays manual and the maintainer's to run.
+byte-identical to its tag. **v0.4.4 is tagged and not published** (it carries
+only the T-0093 write-up); v0.4.0 is unpublished for the same kind of reason.
+Both stay publishable; `publish` is manual and the maintainer's to run.
 
-Milestones, not calendar weeks: M1-M2 core statistics, M3 API, M4 web app,
-M5 MSA, M6 release (report, deployment, docs, release).
+Success criterion -- Proposal, not yet confirmed by Andre: every number and
+verdict the app prints is either right or carries a warning, shown by
+reference-data tests (100 % coverage, mutants killed) and a published
+byte-verified release.
 
 ## Status
 
-- **`capstat-core` covers all of M1/M2**, and **the FastAPI service (T-0010)
-  wraps it.** Core: T-0002..T-0009 (descriptive/robust,
-  normality, capability incl. non-normal, chart constants, Shewhart charts,
-  EWMA/CUSUM, run rules). API: `apps/api` with stateless compute endpoints,
-  CSV/XLSX ingestion, and a committed OpenAPI contract.
-- **677 Python tests (core + API) at 100 % coverage on both packages**, mypy
-  strict, ruff clean, OpenAPI drift check green. CI matrix 3.11/3.12/3.13.
-  Web: 79 vitest, 39 Playwright, eslint/prettier/build green.
-- **Acceptance sampling (T-0035 + T-0036 + T-0037) landed after v0.1.0 and is
-  end-to-end**, ISO 2859-1's switching scheme included. Single sampling plans by
-  attributes: OC curve (binomial / hypergeometric / Poisson), AOQ, AOQL, ATI,
-  producer's and consumer's risk, the limiting quality, the lot decision, and
-  two-point plan design -- all from the definition, no standard's table
-  anywhere -- plus the switching scheme over a series of lots. Reachable through
-  `/compute/acceptance-sampling/{evaluate,design,oc-curve,inspect,switching-rules}`
-  and the `/acceptance-sampling` page.
-- **M4 (app) and M5 (MSA) are complete end-to-end.** The web app covers
-  upload -> capability -> control charts (`/`), a Gage R&R study (`/gage-rr`),
-  and bias / linearity / stability (`/msa`) -- every one of them typed against
-  the API and reaching the validated core. What remains is the M6 release path
-  (PDF report, deployment, docs, release).
-- **The core stays web-free.** fastapi/pandas/openpyxl live only in `apps/api`;
-  `capstat-core` remains numpy+scipy and independently PyPI-publishable.
-- **The API is a faithful serialisation layer**, not a reinterpretation: every
-  response mirrors a core dataclass (warnings tuples preserved, nullable
-  indices kept as `null`, `nan` coerced to `null`, derived properties read by
-  attribute). Every endpoint test asserts equality with the core's own output.
-- **Gage R&R (T-0012) is complete in `capstat-core`, both AIAG methods.**
-  `gage_rr()` (ANOVA: crossed random-effects model, interaction-drop rule,
-  negative-variance clamp) and `gage_rr_range()` (average-and-range: EV/AV/PV
-  from ranges and the new `d2_star(n,g)=sqrt(d2^2+d3^2/g)` constant) share one
-  `GageRRReport` and report %Contribution, %Study Variation, and ndc. Validated
-  against AIAG worked examples (independently recomputed) and cross-checked
-  method-to-method. d2_star is computed from the core's own d2/d3, not
-  transcribed, and matches Duncan's published table.
-- **Gage R&R is wired end-to-end**: core (`gage_rr`/`gage_rr_range`) ->
-  `/compute/gage-rr` (both methods, faithful serialisation) -> a `/gage-rr` web
-  page with a data-entry grid and a variance/%/ndc report. Verified in-browser.
-- Repo live and **public** at github.com/Xindaan/capstat (flipped 2026-07-23).
-  The kickoff brief's "professional, public, MIT-licensed open-source project"
-  is now literally true; the CI badge in the README resolves for anonymous
-  visitors (it did not while the repo was private).
-- **Hosting decided (2026-07-20): local only, no public demo.** The maintainer
-  trusts running it locally over sending measurement data to a third party --
-  the right call for a tool fed real production data. `docker compose up` is the
-  supported way to run it; nothing is hosted. The Docker artifacts and the
-  measurement notes stay in the docs for anyone who wants to self-host.
+- **M1-M6 complete, v0.1.0 released 2026-07-21; repo public** (2026-07-23).
+  Local-only by decision (T-0026): `docker compose up`, no public demo.
+- **Core, API, web app, MSA, acceptance sampling and CLI are end-to-end;**
+  `capstat-core` stays numpy+scipy only, web-free.
+- **Gates at b55623a (2026-10-01):** 677 Python tests, 100 % coverage, mypy
+  strict, ruff, 79 vitest clean; mutation kill rate 66 %.
+- **Third review 2026-10-01 is filed as T-0095..T-0115** (155 findings, 44 of
+  55 gated confirmed, none refuted). None of it is fixed; Doing is empty.
+- **Release path is hardened but one proof short** (T-0093, T-0047): 0.4.3 was
+  the first unattended green publish, yet the install retry has never fired.
+- Steering-file commits are `chore` (T-0094); release PR #45 (0.4.5) is the
+  open resting state, not a pending release.
+
+## Live risks / pitfalls
+
+- **Silent wrong numbers are open now:** one-column German CSV (T-0095), zero
+  spread by float equality (T-0096), non-normal path not unit-invariant
+  (T-0097), limits missing on in-control charts (T-0098), "Decide the lot"
+  failing on every call (T-0099).
+- **T-0093 is not field-proven:** treat it as confirmed only after a green
+  publish run containing `install attempt N failed ... retrying`. T-0047
+  (`publish.yml` action majors) is open on the same condition.
+- **T-0081 will recur:** a breaking commit with a multi-part scope drops out of
+  the release notes. Until fixed, use a single-word scope (`feat(core)!:`).
+- **T-0078:** core warnings quote 0-based indices, app and CLI count from 1.
+- **Dependabot (T-0116, gh 2026-10-21):** 13 open alerts (high:
+  next x2, vite, source-map-js) and PRs #47, #48, #50-#53 open, incl. next 16.3.8 (#53).
+  The T-0046 "zero alerts" state of 2026-08-16 no longer holds.
+
+## With Andre
+
+- **Decide T-0103** (Cpm: sigma_within or overall; off-midpoint target) and
+  **T-0104** (what "in control" / "stable" mean) before any code is written.
+- **T-0116** Dependabot: merge or close the open update PRs.
+- Optional: prune Discussions categories to Q&A + Announcements (T-0043).
+- Confirm or edit the proposed success criterion above (Outcome is yours).
+
+## Next actions
+
+1. **T-0095** -- German one-column CSV read as wrong numbers; red test first.
+2. **T-0096..T-0099** -- the remaining silent-wrong-number items, in order.
+3. **T-0081** -- diagnose the release-please breaking-commit drop (scratch
+   branch, not a real release).
+
+## Dates
+
+none
+
+## Last done
+
+- 2026-10-07: **Third review filed as T-0095..T-0115** (d4ae9b4); T-0094
+  result recorded on its own commit (00ed9c8).
+- 2026-09-21: **T-0094 -- steering-file commits are `chore`**, ending the
+  release-PR loop; proved on `b410bae` (no release PR opened).
+- 2026-09-21: **0.4.4 cut and tagged, deliberately not published** (docs-only).
+- 2026-09-20: **0.4.3 published, first unattended green run (T-0093);** retry
+  never fired, so not field-proven. 0.4.2 and 0.4.1 verified 19/19 identical.
+- 2026-09-20: **T-0089/T-0090/T-0092 -- lock checked against the tag; stamp
+  goes on the release branch.**
+<!-- snapshot-ende -->
 
 ## Working method (keeps paying off — do not abandon it under time pressure)
 
@@ -86,698 +99,5 @@ M5 MSA, M6 release (report, deployment, docs, release).
    what catches an off-by-one, which nothing downstream would reveal.
 7. **Say what the numbers cannot say.** Every report carries warnings.
 
-## Next actions
-
-- **Third review 2026-10-01 is filed as T-0095..T-0115** (Opus 5.5 with nine
-  Sonnet reviewers and four Opus gates, source plus execution: 155 unique
-  findings, 55 gated, 44 confirmed, 11 narrowed, none refuted). Start with
-  T-0095..T-0099, the ones that print a wrong number or break a feature without
-  saying so: a one-column German CSV read as wrong numbers (T-0095), zero spread
-  decided by exact float equality (T-0096), a non-normal path that is not
-  unit-invariant (T-0097), control limits not drawn on in-control charts
-  (T-0098), and "Decide the lot" failing on every call (T-0099). T-0103 (Cpm)
-  and T-0104 (what "in control" means) need a decision before code.
-- **T-0093 is one green run in, and still not field-proven.** 0.4.3 published
-  and verified unattended, but with zero retry lines in the log -- PyPI resolved
-  on the first attempt, so the retry itself has never yet done any work. Treat
-  it as confirmed only after a green run that contains
-  `install attempt N failed ... retrying`. Until then the honest status is:
-  the code runs, the failure path is lab-tested only.
-- **Codex's rewrite still sits uncommitted in FSB and KI-Council** (T-0085):
-  decide there whether to discard it. Not this repo's to touch.
-
-**External review triaged 2026-08-23** (Ox Alpha, 2026-08-22, source read only).
-Eleven confirmed findings are filed as T-0051..T-0061; T-0062 is the one the
-review got wrong and is a documentation task. Agreed cut: block A now, block B
-next, the rest parked in the backlog.
-
-- **Block A -- the silent false statements. Done 2026-08-23** (T-0051, T-0052,
-  T-0053). Each fix carries a test that was red first and a negative probe that
-  re-broke it. Two things the review did not have: T-0051's real scope is far
-  narrower than reported (only a process already out of control when the chart
-  *starts*), and T-0053 was additionally returning valid-but-oversized plans,
-  which is the worse of its two failures because nothing in the output says so.
-- **Block B -- robustness. Done 2026-08-23** (T-0054, T-0055, T-0056, T-0057).
-  Same discipline: red test, fix, isomorphism check, negative probe. T-0057 was
-  additionally measured in a live browser, which is what caught a stale build
-  cache hiding a token that reached no page.
-- **T-0063 is new and came out of T-0056's isomorphism check, not the review:**
-  the `/compute/*` endpoints accept a body of any size (measured: 9.5 MB and
-  2,000,000 floats -> 200), while `/ingest` caps at 10 MB. Left unfixed on
-  purpose -- the cap is a contract decision that changes the published OpenAPI.
-  **This is the next thing worth deciding.**
-- **Block C -- structure, UI and the documentation fix. Done 2026-08-23**
-  (T-0058, T-0059, T-0060, T-0061, T-0062). The whole review is now answered:
-  eleven confirmed findings fixed, one refuted and its cause (a restatement that
-  omitted a branch) repaired.
-- **One open question came out of T-0058 and wants an answer, not a task:**
-  the capability page colours Cp/Cpk by 1.00 / 1.33, thresholds the core
-  contains *nowhere* and declines to assert -- what counts as capable is a
-  customer's specification. So the UI states a verdict the library refuses to.
-  Either those thresholds become an input, or the colouring goes, or capstat
-  states the convention and owns it.
-- **The first review's answer is merged** (a44e184, 2026-08-23). This file said
-  "nothing is committed" for ten days after it landed -- corrected 2026-09-02.
-
-**Second external review 2026-09-02 (Claude Fable 5.1), answered in full.**
-It read the source *and ran it*, which is where its findings came from. Its own
-verdict on the statistics: sound -- ANOVA Gage R&R, average-and-range,
-Anderson-Darling, the chart constants, capability, the OC curves and the
-switching rules were re-derived and nothing was wrong. The defects sat one layer
-up. Filed and fixed as T-0064..T-0072:
-
-- **T-0064 is the one that mattered.** The Box-Cox path passed on its own two
-  sentences about the transform and discarded everything the inner capability
-  report had said about the data -- so a drifting lognormal process showed
-  Cpk 1.60 against Ppk 1.22 with no instability warning anywhere the app renders.
-  That is the exact failure this library exists to prevent, on the path taken by
-  any genuinely skewed process.
-- **T-0065** destroyed hand-entered Gage R&R data: typing "10" into Parts
-  resized the grid on every keystroke and truncated it to two parts on the way.
-  Reproduced in a browser first, fixed by committing on blur, and the e2e test
-  fails against the old component.
-- **T-0067** made capstat usable on a German Excel export at all -- semicolons,
-  decimal commas, cp1252 and a UTF-8 BOM are now detected *and named in the
-  response*.
-- T-0066, T-0068, T-0069, T-0070 are smaller: a contradictory lot outcome that
-  moved the switching score the wrong way, a ceiling message naming the wrong
-  quantity, a symmetry check defeated by numpy's absolute tolerance on
-  nanometre-scale charts, and two unevaluated assumptions that stayed silent.
-- **T-0071 was refuted by measurement**, and is recorded as refuted: the
-  remount-key collision does not reproduce, because `UploadPanel` nulls its
-  selection before every request. The simplification was kept; the claim was not.
-- **T-0072** closed the gap between the steering files and the code -- including
-  a `TASK.md` block that appeared twice, byte-identical.
-
-**All three open decisions were taken on 2026-09-02, and all three are
-implemented** (T-0063, T-0073, T-0074):
-
-1. **Compute body limit: middleware, not schema.** 10 MB, 413, mirroring
-   `/ingest`. `openapi.json` is unchanged, which was the point of the choice;
-   the price -- an invisible limit a client learns by hitting it -- is in the
-   README.
-2. **Capability colouring: a stated requirement.** The customer's required
-   index is an input (default 1.33). 1.00 stays in code because it is
-   arithmetic, not convention. The core still asserts no capability threshold.
-3. **Warning codes first, then the rest.** Every warning now carries a stable
-   `subject.what-happened` code. `Caveat` is a `str` subclass, which is why the
-   537 core tests passed unchanged through a 64-site conversion. Over HTTP a
-   warning is `{"code", "message"}` -- a deliberate breaking contract change.
-
-**The review answer is merged** (PR #24, rebased so each finding keeps its own
-commit and reaches the changelog).
-
-**The three deferred features are built** (T-0075, T-0076, T-0077), in the order
-the warning-codes decision implied:
-
-- **Subgroups reach the app.** The largest of the three: until now *every*
-  Cp/Cpk the page showed rested on a moving-range sigma, because the UI only
-  ever sent a flat column -- while `capability()` has taken subgroups since
-  T-0005. Leftover rows are named rather than dropped.
-- **Phase II limits.** The measurement is the finding: Phase I limits do not
-  merely miss a sustained shift, they move the centre towards it and then flag
-  seven *stable* subgroups. A baseline holds the limits and only the shifted
-  five signal. The Phase II arithmetic is the Phase I arithmetic, and an
-  identity test pins that for all three pairs.
-- **A local CLI** -- `capstat columns | capability | chart`. It shares the
-  tabular parser with `/ingest` rather than owning a second one, and reproduces
-  the README's demo figures exactly, which is the test that matters for a
-  second surface onto one library.
-
-**Next actions:**
-
-1. **T-0081 is new and will recur**: release-please dropped the breaking change
-   from the 0.3.0 notes. Corrected by hand before the tag, and the GitHub
-   release notes re-set from the corrected file, but the next breaking commit
-   hits it again. Mitigation until diagnosed: a single-word scope on a breaking
-   commit.
-2. **T-0078 is still open**: the core quotes 0-based point indices in its
-   warnings while the app and the CLI count from 1. Now visible in the README
-   screenshot, which is a fair place for it to be seen.
-3. Everything else that was open is closed: the second review (T-0064..T-0074),
-   the three decisions, the three deferred features (T-0075..T-0077), the
-   screenshots (T-0079), the dependency sweep (T-0080) and the e2e flake
-   (T-0049).
-
-
-**T-0018 was split** on 2026-07-21 into T-0035..T-0041, because one ID was
-carrying four unrelated things. **T-0035 (core) and T-0037 (API + web page) are
-both done -- acceptance sampling is end-to-end.** What is left:
-
-- **T-0036 -- decided: yes, and the standard is ISO 2859-1** (2026-07-21). AQL
-  sampling is used in the maintainer's own work, so the value is reproducing
-  what a customer specifies, not computing a better plan.
-  **But ISO changes the shape, and rules out the obvious route.** ISO's tables
-  may not be reproduced here, and MIL-STD-105E is not a stand-in: it was adopted
-  into ISO 2859 "with minor changes", so a 105E cell may differ from the ISO
-  cell a specification names while looking conformant. The buildable shape
-  therefore contains no master table: (1) ISO vocabulary plus the
-  bring-your-own-plan path that T-0037 already ships, (2) the switching rules
-  normal/tightened/reduced -- where 2859-1's protection actually lives, and
-  which needs an explicit go because its thresholds are read from the standard,
-  (3) a code-letter lookup only if 1 and 2 leave a gap, and only from a source
-  we may reproduce.
-  **Increments 1 and 2 are done, end-to-end.** Limiting quality; the full
-  switching scheme -- normal/tightened/reduced/discontinued, the switching
-  score, and the two inputs capstat refuses to guess (the tighter-AQL question,
-  and authorisation for reduced inspection) -- in the core, over
-  `/compute/acceptance-sampling/switching-rules`, and on the page. Only
-  increment 3 remains, a code-letter lookup, and it is only worth revisiting if
-  something real turns out to need it.
-- **T-0039 / T-0040 are closed unbuilt** (2026-07-21, by decision): auth and
-  persistence would both reverse T-0026. What survived is **T-0041** -- saving a
-  study as a JSON file the user owns, which is a file format, not persistence,
-  and reverses nothing. **Done 2026-07-22**, on all three hand-entered pages;
-  `/` is deliberately excluded because re-uploading its CSV beats restoring it.
-- **T-0038** -- server-side PDF: deferred by decision, not closed. The print
-  route already yields a vector PDF; if it is ever wanted, build it as a local
-  CLI export rather than a service endpoint.
-
-## Open decisions (unchanged)
-
-**Next.js writes `apps/web/AGENTS.md` + `CLAUDE.md` — settled 2026-08-16
-(T-0050, done).** Both are gitignored, and the substance was rewritten into the
-root `AGENTS.md` under Hard rules in our own words: Next 16 diverges from
-training data, read `apps/web/node_modules/next/dist/docs/` before writing
-frontend code. They reappear on every agent session that runs the e2e suite
-(Playwright starts `next dev`), which is exactly why they are ignored rather
-than tracked — the file set would otherwise depend on who was typing.
-
-**v0.1.0 is released** (tag `v0.1.0`, 2026-07-21). M1–M6 are complete: core,
-API, web app, MSA, report, docs, deployment artifacts, release automation.
-
-**Repo visibility — decided and done (2026-07-23): public.** The gate this
-placed in front of T-0030 is therefore cleared: making the repo public was the
-smaller step, and it has been taken.
-
-**T-0030 (PyPI) — done (2026-08-16): `capstat-core` 0.2.0 is published.**
-`pip install capstat-core` works. The trusted publisher turned out to be
-configured correctly (it was unverified from here until the first real run), so
-the OIDC path held and no API token exists anywhere. Both gates behaved as
-designed: `workflow_dispatch` to start, then the `pypi` environment held the
-whole job at `status=waiting` until **Xindaan** approved.
-Worth remembering, because it nearly went wrong: publishing on the day the
-PyPI expiry mail arrived would have shipped a permanent **0.1.0 carrying
-0.2.0's code**. `publish.yml` checks out `main`, but the version comes from
-`pyproject.toml`, which only moves on a release -- and `main` was 20 commits
-past the `v0.1.0` tag. The workflow's own version check does not see this: it
-compares the build against `capstat_core.__version__`, both from the same tree,
-so they agree while both are wrong. Merging the waiting release-please PR (#4,
-0.2.0) first is what made the publish correct. Filed as **T-0045**.
-
-**Two dead paths the public flip exposed** -- both the same class of fault: a
-document promising a channel the repo did not offer.
-- **T-0044 is fixed (2026-07-23).** SECURITY.md named GitHub private
-  vulnerability reporting as the *preferred* way to report a flaw while the
-  feature was disabled. Now enabled and verified; the document was right, the
-  repo simply had not been configured to keep its promise.
-- **T-0043 is fixed (2026-07-23): Discussions enabled.** The issue template's
-  "Question or discussion" link had 404'd. Enabling won over dropping the link
-  because `blank_issues_enabled: false` leaves only three templates, none of
-  which fits a plain usage question -- without a question channel, visitors get
-  pushed into filing understanding questions as bug reports. This one carries an
-  ongoing cost the other did not: an unanswered discussion is publicly visible.
-  Follow-up left open: prune the six default categories to Q&A + Announcements,
-  since "Ideas" duplicates the feature-request template.
-
-**T-0030 is no longer open — resolved 2026-08-16, see Status.** `capstat-core`
-0.2.0 is published and the name is now actually held; until that upload it was
-held by nothing, since PyPI has no reserve-without-upload mechanism.
-**T-0045 closed the gap it exposed the same day:** `publish.yml` now takes a
-required `tag` input and checks that tag out, so the version can no longer come
-from a different commit than the code, and the verify step compares against the
-tag name instead of against a sibling file in the same tree. What is left from
-this thread is **T-0047**: the action majors in that workflow were raised to
-match `ci.yml` on 2026-08-16, but it stays open deliberately — publish.yml
-cannot be rehearsed, so it is only proven once a real release is dispatched
-through it.
-
-**The npm advisories are cleared — T-0046, done 2026-08-16.** From 16 open
-Dependabot alerts (9 high) to **zero**, with `npm audit` clean alongside. What
-T-0023 had parked as "the postcss pair, blocked until Next raises its floor" was
-long overtaken; `next` had become the largest source by far.
-Dependabot PR #15 took it from 16 to 2 (`next` 16.3.1 alone carries fixes for
-four high advisories). The last two were transitive and unoffered: `nanoid`
-(runtime, via postcss) and `js-yaml` (dev) now have explicit overrides. Then a
-third source disagreed — `npm audit` still flagged a high `brace-expansion` DoS
-that Dependabot did not list at all, dev-only, cleared with `npm audit fix`.
-**Checking one advisory source is not enough**; they do not report the same set.
-**`capstat-core` was never affected** — numpy and scipy only, so the 0.2.0
-artifact on PyPI carries none of this. It is the local web app, which is the
-only place it runs anyway (T-0026).
-
-Otherwise the backlog is decisions and deliberately-deferred items: **T-0029**
-(mkdocs now capped below 2.x; revisit when 2.0 ships) and the rest of the
-T-0035..T-0041 split of the old T-0018 roadmap (see Next actions).
-
-## Last done
-
-- 2026-09-21: **T-0094 — steering-file commits are `chore`, because releasing
-  the project's own bookkeeping had put the release cycle into a loop.** A
-  merged release forces a STATE.md update; typed `docs` that opened the next
-  release PR, whose merge forced another. #44 and #45 both came from commits
-  carrying no packaged code. Fixed in the commit convention rather than by
-  hiding `docs`, which would also silence real documentation, and scoped to
-  every file the project runs itself with (`AGENTS.md` and `CLAUDE.md`
-  included) so the same loop cannot return through a different door. Proved on
-  the fixing commit itself: typed `chore`, `b410bae` opened no release PR and
-  does not appear in #45's changelog.
-- 2026-09-21: **0.4.4 cut and tagged, deliberately not published.** Docs-only
-  release (the T-0093 write-up). The lock stamp went onto the release branch
-  before the merge as usual, so the tag is self-consistent and `publish` can be
-  run for it whenever there is a reason.
-- 2026-09-20: **0.4.3 released and verified on PyPI, and the first publish run
-  to end green unattended (T-0093).** Every step green, 19/19 files identical,
-  nothing re-run by hand. The retry never fired though -- zero
-  `install attempt` lines, the install resolved 1.2 s after the upload -- so
-  the fix is proven to run, not yet proven to work. See T-0093.
-- 2026-09-20: **0.4.2 released and verified on PyPI (19/19 byte-identical), and
-  T-0093 fixed twice — the first fix was wrong and 0.4.2's own publish run is
-  what proved it.** The verification waited on the simple index and then failed
-  in 0.63 s, without printing one retry line: the index had the version, the
-  resolver could not find it. PyPI caches the HTML index, the PEP 691 JSON index
-  and the JSON API separately (`Vary: Accept`, `max-age=600`), so they disagree
-  for up to ten minutes and no index page is a valid stand-in for "installable".
-  Now the *install* is retried, on a 900s budget shared by every PyPI-facing
-  step; `await_index()` is gone. Mechanics proved by stubbing (recovers after
-  two failures, gives up at the deadline, re-raises the real error), but that a
-  release run goes green unattended is still unproven — that claim has been made
-  wrongly twice.
-- 2026-09-20: **T-0091/T-0092 — v0.4.1 released to PyPI, and the lock check was
-  found to lie when run the way its own docs told you to.** T-0090's ordering
-  worked on its first real use: the release PR again left `uv.lock` a version
-  behind, the stamp went onto the release branch before the merge, and the tag
-  is self-consistent. PyPI serves 0.4.1, verified 19/19 files byte-identical to
-  `v0.4.1`. 0.4.0 stays tagged and unpublished on purpose. Two defects fell out
-  of it: a bare `uv run` syncs first and so hands the check an already-repaired
-  lock (exit 0 on a stale tree — `publish.yml` was safe, the documented manual
-  form was not), and the publish run verifies the upload 1.1 s after it, before
-  the index serves it, so every release ends red (T-0093, fixed the same day).
-
-- 2026-09-20: **T-0090 — v0.4.0 cut; the lock stamp has to happen on the
-  release branch, not after the merge.** release-please left `uv.lock` at
-  0.3.1 in its release commit, which since T-0089 is what `publish` checks
-  against the tag — v0.4.0 would have been refused at its own gate,
-  permanently. `uv lock` was committed onto the release branch before merging,
-  so the tag is self-consistent (verified at `v0.4.0`). T-0089 and T-0087 both
-  said "after the merge" and are corrected in place. **PyPI is untouched: the
-  publish workflow is yours to run.**
-
-- 2026-09-19: **T-0089 — the release gate checks `uv.lock` too.**
-  `scripts/check_lock_version.py` compares the lock's workspace members against
-  the packages, and against the tag when given one; `publish` runs it before
-  the build. Not in CI on purpose -- that would redden `main` between a release
-  merge and the refresh commit. The manual refresh after every release merge is
-  in `docs/deployment.md`.
-
-- 2026-09-19: **T-0087 — the release check is a script now, and `publish` runs
-  it.** `scripts/verify_pypi_release.py` installs a published version from
-  pypi.org into a fresh environment and compares every source file byte for
-  byte against the tag; the workflow calls it after the upload. Green on 0.3.1
-  (19/19 identical), and red on purpose against v0.2.0. Caches off and the
-  index pinned, so it answers about PyPI rather than about the runner.
-  `uv.lock` was refreshed in the same session: it still said `0.3.0` because
-  release-please does not touch it and `uv sync --frozen` does not check it.
-  **That refresh is manual at every release.**
-
-- 2026-09-19: **T-0088 — two practised conventions became rules.** `AGENTS.md`
-  Hard rules gains "every claim carries its evidence, where the claim is made"
-  and "a release is verified against the published artefact, not against the
-  green run"; `CLAUDE.md` states the rest of the language split (chat is German
-  and *du*, German prose gendered with a colon, identifiers English and ASCII).
-  The English rule and the TASK.md/STATE.md-per-code-commit rule were already
-  covered and were left as they stand; German as the repository language was
-  not adopted, the 2026-07-13 override holds.
-
-- 2026-09-18: **v0.3.1 released and on PyPI.** Cut to get the Next.js security
-  fix (T-0086) into a tag. Verified on PyPI: clean-venv import 0.3.1, all 19
-  source files byte-identical to the tag.
-
-- 2026-09-18: **T-0086 — dependency and security sweep.** Ten open advisories
-  closed, four critical (Next.js RCEs, fixed by 16.3.5); dependabot's #33-#35
-  superseded. npm 10 could not resolve the update (arborist `edgesOut` crash),
-  npm 11 could; CI's npm 10 installs the result cleanly. 677/677 Python,
-  79/79 unit, 40/40 e2e, `npm audit` 0.
-
-- 2026-09-18: **T-0085 — an unasked Codex rewrite of the working rules was
-  discarded**, and `AGENTS.md` now states that its reading order, Workflow,
-  Quality gates and the DoD are the maintainer's to change. The same rewrite
-  sits uncommitted in FSB and KI-Council; not touched from here.
-
-- 2026-09-05: **T-0083 — CI `web` was red on main; the e2e suite was racing
-  hydration.** `gotoReady` waited only for `load`, and at that moment no element
-  on the page carries a React fiber (measured, throttled CPU). A click there is
-  lost and fails loudly; a `fill` is *merged* — Playwright selects the
-  server-rendered text, React re-renders and drops the selection, and the typed
-  text lands in front of the old value. The suite posted a sixteen-lot series
-  for a three-lot test, and the only symptom was a deep-equality diff that read
-  like an app bug. Fixed once at the choke point: the app raises `data-hydrated`
-  from a committed root effect and `gotoReady` waits for it. The screenshots
-  harness had the same shape and writes the committed README figures, so it now
-  waits too. Regression test runs under a 20x CPU throttle; negative probe
-  reproduces the CI diff exactly. Third fix of this shape (T-0038, T-0049) —
-  the first two widened waits on results and missed that the race was hydration.
-
-- 2026-09-05: **T-0084 — `tmp/` is git-ignored.**
-
-- 2026-08-16: **T-0050 — the Next-generated agent files are gitignored, their
-  substance kept.** `apps/web/AGENTS.md` and `apps/web/CLAUDE.md` are written by
-  `next dev` whenever it detects an agent, so they show up only in agent
-  sessions — never in CI, never for a contributor without one. Tracking them
-  would make the repo's file set depend on who was typing, and their text points
-  into `node_modules`, which reads as nonsense on GitHub.
-  But the advice was right and `AGENTS.md` had nothing on it, so it now carries
-  a Hard-rules bullet in our own wording: Next 16 diverges from training data,
-  read the guide under `apps/web/node_modules/next/dist/docs/` first. It also
-  names the ignored files, so nobody has to re-derive where they came from.
-  The instruction inside the file — that committing it "keeps the tree clean" —
-  was not what decided this either way; `.gitignore` achieves the same without
-  taking foreign text into the repo.
-
-- 2026-08-16: **T-0048 — the dependency backlog is empty: nine PRs merged,
-  `v0.2.1` tagged.** Release PR last, so it carried everything. Nothing went to
-  PyPI; 0.2.1 has no library code in it and publish.yml is dispatch-only.
-  **`main` went red in the middle, through my own doing.** Merging the ruff
-  0.15 -> 0.16 bump broke CI: 0.16 started formatting Python blocks inside
-  Markdown, and three docs disagreed. I had checked an hour earlier, on another
-  PR, whether a green tick still described the current `main` — and found it was
-  four weeks stale. On the ruff PR I did not check. **Dependabot checks age
-  exactly like release-please ones**; the memory said so for one and I did not
-  generalise it.
-  Fixed with `[tool.ruff.format] exclude = ["*.md"]` rather than by accepting the
-  reformatting, which would have flattened the aligned comment columns in the
-  README examples and turned a wrapped comment into an unrelated statement.
-  Format-scoped, so linting still covers those blocks.
-  **The uvicorn PR looked guilty and was not.** Its failing Playwright spec was
-  the ruff step first, then one flaky assertion — green on re-run. Merging on the
-  red tick would have been right by accident; rejecting it would have been wrong.
-  Only re-running it distinguished the two. Flake filed as **T-0049**, the second
-  of its shape.
-
-- 2026-08-16: **T-0046 — 16 open Dependabot alerts to zero.** Dependabot PR #15
-  did 14 of them (`next` 16.3.1 carries four high fixes: a Server-Actions DoS, a
-  middleware bypass, two SSRFs). Its description promised a patch bump,
-  `16.2.10 -> 16.2.11`; the diff actually set `16.3.1`, a minor — read the diff,
-  not the summary. Safe, but that was established by running the suite.
-  The last two were transitive and Dependabot had offered nothing for them:
-  `nanoid` (runtime, via postcss, pulled in through both Tailwind and Next) and
-  `js-yaml` (dev). The js-yaml override already permitted the fixed version —
-  only the lockfile had never moved.
-  **The two advisory sources disagreed:** with Dependabot at zero, `npm audit`
-  still reported a high `brace-expansion` DoS across eight dev-only paths.
-  Cleared with `npm audit fix`. Checking one source and stopping would have left
-  it. Also caught in passing: `eslint-config-next` still pinned to 16.2.10 while
-  `next` had moved to 16.3.1 — linting against a different Next than the build.
-  Verified: lint, format:check, 47 vitest, drift check, build, 23 Playwright.
-
-- 2026-08-16: **T-0045 — `publish.yml` publishes a tag, not a branch.** The gap
-  T-0030 uncovered, closed the same day. A required `tag` input, checkout with
-  `ref: ${{ inputs.tag }}`, and a verify step comparing the built version to the
-  tag name with `v` stripped. Checking out the tag is the real fix — the version
-  can no longer come from a different commit than the code; the comparison is
-  the second line, against a tag set inconsistently. The input goes through
-  `env:` rather than into `run:`, where a workflow input would be executed.
-  Verified by lifting the comparison out and running four cases (the workflow
-  itself cannot be rehearsed without publishing): this morning's `v0.1.0` vs
-  package 0.2.0 exits 1, a correct release passes, an old tag with its own old
-  code passes, a mistyped tag exits 1.
-
-- 2026-08-16: **T-0030 — `capstat-core` 0.2.0 published to PyPI.** Prompted by
-  PyPI's mail that the pending trusted publisher expires in 5 days if unused.
-  The deadline was to publish *something*, not to publish anything: `main` had
-  drifted 20 commits past the `v0.1.0` tag, so an immediate run would have put a
-  permanent **0.1.0 containing 0.2.0's code** on PyPI, and a yanked version can
-  never be re-uploaded. Merged the waiting release-please PR (#4 → 0.2.0) first,
-  then published from the tagged state.
-  **The workflow's own version guard would not have caught it** — it compares
-  the build against `capstat_core.__version__`, both read from the same tree, so
-  they agree while both are wrong for the tag. Follow-up: **T-0045**.
-  Verified independently rather than trusting the green run: PyPI reports 0.2.0,
-  MIT, `>=3.11`, deps exactly numpy+scipy, `0.2.0` as the only release; then a
-  clean-venv install from the network, an import, and a computation checked by
-  hand (`Pa(0.1) = 0.81` for n=2, c=0). The acceptance-sampling symbols are
-  present, which is what proves the artifact is 0.2.0's code and not 0.1.0's.
-  Also corrected the README, which said "capstat is not on PyPI" and opened
-  Usage with an M1-era sentence — same error class as T-0042.
-
-- 2026-07-23: **T-0042 — Prettier now exists**, having been claimed by
-  `AGENTS.md` and `PLAN.md` as a green quality gate while no config,
-  dependency, script or hook was in the repo. Turned up by auditing the tree
-  against the original kickoff brief. Config, ignore file, `format` /
-  `format:check`, a CI step and prettier + eslint pre-commit hooks; 6 files
-  reformatted, because the maintainer's editor had been doing this all along
-  with Prettier's defaults and no version pinned anywhere.
-  **The generated `lib/api-client/schema.d.ts` had to be excluded**: it is
-  guarded by `npm run check:api` via `git diff --exit-code`, so formatting it
-  would have made the committed file differ from a fresh generation and broken
-  a contract gate — a formatting change quietly disabling a correctness check.
-  Both directions verified.
-  **Isomorphy check on the class "a control file claims a gate that does not
-  exist":** every other gate in AGENTS.md and PLAN.md was checked against the
-  real config, and the coverage gate was additionally *run* to confirm it fails
-  rather than merely being configured. All genuine; Prettier was the only lie.
-  `CONTRIBUTING.md` also gained the web gates, which it had never listed.
-
-- 2026-07-22: **T-0041 — a study saves to a file and loads back**, on
-  `/acceptance-sampling`, `/gage-rr` and `/msa`. A file on the user's own disk, written and read by
-  the browser: no server, nothing held between requests, so it reverses nothing
-  in T-0026. **Only inputs are stored, never results** — a document carrying
-  saved numbers could show figures this version would no longer produce with
-  nothing on screen to reveal it, so `parseStudyFile` rebuilds the document
-  field by field and a stray `results` block is dropped rather than displayed.
-  A file from a newer format is refused with a message saying so.
-  The design question the task left open answered itself by looking: the panels
-  share nothing but strings, so there is no common shape — the document carries
-  a version, a page name, and a per-page payload.
-  **Two failures worth keeping.** An unscoped `getByRole("alert")` matched
-  Next's own route announcer as well as the error card — the same class as the
-  dev-overlay SVG trap already recorded here. And adding a client workspace made
-  the page slower to hydrate, so *existing* tests began racing it: a fill before
-  hydration is overwritten by the component's initial state, and the request
-  then carries the example series while the assertion complains about something
-  else. Both the spec file (a `ready()` gate) and the Playwright config (a
-  global route warm-up) now handle it — the warm-up matters for CI, where the
-  dev server is fresh every run and compiles each route inside the first test's
-  timeout.
-
-- 2026-07-22: **T-0036 increment 2b — the switching scheme reaches the app.**
-  A `/compute/acceptance-sampling/switching-rules` route and a second panel on
-  the page: paste the lot outcomes, get the severity each lot was inspected
-  under and the switch it caused. The switching score is shown as *absent*
-  rather than zero wherever the standard does not maintain it, which is the
-  distinction the whole column exists to make.
-  Verified against the real API in a browser, which is where the one defect
-  turned up: JSX had swallowed a space, rendering "Rfor not" in the panel's
-  intro. Prettier kept reformatting the fix away, so the fragile inline `<code>`
-  join was removed rather than nursed. 578 tests, both packages at 100 %.
-
-- 2026-07-22: **T-0036 increment 2 — the ISO 2859-1 switching scheme** in the
-  core. normal / tightened / reduced / discontinued, the switching score, and
-  the two inputs capstat refuses to guess: whether a lot would still have been
-  accepted one AQL step tighter (only the master table knows), and whether
-  reduced inspection is authorised at all (steady production plus the
-  responsible authority — not statistics). Both default to the conservative
-  branch, so a scheme left alone never relaxes.
-  **Re-running the research that had died at the spend limit paid for itself
-  twice.** It found a real bug: the first version counted lots *inspected* under
-  tightened where clause 9.4 counts lots *not accepted*, cumulatively — a
-  materially different rule for anyone who set the threshold to 5 believing they
-  had implemented the standard. And it dissolved the 5-vs-10 disagreement over
-  that threshold, which was never a conflict: Z1.4-2003 changed the rule, so
-  older material simply states the superseded figure.
-  **The validation got much stronger than simulation.** The standard's own
-  Annex A works a series of lots all the way through, printing severity *and*
-  switching score per lot. capstat reproduces it completely — both transitions,
-  every score, and the switch to reduced at the lot where the score reaches 30.
-  That also confirmed the two things previously carried as interpretations: a
-  switch binds the lot after the one that triggered it, and the window slides.
-  The sequence is deliberately not committed: it is a table from a copyrighted
-  standard obtained from a copy of uncertain provenance, so what is recorded is
-  the outcome of the comparison. The cost is stated where it belongs — this one
-  check is not re-run by CI.
-
-- 2026-07-21: **T-0037 — acceptance sampling reaches the API and the app.** Four
-  routes, one per core entry point, and an `/acceptance-sampling` page that
-  designs a plan from two risk points, draws the OC curve with both levels
-  marked, and decides a lot from an observed defect count. **547 Python tests
-  (491 core + 56 API) at 100 % coverage on both packages**, 37 vitest, 14
-  Playwright specs, both drift gates green.
-  Three findings, and only one of them came from a test.
-  **The core had an inconsistency I had introduced in T-0035**: `OCCurve` held
-  numpy arrays where every other public dataclass holds `tuple[float, ...]`.
-  Found by comparing against the neighbours before writing the schema, and fixed
-  in the core rather than papered over in the API — a frozen dataclass wrapping
-  a mutable array is frozen in name only.
-  **The OC chart drew its AQL/LTPD labels rotated 90° and clipped**, because a
-  markLine label inherits its line's direction and these lines are vertical,
-  unlike every markline in the control chart. Only looking at the page against
-  the real API showed it. *Keep verifying in a browser; the mocked e2e suite is
-  structurally blind to this class.*
-  **The screenshot script skipped its own chart wait.** `shoot()` guarded it
-  with `if (await panel.locator("svg").count())` — evaluated once, immediately,
-  while ECharts is still being imported lazily, so the count was zero and the
-  poll never ran. It photographed an empty chart box. The wait is now explicit
-  (`chart: true`); the previous figures were right only by luck of timing.
-
-- 2026-07-21: **T-0035 — acceptance sampling in the core** (first piece of the
-  T-0018 split). OC curve in three models, AOQ/AOQL/ATI, risks, the inverse OC,
-  the lot decision, and two-point plan design — all computed from the
-  definition; no standard's table is consulted anywhere. **491 core + 48 API
-  tests, core back at 100 % coverage**, ruff and mypy strict clean.
-  Two things worth carrying forward. **First: the published tables were wrong
-  four different ways**, and saying so precisely was more work than the
-  implementation. NIST's AOQ column uses an approximation its own page
-  contradicts, except one row that uses a third formula; one entry has its
-  digits transposed (0.0010 for 0.0100); the ATI column truncates where the
-  prose rounds. Naming each cause let both columns be asserted with *no*
-  tolerance on the published digits at all — `round(Pa*p, 4)` hits ten of
-  twelve rows exactly, and every ATI entry must be `floor` or `round` of ours.
-  Explaining a discrepancy really does buy a tighter test than tolerating it.
-  **Second: three independent implementations print eight significant digits
-  where handbooks print three** (R *AcceptanceSampling*, R *AccSamplingDesign*,
-  Minitab). Those turned out to be far better references than any table —
-  capstat reproduces every digit, including two designed plans asserted
-  exactly. Worth reaching for in future methods: a documented software example
-  beats a rounded printed table.
-  My own two bugs both came from tests failing for the right reason: the design
-  search probed plans larger than the lot and died in the constructor, and the
-  Type A path accepted quality levels a finite lot cannot represent (a lot of 50
-  cannot be 1 % defective) — which quietly made the producer's risk condition
-  vacuous. Both fixed and pinned.
-
-- 2026-07-21: **backlog cleared (T-0021, T-0022, T-0023, T-0024).** Run-rule
-  selection in the UI (all eight Nelson rules, default 1-4, wording fetched from
-  the API, and the report always names the set it applied); scipy-1.19 readiness
-  *without* the circular fix the task itself proposed — a NIST-handbook check
-  now guards the critical values from outside, and the scipy cross-check skips
-  honestly when the API goes; `httpx2` adopted, leaving the suite **warning-free
-  at 496 tests**; and the two high npm advisories fixed by a semver-compatible
-  js-yaml override, with the postcss pair left alone on purpose because Next
-  pins it exactly.
-  Also made the screenshot capture **deterministic** — focus rings and an
-  in-flight opacity transition were making unrelated figures churn on every run.
-  Three consecutive captures are now byte-identical, so a diff in `docs/images/`
-  means the UI actually changed.
-
-- 2026-07-21: T-0031 — **README screenshots**, captured by a script rather than
-  by hand (`cd apps/web && npm run screenshots`). It drives the *real* API with
-  `examples/shaft-diameter.csv`, so the figures show numbers the validated core
-  actually computed — illustrating a reference-validated project with mocked
-  values would undercut the only thing it claims. Re-run after any UI change.
-  The camera found a real bug on its first pass: the histogram's y-axis name
-  was clipped by the top of the canvas. Nothing else had ever looked at it.
-
-- 2026-07-21: **T-0017b — v0.1.0 released.** PR #3 squash-merged, release-please
-  cut the tag and the GitHub release. Post-merge CI green on all six jobs, and
-  the drift check that T-0034 fixed passed on the release commit — the exact
-  failure it was written for. Caught one more instance of the held-run trap on
-  the way in: the PR's green CI belonged to an *older* head (I had pushed twice
-  since), so the tick was real but stale. Re-approved on the current sha before
-  merging. **Match the run's sha to the PR head; a green check is not
-  necessarily a green check of what you are merging.**
-
-- 2026-07-21: T-0034 — **the OpenAPI drift check stopped failing on formatting
-  it does not own.** release-please rewrites `openapi.json` to stamp the version
-  and, being JavaScript, renders `5.0` as `5`; the byte-for-byte check called
-  that drift and would have reddened `main` on the release commit. `--check` now
-  compares parsed documents — which is the guarantee it always meant to give.
-  Caught by checking the release branch out locally, because the PR showed no
-  checks at all. The reason turned out to be worth knowing: workflows on a
-  GITHUB_TOKEN-created PR are queued as `action_required` and sit there awaiting
-  manual approval, which `gh pr checks` renders as *nothing reported* -- looking
-  exactly like a repo with no CI. Approving the run (`gh api -X POST
-  .../actions/runs/<id>/approve`) turned all six jobs green on the release
-  commit. **An unapproved release PR is untested and looks the same as a passing
-  one; approve it before merging.**
-
-- 2026-07-21: T-0032 — the maintainer enabled Actions-may-open-PRs; re-running
-  release-please opened PR #3 ("chore(main): release 0.1.0") on the spot.
-
-- 2026-07-21: T-0033 — **the upload panel no longer analyses the row index.**
-  It auto-selected the first numeric column, which on the demo CSV is `part`
-  (1..60): Pp 0.006, capability of the part *numbers* against a diameter spec,
-  with nothing to warn you, because consecutive integers are valid data.
-  Auto-select now skips index-looking columns; picking one manually still works
-  but says what it is. Both halves pinned by an e2e test.
-
-- 2026-07-20: T-0028 — an index with no value now **says why** rather than
-  showing a dash: "not defined on the percentile path" (Cp/Cpk have no
-  within/between split there) vs "needs both spec limits" (one-sided spec).
-  Two absences that looked identical are now distinguishable. Pinned by an
-  e2e test.
-
-- 2026-07-20: T-0017a — **release automation** via release-please (one version
-  for the whole repo). **Caught myself misdiagnosing the first run**: I claimed
-  the config left versions at 0.0.0 and "fixed" it; then inspected the release
-  branch release-please had actually pushed and found every version bumped
-  correctly. Reverted the false-premise change. The real blocker is a repo
-  switch (T-0032); the default 1.0.0 was pinned to 0.1.0 to match the goal.
-
-- 2026-07-16: T-0015a — **deployment artifacts**: Dockerfiles (API + web, both
-  non-root), docker-compose, Vercel config, docs/deployment.md. Could not build
-  locally (no Docker daemon), so CI gained an `images` job that builds both on
-  every commit rather than trusting an unverified artifact.
-
-- 2026-07-16: T-0016 — **docs site** (mkdocs-material + mkdocstrings): home,
-  getting started, method reference, validation, API reference. The sources page
-  is *generated* from the reference YAMLs with a CI drift check, so documented
-  sources cannot drift from what the suite asserts. New `docs` CI job.
-
-- 2026-07-16: T-0027 — **fixed a real crash in the capability decision path**: a
-  fitted Box-Cox lambda of -46 collapses both spec limits onto the same float,
-  and the resulting 422 quoted the transformed limits (0.0217) at a user who
-  typed 9.70/10.30. Box-Cox now reports the collapse against the caller's own
-  limits, and `analyze_capability` routes to the percentile fallback it already
-  had. Found by running a realistic demo CSV through the app before shipping it.
-  `examples/shaft-diameter.csv` is that dataset.
-- 2026-07-16: T-0014 — **printable report**: every analysis page prints itself
-  (print stylesheet drops controls, keeps results), charts switched to ECharts
-  **SVG** so the PDF is vector. Verified by a Playwright print-media test.
-- 2026-07-16: T-0025 — **MSA API + UI**: `/compute/{bias,linearity,stability}`
-  + a `/msa` page with all three studies, each pre-filled with a worked example
-  (stability reuses the ControlChart component). **M5 is complete end-to-end.**
-- 2026-07-16: **T-0013 (M5b) complete in the core** — bias (t-test vs a
-  reference), linearity (bias-vs-reference regression), stability (control chart
-  on a master). Validated against both AIAG examples, scipy's ttest_1samp and
-  linregress. 445 core tests, 100% coverage.
-- 2026-07-15: Gage R&R **web UI** -- a `/gage-rr` route with a data-entry grid
-  (parts x operators x trials, pre-filled with the AIAG example), method toggle
-  (ANOVA / average-and-range), and a report (variance table, %/ndc cards,
-  verdict warnings). Nav added. Verified in-browser on both methods; 2 Playwright
-  smoke tests. Gage R&R is now end-to-end: core -> API -> UI.
-- 2026-07-15: Gage R&R API — `/compute/gage-rr` in apps/api (both methods,
-  faithful `GageRRReportOut` incl. derived %/ndc; degenerate input -> null, not
-  500, via a core nan-guard fix); typed TS client regenerated. 38 API tests.
-- 2026-07-15: T-0012 — Gage R&R complete in capstat-core, both AIAG methods:
-  `gage_rr` (ANOVA) + `gage_rr_range` (average-and-range) sharing one report;
-  new `d2_star` constant from d2/d3, validated against Duncan's table; methods
-  cross-checked to agree. Hardened a coverage-flaky d3 timing test. 412 core
-  tests, 100% coverage.
-- 2026-07-15: T-0011 sub-increment 6 — test safety net: pure numerics extracted
-  to `lib/stats.ts` + vitest (21 tests); Playwright smoke test (API mocked);
-  both wired into CI; README "Web app" section. **T-0011 M4 complete.**
-- 2026-07-15: T-0011 sub-increment 5 — I-MR control charts (Individuals + MR,
-  limits/zones/violations + Nelson run-rule overlay); shared `useEchart` hook,
-  histogram refactored onto it. Verified in-browser (spike + run dataset).
-- 2026-07-15: T-0011 sub-increment 4 — capability dashboard: decision-path
-  analyze call, Pp/Ppk + Cp/Cpk, ECharts histogram with spec limits + normal
-  fit; verified in-browser on normal + Box-Cox data. Fixed two chart bugs
-  (empty canvas from an async-init race; spec limit clipped off the x-axis).
-- 2026-07-15: T-0020 — CI actions bumped off Node.js 20 (checkout v7, setup-uv
-  v7, setup-node v7); no input breakage, warnings gone.
-- 2026-07-15: T-0011 sub-increment 3 — upload flow: `UploadPanel` POSTs to
-  `/ingest`, ingestion warnings + column picker surfaced, verified in-browser;
-  API `CORSMiddleware` (env-configurable), 4 CORS tests; uv-workspace excludes
-  `apps/web`. 34 API tests pass, web lint/build/drift green.
-- 2026-07-15: T-0011 (in progress) TS client + Next.js scaffold; typed
-  `openapi-fetch` client wired, `npm run build` green, web CI job added.
-- 2026-07-15: T-0010 FastAPI service (`apps/api`): faithful serialisation,
-  CSV/XLSX ingestion, committed OpenAPI + drift check. 412 tests, 100 % cov.
-- 2026-07-14: T-0009 Nelson + Western Electric run rules.
-- 2026-07-14: T-0008 EWMA + CUSUM, both NIST worked examples reproduced.
-- 2026-07-14: T-0007 chart constants + Shewhart charts; 75x d3 speedup.
-- 2026-07-14: T-0006 non-normal path (Box-Cox, ISO 22514, decision path).
-- 2026-07-14: T-0005 capability indices + d2/c4 constants.
-- 2026-07-14: T-0004 normality tests with a caveated verdict.
-- 2026-07-14: T-0003 descriptive + robust statistics, NIST StRD validated.
-- 2026-07-14: T-0002 repo bootstrap; CI green on GitHub.
+Older status, next actions, open decisions and the full "Last done" list:
+`docs/state_archiv_2026-10-21.md` (verbatim) and `TASK.md` `## Done`.

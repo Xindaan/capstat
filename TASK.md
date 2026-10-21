@@ -240,6 +240,17 @@ locale a lot size "5.000" becomes 5.
   shared convention (STATE: goal, 2-6 status bullets, 1-3 next actions). Open
   work is split between both files. Not acted on -- these files are the
   maintainer's.
+  **STATE.md part done 2026-10-21:** rewritten as an 80-line snapshot up to
+  `<!-- snapshot-ende -->` (shared rule `~/src/CLAUDE.md` §3/§5, decided by
+  the maintainer); old text verbatim in `docs/state_archiv_2026-10-21.md`.
+  TASK.md size stays open (portfolio-wide question, not decided yet).
+
+- T-0116 **Dependabot backlog: 13 open alerts, 6 update PRs.** (2026-10-21,
+  found while rewriting STATE.md.) `gh` showed 13 open alerts, high ones on
+  `next` (x2), `vite` and `source-map-js`, and open PRs #47, #48, #50-#53
+  (incl. next 16.3.8, #53). The T-0046 "zero alerts" state of 2026-08-16 no
+  longer holds. Done when: the high alerts are closed (merged or dismissed
+  with a reason) and the remaining PRs are merged or closed.
 
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four
