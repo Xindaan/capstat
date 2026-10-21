@@ -12,7 +12,7 @@
 # computed on, and the tests assert that diagnosis:
 #
 #   1. The AOQ column is computed with the approximation AOQ ~ Pa*p, not with
-#      the exact AOQ = Pa*p*(N-n)/N printed directly above it. The factor
+#      the exact (Type B) AOQ = Pa*p*(N-n)/N printed directly above it. The factor
 #      (N-n)/N = 0.9948 shows in the fourth decimal. Rounded to the four decimals
 #      printed, Pa*p reproduces ten of the twelve rows exactly. The handbook
 #      itself notes "if N >> n, then AOQ ~ Pa*p" one paragraph later.
@@ -107,7 +107,7 @@ sources:
       The only independent source found that publishes an AOQL together with the
       incoming quality that produces it, which is what makes it a real check on
       the maximisation rather than on the AOQ formula alone. Minitab also uses
-      the exact AOQ = Pa*p*(N-n)/N -- its 1.420 % at p=1.5 % matches capstat's
+      the exact Type B AOQ = Pa*p*(N-n)/N -- its 1.420 % at p=1.5 % matches capstat's
       1.42013 % -- confirming which of the two AOQ formulas is the correct one
       where the NIST column disagrees with itself.
   scipy_distributions:
@@ -120,7 +120,10 @@ sources:
       search was c=0, which collapses the sum to a single term and so exercises
       nothing. It is validated instead against scipy's hypergeom and against a
       hand-written combinatorial enumeration of the definition, and this gap is
-      stated rather than papered over.
+      stated rather than papered over. The same goes for the Type A AOQ, which
+      is not Pa*p*(N-n)/N but (D/N)((N-n)/N) P(Hyp(N-1, D-1, n) <= c): the
+      tests sum its definition, (1/N) sum_{x<=c} (D-x) h(x; N, D, n), with
+      math.comb and Fraction, and enumerate the AOQL over every D.
 
 defaults:
   tolerance:
