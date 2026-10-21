@@ -31,6 +31,12 @@ Reference file: `tests/references/normality.yaml`
   <https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm>
 - **Royston, P. (1995). Remark AS R94: A remark on Algorithm AS 181: The W test for normality. Applied Statistics, 44(4), 547-551.**
   Retrieved 2026-07-14.
+- **NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.15, Chi-Square Goodness-of-Fit Test.**
+  <https://www.itl.nist.gov/div898/handbook/eda/section3/eda35f.htm> Retrieved 2026-10-21.
+- **Sheppard, W. F. (1898). On the calculation of the most probable values of frequency-constants, for data arranged according to equidistant division of a scale. Proceedings of the London Mathematical Society, 29, 353-380.**
+  Sheppard's correction, sigma^2 = s^2 - r^2/12, is the classical large-sample approximation to the binned estimate on a fine grid; it is the independent cross-check of capstat's binned fit (case grouped-fit-matches-sheppard).
+- **Davison, A. C., & Hinkley, D. V. (1997). Bootstrap Methods and their Application. Cambridge University Press, chapter 4.**
+  Parametric bootstrap (Monte Carlo) test: the null distribution of the unchanged Anderson-Darling and Shapiro-Wilk statistics is simulated from the fitted normal, rounded to the readings' grid. capstat has no published worked example for this combination; it is validated by its size on simulated rounded normal data (case resolution-calibrated-size), not by a quoted number.
 
 ## Capability indices and chart constants
 
@@ -54,6 +60,8 @@ Reference file: `tests/references/nonnormal.yaml`
   NIST/SEMATECH e-Handbook, section 6.5.2, describes the same transformation for capability work.
 - **ISO 22514-4, Statistical methods in process management -- Capability and performance -- Part 4: Process capability estimates and performance measures.**
   X_p are percentiles of the fitted distribution. The method yields performance (long-term) indices only: it uses the overall distribution and has no within/between subgroup split, so it cannot produce Cp/Cpk.
+- **NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.14, Anderson-Darling Test.**
+  <https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm> Retrieved 2026-10-21.
 
 ## Shewhart control charts
 

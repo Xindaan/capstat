@@ -57,6 +57,39 @@ sources:
       StatsRef (statsref.com/HTML/shapiro-wilk.html), worked example on Shapiro
       & Wilk's original data, evaluated with R's shapiro.test().
     retrieved: 2026-07-14
+  grouped_normal_fit:
+    title: >
+      NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.15,
+      Chi-Square Goodness-of-Fit Test.
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda35f.htm
+    retrieved: 2026-10-21
+    formula: >
+      l(theta) = sum_i O_i * log(F_theta(y_{i+1}) - F_theta(y_i)), maximised
+      over theta: "the maximum likelihood estimate derived from the observed
+      bin counts, not from the individual observations". capstat applies it to
+      readings rounded to a gauge step r, whose bins are [v - r/2, v + r/2].
+  sheppard_correction:
+    title: >
+      Sheppard, W. F. (1898). On the calculation of the most probable values
+      of frequency-constants, for data arranged according to equidistant
+      division of a scale. Proceedings of the London Mathematical Society, 29,
+      353-380.
+    note: >
+      Sheppard's correction, sigma^2 = s^2 - r^2/12, is the classical
+      large-sample approximation to the binned estimate on a fine grid; it is
+      the independent cross-check of capstat's binned fit (case
+      grouped-fit-matches-sheppard).
+  resolution_calibration:
+    title: >
+      Davison, A. C., & Hinkley, D. V. (1997). Bootstrap Methods and their
+      Application. Cambridge University Press, chapter 4.
+    note: >
+      Parametric bootstrap (Monte Carlo) test: the null distribution of the
+      unchanged Anderson-Darling and Shapiro-Wilk statistics is simulated from
+      the fitted normal, rounded to the readings' grid. capstat has no published worked
+      example for this combination; it is validated by its size on
+      simulated rounded normal data (case resolution-calibrated-size), not by
+      a quoted number.
 
 cases:
   # -------------------------------------------------------------------------
@@ -118,3 +151,46 @@ cases:
       boundaries: [0.2, 0.34, 0.6]
     tolerance:
       abs: 5.0e-3
+
+  # -------------------------------------------------------------------------
+  # Readings rounded to a gauge resolution (T-0097, CAP-6).
+  # -------------------------------------------------------------------------
+  - id: grouped-fit-matches-sheppard
+    method: grouped_normal_fit
+    description: >
+      N(10, 0.05), n = 20000, rounded to a step of one sigma (0.05). The raw
+      standard deviation of the rounded readings is inflated by the rounding
+      (sqrt(1 + 1/12) = 1.041 times sigma). The binned maximum-likelihood
+      sigma must remove that inflation: it agrees with Sheppard's corrected
+      value sqrt(s^2 - r^2/12) to 4e-4 relative on seeds 0-2 (measured
+      2026-10-21), while the raw sd is 4 % high. At a step of two sigma,
+      where Sheppard's large-sample approximation no longer holds (it gives
+      1.5-2.3 % too little), the binned estimate still lands within 0.6 % of
+      the unrounded sample's sd.
+    input:
+      n: 20000
+      sigma: 0.05
+      steps: [0.05, 0.1]
+    tolerance:
+      sheppard_rel: 2.0e-3       # step = 1 sigma
+      unrounded_rel: 1.5e-2      # step = 2 sigma, against the unrounded sd
+
+  - id: resolution-calibrated-size
+    method: resolution_calibration
+    description: >
+      The calibrated verdict must reject truly normal, rounded readings at
+      about the rate the combined continuous verdict rejects continuous normal
+      data (7.6 %, see NormalityAssessment), where the uncalibrated tests
+      reject 18 % (n = 100) to 100 % (n = 1000) at a step of 0.2 sigma.
+      Measured with the production 999 draws, 300 samples each (2026-10-21):
+      step 0.05 sigma 9.0 % / 7.7 % (n = 100 / 1000); 0.2 sigma 6.3 % / 6.0 %;
+      0.5 sigma 4.0 % / 1.0 %. The test runs a cheaper version (60 samples,
+      199 draws) and bounds the count: at a true rate of 8 % the chance of 12
+      or more rejections in 60 is below 1 %.
+    input:
+      samples: 60
+      n: 200
+      step_in_sigma: 0.2
+      draws: 199
+    expected:
+      max_rejections: 11

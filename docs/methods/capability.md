@@ -82,7 +82,28 @@ The result carries `path` and a `rationale` sentence explaining the choice.
     make it applicable: the offset changes the indices and must be a recorded
     decision, not a silent one. It also refuses when an extreme fitted lambda
     collapses both specification limits onto the same floating-point value —
-    which really happens — and routes to the percentile method instead.
+    which really happens — or collapses the readings themselves (with a single
+    limit there is no pair of limits to collide, but the data still can), and
+    routes to the percentile method instead, naming that reason.
+
+!!! note "Readings rounded to a gauge resolution"
+    Both normality tests assume continuous data. Readings from a gauge with a
+    fixed resolution tie, and with enough readings the tests reject a perfectly
+    normal process for the ties alone. When they reject and the readings lie on
+    a regular grid with ties, capstat re-takes the verdict with the same two
+    tests calibrated against normal data rounded to the same resolution (a
+    parametric bootstrap; up to 5000 readings). If the rounding is the only
+    departure found, the normal path is taken; the rationale says so, and a
+    `nonnormal.resolution-limited` warning states the step relative to sigma —
+    at a step of about one sigma or more, the readings say little about the
+    shape of the distribution. Readings that take fewer than three distinct
+    values are refused: no distribution can be estimated from them.
+
+!!! note "The unit does not matter"
+    The percentile method fits each candidate distribution on standardised data
+    and maps it back, and ranks the candidates by the Anderson-Darling statistic
+    against the fitted distribution as it stands. Pp and Ppk therefore come out
+    the same whether the data are in millimetres or metres.
 
 **Sources.** Box & Cox (1964); ISO 22514-4. See
 [Sources](../validation-sources.md#non-normal-capability).
