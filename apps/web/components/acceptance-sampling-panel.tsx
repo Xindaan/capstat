@@ -10,6 +10,7 @@ import {
   type LotDecision,
   type OCCurve,
   type SamplingModel,
+  type SamplingPlan,
   type SamplingPlanInput,
   type SamplingPlanReport,
 } from "@/lib/api-client";
@@ -85,6 +86,24 @@ function asCount(text: string, minimum: number): number | null {
   return value;
 }
 
+/**
+ * The plan a request may carry, taken from the plan a report describes.
+ *
+ * The report's plan is an *output* (`SamplingPlanOut`) and has a derived field,
+ * `rejection_number`, that the request model (`SamplingPlanIn`, which forbids
+ * extra fields) does not accept. Passing the whole object on compiled -- an
+ * object that arrives through a variable is checked structurally, so extra
+ * keys are fine to tsc -- and was answered with a 422 on every click
+ * (T-0099, WEB-3). So the three input fields are picked out by name.
+ */
+function asPlanInput(plan: SamplingPlan): SamplingPlanInput {
+  return {
+    sample_size: plan.sample_size,
+    acceptance_number: plan.acceptance_number,
+    lot_size: plan.lot_size,
+  };
+}
+
 export function AcceptanceSamplingPanel({
   initial = EXAMPLE,
   onInputsChange,
@@ -103,6 +122,7 @@ export function AcceptanceSamplingPanel({
   const [defectivesText, setDefectivesText] = useState(initial.defectives);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [decision, setDecision] = useState<LotDecision | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
 
   useEffect(() => {
     onInputsChange?.({
@@ -166,6 +186,7 @@ export function AcceptanceSamplingPanel({
     if (plan == null || aql == null || ltpd == null) return;
     setStatus({ kind: "computing" });
     setDecision(null);
+    setDecisionError(null);
     const [evaluated, curved] = await Promise.all([
       callApi(
         () => evaluateSamplingPlan(plan, aql, ltpd, model),
@@ -192,6 +213,7 @@ export function AcceptanceSamplingPanel({
     if (producerRisk == null || consumerRisk == null) return;
     setStatus({ kind: "computing" });
     setDecision(null);
+    setDecisionError(null);
     const plan_ = await callApi(
       () =>
         designSamplingPlan({
@@ -246,14 +268,18 @@ export function AcceptanceSamplingPanel({
    * decision belongs to the plan on screen; taking it from the report also
    * means there is no null case left to fall through.
    */
-  const decide = async (judged: SamplingPlanInput) => {
+  const decide = async (judged: SamplingPlan) => {
     if (defectives == null) return;
+    setDecisionError(null);
     const outcome = await callApi(
-      () => inspectLot(judged, defectives, model),
+      () => inspectLot(asPlanInput(judged), defectives, model),
       "The lot could not be judged.",
     );
     if (!outcome.ok) {
-      fail(outcome.message);
+      // Its own message, beside the Decide box: a failed decision says nothing
+      // about the plan, so it must not replace the report the user is reading
+      // (the old `fail()` wiped the whole result block).
+      setDecisionError(outcome.message);
       return;
     }
     setDecision(outcome.data);
@@ -465,6 +491,7 @@ export function AcceptanceSamplingPanel({
                 </span>
               )}
             </div>
+            {decisionError && <ErrorAlert message={decisionError} />}
             {decision && (
               <ul className="list-disc space-y-1 pl-5 text-xs text-foreground/60">
                 {decision.warnings.map((w, i) => (

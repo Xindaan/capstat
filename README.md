@@ -568,6 +568,11 @@ npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
 npm run build       # production build + type-check
 ```
 
+The mocked e2e suite still checks the contract: every request the page sends
+to the API is validated against `apps/api/openapi.json` (request body, path,
+method), and a request the real API would refuse fails the test whatever its
+mock answered. `E2E_PORT` moves the dev server off port 3000.
+
 ### Screenshots
 
 The control chart on the same data. The process drifts and excursions at part

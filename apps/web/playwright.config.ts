@@ -8,6 +8,10 @@ const PORT = Number(process.env.E2E_PORT ?? 3000);
 // so this needs only the Next dev server -- no Python backend, no network.
 export default defineConfig({
   testDir: "./e2e",
+  // Only *.spec.ts: the *.test.ts files under e2e/contract belong to vitest
+  // (the contract validator is plain logic) and use import.meta, which
+  // Playwright's loader rejects.
+  testMatch: "**/*.spec.ts",
   // Compile the routes before the first test; see e2e/global-setup.ts.
   globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
