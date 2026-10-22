@@ -702,6 +702,34 @@ locale a lot size "5.000" becomes 5.
 
 ## Done
 
+- T-0117 (2026-10-22) **Security update of locked dependencies (patch check
+  2026-10-22); no code change.** Raised each flagged package to the smallest
+  fixed release in its line.
+  * `apps/web`: next 16.3.5 -> 16.3.8 and eslint-config-next 16.3.5 -> 16.3.8
+    (GHSA-vcvr-r3jv-pc5j CRITICAL RCE in next/og, GHSA-cjq9-62q9-8jv4 HIGH SSRF,
+    plus 5 MODERATE/LOW); vitest/@vitest/mocker 4.1.11 -> 4.1.12; vite 8.3.0 ->
+    8.3.5 (fix 8.3.3, npm resolves the range to the latest patch;
+    GHSA-587h-7wmj-h5pm); sharp 0.35.4 -> 0.35.5 (GHSA-wq5f-xc86-pv6w);
+    source-map-js 1.2.1 -> 1.2.2 (GHSA-68fv-2mgg-jv7q); brace-expansion
+    1.1.18/2.1.4/5.0.9 -> 1.1.21/2.1.7/5.0.12 (GHSA-6j4f-fj2g-mc7p,
+    GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr).
+  * `uv.lock`: certifi 2026.6.17 -> 2026.10.19 (GHSA-6q48-6c7w-9gw2 CRITICAL),
+    urllib3 2.7.0 -> 2.8.0 (GHSA-8988-9cw3-xx77, GHSA-vxq7-64xx-v4gw),
+    virtualenv 21.6.1 -> 21.14.9 (8 HIGH advisories, e.g. GHSA-c978-59m8-c77v);
+    pulled in by virtualenv: packaging 26.2 -> 26.3, python-discovery 1.4.4 ->
+    1.6.4.
+  * Measured with an OSV batch query per lockfile: package-lock.json 27 hits
+    (1 CRITICAL, 11 HIGH) -> 1; uv.lock 23 hits (1 CRITICAL, 10 HIGH) -> 0. Left
+    open: braces 3.0.3 HIGH (GHSA-vfj7-8cjw-p6xm), no fixed release exists.
+  * Tests on the old and the new lock: pytest 677 passed -> 677 passed; vitest
+    79 -> 79; `next build`, `tsc --noEmit`, eslint green on both; ruff, ruff
+    format, mypy and `uv pip check` green after. Playwright not run.
+  * Note: `npm install vitest@^4.1.12` crashes in npm 10.9.9 (arborist
+    `#loadPeerSet`: "Cannot read properties of null (reading 'edgesOut')");
+    the vitest bump was done with npm 11.6.2, then re-normalized with npm
+    10.9.9 (`npm install` restored the `@emnapi/*` entries npm 11 had dropped;
+    `npm ci` clean).
+
 - T-0094 (2026-09-21) **Releasing the project's own bookkeeping put the
   release cycle into a loop; steering-file commits are now `chore`.** Merging a
   release forces a STATE.md update, that commit was typed `docs`, `docs` is a
