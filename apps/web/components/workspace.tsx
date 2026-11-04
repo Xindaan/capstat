@@ -5,9 +5,13 @@ import { useCallback, useState } from "react";
 import type { IngestColumn } from "@/lib/api-client";
 import {
   MAX_SUBGROUP_SIZE,
+  interiorGaps,
   intoSubgroups,
   parseSubgroupSize,
+  type IncompleteSubgroup,
 } from "@/lib/subgroups";
+import { readCount } from "@/lib/numbers";
+import { NumericInput } from "./numeric-input";
 import { UploadPanel } from "./upload-panel";
 import { CapabilityDashboard } from "./capability-dashboard";
 import { ControlChartPanel } from "./control-chart-panel";
@@ -33,11 +37,20 @@ export function Workspace() {
     setGeneration((n) => n + 1);
   }, []);
 
-  const size = parseSubgroupSize(sizeText);
+  // Read by the shared number reader first (T-0100): "3,5" and "1.000" are
+  // refused there with a reason instead of being mangled by the field.
+  const sizeRead = readCount(sizeText);
+  const size = sizeRead.ok ? parseSubgroupSize(String(sizeRead.value)) : null;
   const values = column?.values ?? [];
-  const grouping = size == null ? null : intoSubgroups(values, size);
+  const grouping =
+    size == null || column == null ? null : intoSubgroups(column, size);
+  const gaps = column == null ? 0 : interiorGaps(column);
+  // `grouping` is null whenever the column is (an "Upload another file"
+  // reset keeps the size), so it is checked, never asserted.
   const usable =
-    size != null && (size === 1 || grouping!.subgroups.length >= 2);
+    size != null &&
+    column != null &&
+    (size === 1 || (grouping != null && grouping.subgroups.length >= 2));
 
   return (
     <div className="flex flex-col gap-10">
@@ -51,6 +64,8 @@ export function Workspace() {
             total={values.length}
             complete={grouping?.subgroups.length ?? 0}
             leftover={grouping?.leftover.length ?? 0}
+            incomplete={grouping?.incomplete ?? []}
+            gaps={gaps}
           />
           {usable && (
             <>
@@ -79,6 +94,8 @@ function SubgroupControl({
   total,
   complete,
   leftover,
+  incomplete,
+  gaps,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -86,6 +103,8 @@ function SubgroupControl({
   total: number;
   complete: number;
   leftover: number;
+  incomplete: IncompleteSubgroup[];
+  gaps: number;
 }) {
   const tooFew = size != null && size > 1 && complete < 2;
   return (
@@ -98,12 +117,12 @@ function SubgroupControl({
           <span className="text-xs uppercase tracking-wide text-muted">
             Subgroup size
           </span>
-          <input
-            type="number"
+          <NumericInput
+            kind="integer"
             min={1}
             max={MAX_SUBGROUP_SIZE}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={onChange}
             aria-label="Subgroup size"
             className="h-10 w-24 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
           />
@@ -125,6 +144,33 @@ function SubgroupControl({
           {leftover} {leftover === 1 ? "value is" : "values are"} not part of
           any subgroup and take no part in the analysis below. Drop them, or
           pick a size that divides the column.
+        </p>
+      )}
+      {incomplete.length > 0 && (
+        <p
+          data-testid="subgroup-incomplete"
+          className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200/90"
+        >
+          {incomplete.length === 1 ? "Subgroup" : "Subgroups"}{" "}
+          {incomplete.map((g) => g.index).join(", ")}{" "}
+          {incomplete.length === 1 ? "is" : "are"} missing a cell and{" "}
+          {incomplete.length === 1 ? "was" : "were"} left out of the analysis
+          below rather than re-cut from the values after{" "}
+          {incomplete.length === 1 ? "it" : "them"}, which would mix
+          neighbouring subgroups. Fill the blank{" "}
+          {incomplete.length === 1 ? "cell" : "cells"} in the file to bring{" "}
+          {incomplete.length === 1 ? "it" : "them"} back.
+        </p>
+      )}
+      {size === 1 && gaps > 0 && (
+        <p
+          data-testid="subgroup-gap-note"
+          className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200/90"
+        >
+          {gaps} missing {gaps === 1 ? "cell sits" : "cells sit"} inside this
+          column. Individual measurements are read in the order they appear, so
+          the moving range runs across {gaps === 1 ? "the gap" : "each gap"} as
+          if the readings on either side were consecutive.
         </p>
       )}
       {tooFew && (

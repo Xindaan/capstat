@@ -32,6 +32,11 @@ maximum the AOQL, and the average total inspection (ATI).
 
     AOQ = Pa(p) * p * (N - n) / N          ATI = n + (1 - Pa(p)) * (N - n)
 
+That AOQ is the Type B one. On one finite lot (Type A) an accepted lot is one
+whose sample held few defectives, so the remainder holds more than ``p`` says;
+the exact form is ``(D/N) (N-n)/N P(Hyp(N-1, D-1, n) <= Ac)`` -- derived in
+:func:`average_outgoing_quality`.
+
 Designing a plan runs the same OC function backwards: find the smallest
 ``(n, Ac)`` whose curve passes above ``1 - alpha`` at the AQL and below ``beta``
 at the LTPD. That is a search over the definition, not a lookup.
@@ -324,22 +329,140 @@ def oc_curve(
     )
 
 
+def _type_a_aoq(
+    plan: SamplingPlan, lot_size: int, defectives: npt.NDArray[np.int64]
+) -> npt.NDArray[np.float64]:
+    """Exact Type A AOQ for lots holding ``D`` defectives (vectorised over D).
+
+    See :func:`average_outgoing_quality` for the derivation of
+    ``AOQ = (D/N) * ((N - n)/N) * P(Hyp(N-1, D-1, n) <= Ac)``.
+    """
+    n, ac = plan.sample_size, plan.acceptance_number
+    out = np.zeros(defectives.shape, dtype=np.float64)
+    if n >= lot_size:
+        # Every item is inspected: nothing defective leaves, whatever D is.
+        return out
+    present = defectives > 0
+    d = defectives[present]
+    shifted_pa = stats.hypergeom.cdf(ac, lot_size - 1, d - 1, n)
+    out[present] = (d / lot_size) * ((lot_size - n) / lot_size) * shifted_pa
+    return out
+
+
 def average_outgoing_quality(
     plan: SamplingPlan,
     fraction_defective: float,
     *,
     model: SamplingModel = "binomial",
 ) -> float:
-    """``AOQ = Pa * p * (N - n) / N`` -- outgoing quality under rectification.
+    """Average outgoing quality under rectifying inspection.
 
-    This assumes the rectifying scheme it is defined for: every rejected lot is
-    100 % inspected and its defectives replaced with good units, so a rejected
-    lot leaves perfect and only accepted lots carry defects onward.
+    The rectifying scheme: every rejected lot is 100 % inspected and its
+    defectives replaced with good units, and the defectives found in the
+    sample of an *accepted* lot are replaced too. A rejected lot therefore
+    leaves perfect, and an accepted one carries only the defectives of its
+    unsampled remainder.
+
+    Binomial and Poisson (Type B, a lot drawn from a process)::
+
+        AOQ = Pa(p) * p * (N - n) / N
+
+    The remainder's ``N - n`` items are independent of the sample, so each is
+    defective with probability ``p`` whatever the sample showed.
+
+    Hypergeometric (Type A, one finite lot holding exactly ``D = round(N p)``
+    defectives)::
+
+        AOQ = (D / N) * ((N - n) / N) * P(Hyp(N - 1, D - 1, n) <= Ac)
+
+    Here the remainder is *not* independent of the sample: a lot is accepted
+    because its sample held few defectives, so more of them stayed behind. An
+    accepted lot with ``x`` sample defectives leaves ``D - x``, so by
+    definition ``AOQ = (1/N) sum_{x <= Ac} (D - x) h(x; N, D, n)``. The
+    identity ``(D - x) h(x; N, D, n) = D (N - n)/N * h(x; N - 1, D - 1, n)``
+    (from ``(D - x) C(D, x) = D C(D - 1, x)`` and ``C(N, n) = N/(N - n)
+    C(N - 1, n)``) collapses the sum to the closed form above. Using the Type B
+    form with the Type A ``Pa`` instead understates the AOQ -- by exactly the
+    factor ``(N - n)/N`` for ``Ac = 0`` (where the exact value is ``(D/N) Pa``),
+    i.e. by half when half the lot is sampled. ``p`` is realised as ``D/N``, the
+    lot quality ``Pa`` was evaluated at.
+
+    References
+    ----------
+    Saksena, R. *Sampling Inspection* (lecture notes, University of Lucknow),
+        eq. (10.4): ``AOQ = sum_{x <= c} (Np - x)/N f(x)`` for a single plan on a
+        lot of size N -- the definition the Type A form evaluates exactly. The
+        closed form is derived above and checked against integer enumeration
+        in the tests.
+    Schilling and Neubauer (module references) for the Type A / Type B
+        distinction; their text was not checked for this formula.
     """
     lot_size = _require_lot_size(plan, "AOQ")
     p = _check_fraction(fraction_defective)
+    if model == "hypergeometric":
+        defectives = np.array([round(lot_size * p)], dtype=np.int64)
+        return float(_type_a_aoq(plan, lot_size, defectives)[0])
     pa = probability_of_acceptance(plan, p, model=model)
     return pa * p * (lot_size - plan.sample_size) / lot_size
+
+
+# How many lot qualities the Type A AOQL search evaluates outright. Below it
+# every attainable D is tried; above it a grid of this many D locates the peak
+# and every D between the grid neighbours of the peak is then tried.
+_TYPE_A_EXHAUSTIVE_D = 2001
+
+
+def _type_a_aoq_limit(plan: SamplingPlan, lot_size: int) -> AOQLimit:
+    """The Type A AOQL: the largest AOQ over the lot's attainable qualities.
+
+    A lot of ``N`` items has ``N + 1`` attainable qualities ``D/N``; the AOQ is
+    a function of the integer ``D`` and has no peak between two of them, so the
+    answer is one of those ``D``. Not all ``N + 1`` need trying. With
+    ``F(D) = P(Hyp(N-1, D-1, n) <= Ac)`` non-increasing in ``D``,
+    ``AOQ(D) <= (N - n)/N * F(D)``, while ``AOQ(1) = (N - n)/N**2`` because a
+    lot with one defective item always passes the shifted test. So once
+    ``F(D) < 1/N`` no larger ``D`` can beat ``D = 1``, and the search stops at
+    the first such ``D`` (found by bisection) -- an exact bound, not a
+    tolerance. Up to :data:`_TYPE_A_EXHAUSTIVE_D` candidates are enumerated
+    outright; beyond that a grid over them locates the peak and every integer
+    between its grid neighbours is enumerated, the same bracketing the
+    continuous models use.
+    """
+    n, ac = plan.sample_size, plan.acceptance_number
+    if n >= lot_size:
+        return AOQLimit(aoql=0.0, at_fraction_defective=0.0)
+
+    def shifted_pa(d: int) -> float:
+        return float(stats.hypergeom.cdf(ac, lot_size - 1, d - 1, n))
+
+    # Bisection for the first D with F(D) < 1/N. F(1) = 1, so ``low`` always
+    # satisfies F >= 1/N; if no D does (an Ac = n plan accepts everything),
+    # ``high`` never moves and the bound is N itself.
+    low, high = 1, lot_size
+    while high - low > 1:
+        mid = (low + high) // 2
+        if shifted_pa(mid) >= 1.0 / lot_size:
+            low = mid
+        else:
+            high = mid
+    bound = high
+    if bound <= _TYPE_A_EXHAUSTIVE_D:
+        candidates = np.arange(1, bound + 1, dtype=np.int64)
+    else:
+        coarse = np.unique(
+            np.linspace(1, bound, _TYPE_A_EXHAUSTIVE_D).round().astype(np.int64)
+        )
+        coarse_values = _type_a_aoq(plan, lot_size, coarse)
+        peak = int(np.argmax(coarse_values))
+        first = int(coarse[max(peak - 1, 0)])
+        last = int(coarse[min(peak + 1, coarse.size - 1)])
+        candidates = np.arange(first, last + 1, dtype=np.int64)
+    values = _type_a_aoq(plan, lot_size, candidates)
+    best = int(np.argmax(values))
+    return AOQLimit(
+        aoql=float(values[best]),
+        at_fraction_defective=float(candidates[best] / lot_size),
+    )
 
 
 def aoq_limit(
@@ -349,18 +472,18 @@ def aoq_limit(
 ) -> AOQLimit:
     """The AOQL: the maximum of the AOQ curve, found rather than tabulated.
 
-    A coarse grid locates the peak and a bounded optimisation refines it inside
-    the bracketing interval. The grid comes first on purpose: it does not assume
-    the AOQ curve is unimodal, which is true for the plans anyone uses but is
-    not something this function needs to bet on.
+    For the continuous (Type B) models a coarse grid locates the peak and a
+    bounded optimisation refines it inside the bracketing interval. The grid
+    comes first on purpose: it does not assume the AOQ curve is unimodal, which
+    is true for the plans anyone uses but is not something this function needs
+    to bet on. The Type A curve is a function of the whole number of
+    defectives in the lot, so its maximum is searched over those, with a bound
+    on how far the search must go (see :func:`_type_a_aoq_limit`).
     """
     lot_size = _require_lot_size(plan, "the AOQL")
-    if model == "hypergeometric" and lot_size <= 1000:
-        # A finite lot has only N+1 attainable qualities, so search those rather
-        # than a uniform grid that lands on the same steps over and over.
-        grid = np.arange(lot_size + 1, dtype=np.float64) / lot_size
-    else:
-        grid = np.linspace(0.0, 1.0, 1001)
+    if model == "hypergeometric":
+        return _type_a_aoq_limit(plan, lot_size)
+    grid = np.linspace(0.0, 1.0, 1001)
     values = np.array(
         [average_outgoing_quality(plan, float(p), model=model) for p in grid],
         dtype=np.float64,
@@ -368,12 +491,6 @@ def aoq_limit(
     peak = int(np.argmax(values))
     low = grid[max(peak - 1, 0)]
     high = grid[min(peak + 1, grid.size - 1)]
-    if model == "hypergeometric" or high <= low:
-        # A step function has no derivative to chase; the grid maximum is the
-        # honest answer, and refining it would invent precision.
-        return AOQLimit(
-            aoql=float(values[peak]), at_fraction_defective=float(grid[peak])
-        )
     result = optimize.minimize_scalar(
         lambda p: -average_outgoing_quality(plan, float(p), model=model),
         bounds=(float(low), float(high)),

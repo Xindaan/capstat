@@ -70,13 +70,16 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample
+from capstat_core._validation import as_sample, check_scalar
 from capstat_core.capability import CapabilityReport, capability
 from capstat_core.caveats import Caveat
 from capstat_core.normality import (
     AD_MIN_SAMPLE_SIZE,
+    RESOLUTION_MAX_SAMPLE_SIZE,
     NormalityAssessment,
-    anderson_darling,
+    _grid_resolution,
+    _normality_at_resolution,
+    _RoundedNormality,
     assess_normality,
 )
 
@@ -109,9 +112,12 @@ DEFAULT_CANDIDATES = ("lognorm", "weibull_min", "gamma", "expon")
 class DistributionFit:
     """A fitted distribution and how well it fits.
 
-    ``fit_score`` is an Anderson-Darling statistic computed on the probability
-    integral transform of the data (if ``X ~ F`` then ``Phi^-1(F(X))`` is
-    standard normal). Lower is better.
+    ``fit_score`` is the Anderson-Darling statistic of the data against the
+    fitted distribution itself, taken as fully specified (see
+    :func:`_fit_score`): if ``X ~ F`` then ``F(X)`` is uniform, and the
+    statistic measures how far the transformed sample is from that. Lower is
+    better. Because ``F`` is used as it stands, a fit in the wrong place or of
+    the wrong width scores badly -- which is the point of the score.
 
     It is deliberately *not* accompanied by a p-value. The parameters were
     estimated from the same data, which makes any such p-value anticonservative
@@ -130,15 +136,108 @@ class DistributionFit:
 
 
 def _fit_score(data: npt.NDArray[np.float64], frozen: object) -> float:
-    """Anderson-Darling statistic on the probability integral transform."""
-    u = np.clip(frozen.cdf(data), 1e-12, 1 - 1e-12)  # type: ignore[attr-defined]
-    z = stats.norm.ppf(u)
-    if not np.all(np.isfinite(z)):
+    """Anderson-Darling statistic of ``data`` against a fully specified ``F``.
+
+    ``A^2 = -n - (1/n) * sum_i (2i - 1) * [ln F(x_(i)) + ln(1 - F(x_(n+1-i)))]``
+
+    with ``x_(i)`` the ordered data and ``F`` the fitted CDF, used as it stands
+    (NIST/SEMATECH e-Handbook 1.3.5.14: "F is the cumulative distribution
+    function of the specified distribution"). ``F(x)`` is clipped to
+    ``[1e-12, 1 - 1e-12]`` so that a reading the fit calls impossible costs a
+    large, finite penalty rather than an infinite one.
+
+    Not the Anderson-Darling *normality* test (CAP-1). That one standardises its
+    input by the input's own mean and standard deviation, so feeding it the
+    normal scores ``Phi^-1(F(x))`` -- as this score once did -- hid every error
+    of location and scale in the fit: a fitted distribution whose median sat at
+    half the data's median scored as well as the right one, because only the
+    *shape* of the transformed sample was judged. That is precisely the error a
+    stalled optimiser makes, so the score could not see the fits that most
+    needed rejecting.
+    """
+    u = np.sort(np.clip(frozen.cdf(data), 1e-12, 1 - 1e-12))  # type: ignore[attr-defined]
+    if not np.all(np.isfinite(u)):
         return math.inf
-    try:
-        return anderson_darling(z).statistic
-    except ValueError:
-        return math.inf
+    n = int(u.size)
+    i = np.arange(1, n + 1)
+    weighted = (2 * i - 1) * (np.log(u) + np.log1p(-u[::-1]))
+    return -n - float(weighted.mean())
+
+
+def _fit_family(family: object, arr: npt.NDArray[np.float64]) -> tuple[float, ...]:
+    """Maximum-likelihood parameters of ``family``, independent of the unit.
+
+    Every scipy continuous distribution is a location-scale family: its last two
+    parameters are ``loc`` and ``scale``. For such a family maximum likelihood
+    is equivariant -- with ``y = a + b*x`` (``b > 0``) the likelihood of the
+    ``y`` sample is ``b**-n`` times that of the ``x`` sample at ``loc_x = (loc_y
+    - a)/b``, ``scale_x = scale_y/b``, so the maximiser moves with the data. The
+    fit is therefore made on the standardised sample ``(x - mean)/sd`` and
+    ``loc``/``scale`` are mapped back; the shape parameters are unchanged.
+
+    In exact arithmetic this changes nothing. In floating point it is the
+    difference between a result and an accident (CAP-1): scipy's optimiser
+    works with absolute tolerances, and on raw readings near 1e-5 -- a length in
+    metres, a capacitance in farads -- it stopped early, so the same data gave
+    Ppk 1.09 in one unit and -121 in another.
+    """
+    centre = float(arr.mean())
+    spread = float(arr.std(ddof=1))
+    # The standardised sample straddles zero, so scipy's search over loc takes
+    # log() of negative numbers on the way, for every half-line family. That is
+    # the search working, not failing; the NaNs it meets are discarded there.
+    # Silenced for this one call, not globally.
+    with warnings.catch_warnings(), np.errstate(all="ignore"):
+        warnings.simplefilter("ignore", RuntimeWarning)
+        fitted = family.fit((arr - centre) / spread)  # type: ignore[attr-defined]
+    *shapes, loc, scale = (float(p) for p in fitted)
+    return (*shapes, centre + spread * loc, spread * scale)
+
+
+#: Whether a rejected verdict on gauge-rounded readings is re-taken with the
+#: rounding-calibrated tests (``normality._normality_at_resolution``). Off by
+#: the maintainer's decision of 2026-11-04 (T-0118): the calibration is
+#: validated by simulation only and has no published reference case, and
+#: AGENTS.md ships no method without a reference-validated test. With it off,
+#: rounded readings are judged by the uncalibrated tests, as before T-0097.
+#: The machinery stays, tested with the switch turned on, for the day a
+#: reference case exists.
+RESOLUTION_CALIBRATION_ENABLED = False
+
+
+#: The fewest distinct readings from which a distribution is estimated at all.
+MIN_DISTINCT_VALUES = 3
+
+
+def _require_distinct_values(arr: npt.NDArray[np.float64]) -> None:
+    """Refuse a sample with fewer than :data:`MIN_DISTINCT_VALUES` values.
+
+    Two distinct values are what a gauge too coarse for the process reports:
+    nearly every reading on one step, a few on the next. Read as interval data
+    -- what they are -- two cells fix a single boundary and cannot separate the
+    process's location from its spread; read as continuous data, the likelihood
+    of a fitted distribution grows without bound as it piles its mass onto the
+    tied value. Either way the fitted tails are an artefact of the ties: on
+    29 readings of 5.0 and one of 5.1 the percentile method reported Pp 2e7
+    (CAP-6), the fitted 99.865 % point lying below the largest reading. There is
+    no defensible index to give, so none is given.
+    """
+    values = np.unique(arr)
+    if values.size >= MIN_DISTINCT_VALUES:
+        return
+    if values.size == 1:
+        raise ValueError(
+            f"sample has zero variance: all {arr.size} readings are "
+            f"{values[0]:.6g}, and capability is undefined for a constant sample"
+        )
+    raise ValueError(
+        f"the {arr.size} readings take only two distinct values ({values[0]:.6g} "
+        f"and {values[1]:.6g}). Neither the shape nor the spread of the process "
+        f"can be estimated from two values -- if they are a gauge's resolution "
+        f"steps, the gauge is too coarse to resolve this process -- so no "
+        f"normality verdict and no percentile index would be defensible. "
+        f"Measure with a finer resolution."
+    )
 
 
 def fit_distribution(
@@ -147,12 +246,18 @@ def fit_distribution(
 ) -> DistributionFit:
     """Fit each candidate distribution and return the best-scoring one.
 
+    Each candidate is fitted by maximum likelihood on the standardised sample
+    (:func:`_fit_family`), so the choice and the fitted percentiles do not
+    depend on the unit the data are in, and ranked by :func:`_fit_score`.
+
     Raises
     ------
     ValueError
-        If no candidate could be fitted to the data.
+        If the data hold fewer than three distinct values, or if no candidate
+        could be fitted to them.
     """
     arr = as_sample(data, minimum=AD_MIN_SAMPLE_SIZE)
+    _require_distinct_values(arr)
 
     best: DistributionFit | None = None
     for name in candidates:
@@ -167,7 +272,7 @@ def fit_distribution(
         with warnings.catch_warnings(), np.errstate(all="ignore"):
             warnings.simplefilter("ignore", RuntimeWarning)
             try:
-                params = distribution.fit(arr)
+                params = _fit_family(distribution, arr)
                 score = _fit_score(arr, distribution(*params))
             except (ValueError, RuntimeError, FloatingPointError):
                 continue
@@ -210,9 +315,20 @@ class PercentileCapability:
     warnings: tuple[Caveat, ...]
 
 
-def _check_limits(lsl: float | None, usl: float | None) -> None:
+def _check_limits(
+    lsl: float | None, usl: float | None, target: float | None = None
+) -> None:
+    """The specification checks :func:`~capstat_core.capability.capability` makes.
+
+    Finite first (:func:`~capstat_core._validation.check_scalar`): ``lsl >= usl``
+    is False for NaN, so a NaN limit used to pass and leave a Ppk computed
+    against the other limit alone.
+    """
     if lsl is None and usl is None:
         raise ValueError("at least one specification limit (lsl or usl) is required")
+    for name, value in (("lsl", lsl), ("usl", usl), ("target", target)):
+        if value is not None:
+            check_scalar(name, value)
     if lsl is not None and usl is not None and lsl >= usl:
         raise ValueError(f"lsl ({lsl}) must be strictly below usl ({usl})")
 
@@ -242,6 +358,7 @@ def percentile_capability(
     """
     _check_limits(lsl, usl)
     arr = as_sample(data, minimum=AD_MIN_SAMPLE_SIZE)
+    _require_distinct_values(arr)
 
     if isinstance(distribution, DistributionFit):
         fit = distribution
@@ -249,7 +366,7 @@ def percentile_capability(
         family = getattr(stats, distribution, None)
         if family is None:
             raise ValueError(f"unknown scipy distribution {distribution!r}")
-        params = tuple(family.fit(arr))
+        params = _fit_family(family, arr)
         fit = DistributionFit(
             name=distribution,
             params=params,
@@ -386,7 +503,7 @@ def box_cox_capability(
         (and shifting is a decision for the user to make and document, not for
         capstat to make silently).
     """
-    _check_limits(lsl, usl)
+    _check_limits(lsl, usl, target)
     arr = as_sample(data, minimum=AD_MIN_SAMPLE_SIZE)
 
     if np.any(arr <= 0.0):
@@ -431,6 +548,25 @@ def box_cox_capability(
             f"({lsl_t:.6g}) in floating point, leaving no spec width to compute "
             f"an index against. Use the percentile method, which does not "
             f"transform the limits."
+        )
+
+    # The same saturation hits the data, and with one limit (or limits far
+    # apart) nothing above catches it: the transformed sample collapses onto a
+    # handful of floats -- or one -- while its spread is pure rounding noise.
+    # Fed on, it made Shapiro-Wilk return NaN and the inner capability() say
+    # "every subgroup is constant" about data that are not (UX-10 / ARCH-16).
+    # Box-Cox is strictly increasing, so in exact arithmetic distinct readings
+    # stay distinct; any two that merge were merged by floating point alone,
+    # and the transformed sample no longer carries the data's spread.
+    distinct_before = int(np.unique(arr).size)
+    distinct_after = int(np.unique(transformed).size)
+    if distinct_after < distinct_before:
+        raise ValueError(
+            f"the Box-Cox transform (lambda = {lmbda:.4g}) is degenerate for these "
+            f"data: in floating point it maps the {distinct_before} distinct "
+            f"readings onto {distinct_after} distinct value(s), so the transformed "
+            f"sample no longer carries the data's spread, and neither a normality "
+            f"test nor an index computed on it would mean anything."
         )
 
     normality_after = assess_normality(transformed, alpha=alpha)
@@ -513,6 +649,28 @@ class CapabilityAnalysis:
     warnings: tuple[Caveat, ...]
 
 
+def _calibrated_tests(rounded: _RoundedNormality) -> str:
+    return (
+        f"Anderson-Darling p={rounded.anderson_darling_p:.3g}, Shapiro-Wilk "
+        f"p={rounded.shapiro_wilk_p:.3g} on {rounded.draws} simulated samples"
+    )
+
+
+def _resolution_caveat(rounded: _RoundedNormality, n: int) -> Caveat:
+    return Caveat(
+        "nonnormal.resolution-limited",
+        f"the readings are rounded to a resolution of {rounded.resolution:.6g}: "
+        f"{rounded.distinct} distinct values in {n} readings, a step of "
+        f"{rounded.resolution / rounded.sigma:.2g} times the estimated process "
+        f"sigma. Normality tests that assume continuous data reject rounded "
+        f"readings for their ties alone, so the verdict was taken against normal "
+        f"data rounded to the same resolution. The coarser the step relative to "
+        f"sigma, the less the readings say about the shape of the distribution: "
+        f"at a step of about one sigma or more, a skewed process can pass as "
+        f"normal.",
+    )
+
+
 def analyze_capability(
     data: npt.ArrayLike,
     *,
@@ -537,29 +695,105 @@ def analyze_capability(
     ``pp`` and ``ppk`` on the result are the headline numbers from whichever
     branch was taken, so a caller who does not care about the machinery can read
     those two and the ``rationale``.
+
+    Readings rounded to a gauge resolution
+    --------------------------------------
+    Both normality tests assume continuous data. Readings from a gauge with a
+    fixed resolution tie, and with enough of them the tests reject a perfectly
+    normal process for the ties alone: N(10, 0.05) read to 0.01 took the
+    percentile path in 40 of 40 runs at n = 1000 (CAP-6), losing Cp and Cpk and
+    being called "not normal" for having been measured. This is still the
+    behaviour by default: the remedy below runs only with
+    :data:`RESOLUTION_CALIBRATION_ENABLED` switched on, which it is not until
+    the calibration has a reference-validated test. With it on: when the tests
+    reject and the readings lie on a regular grid with ties, the verdict is
+    re-taken with the same two statistics calibrated against normal data
+    rounded to the same grid (``normality._normality_at_resolution``, a
+    parametric bootstrap). If the departure is then not significant -- the
+    rounding was the only departure found -- the normal path is taken after
+    all, and the rationale and a ``nonnormal.resolution-limited`` caveat say
+    so. If it still is, the path continues as before, and says that the
+    resolution was allowed for. At a step of 0.2 sigma or finer the calibrated
+    tests keep nearly all their power against skewness (gamma and lognormal
+    processes at n = 100 detected in 86-98 % of runs, against 88-99 %
+    uncalibrated -- part of which was the ties; 100 runs each, 2026-10-21); at
+    coarser steps the readings themselves carry less information about the
+    shape of the distribution, and the caveat states the step relative to
+    sigma. Samples above ``RESOLUTION_MAX_SAMPLE_SIZE`` (5000) readings are not
+    calibrated -- the cost grows with n -- and keep the uncalibrated verdict.
+    Not calibrated either: Box-Cox's own check that the *transformed* readings
+    are normal. Carrying the rounding through the transform is not done, so on
+    coarsely rounded skewed data Box-Cox can be judged a failure for the ties
+    and the percentile path taken instead -- a loss of Cp/Cpk, not a wrong
+    number.
+
+    Fewer than three distinct readings are refused outright (ValueError): no
+    distribution can be estimated from them (see
+    :func:`_require_distinct_values`).
     """
-    _check_limits(lsl, usl)
+    _check_limits(lsl, usl, target)
     arr = as_sample(data, minimum=AD_MIN_SAMPLE_SIZE)
+    _require_distinct_values(arr)
 
     normality = assess_normality(arr, alpha=alpha)
 
-    if normality.normal:
+    rounded: _RoundedNormality | None = None
+    if (
+        RESOLUTION_CALIBRATION_ENABLED
+        and not normality.normal
+        and arr.size <= RESOLUTION_MAX_SAMPLE_SIZE
+    ):
+        resolution = _grid_resolution(arr)
+        if resolution is not None:
+            rounded = _normality_at_resolution(arr, resolution, alpha=alpha)
+    rounding_caveats = (
+        [_resolution_caveat(rounded, int(arr.size))] if rounded is not None else []
+    )
+
+    if normality.normal or (rounded is not None and rounded.normal):
         report = capability(arr, lsl=lsl, usl=usl, target=target, alpha=alpha)
+        tests = (
+            f"Anderson-Darling p={normality.anderson_darling.p_value:.4g}, "
+            f"Shapiro-Wilk p={normality.shapiro_wilk.p_value:.4g}"
+        )
+        inner = report.warnings
+        if rounded is None:
+            rationale = (
+                f"the normal model was not rejected ({tests}), so the standard "
+                f"indices apply."
+            )
+        else:
+            # capability() runs the uncalibrated tests itself and, on rounded
+            # readings, warns that the normal model was rejected and its numbers
+            # are wrong. The calibrated verdict above supersedes that: passing
+            # it on would contradict the path just taken, in the same response.
+            inner = tuple(w for w in inner if w.code != "capability.non-normal")
+            rationale = (
+                f"the normality tests rejected the normal model ({tests}), but "
+                f"they assume continuous data, and these readings are rounded to "
+                f"a resolution of {rounded.resolution:.6g} ({rounded.distinct} "
+                f"distinct values in {arr.size} readings). Judged against normal "
+                f"data rounded to the same resolution, the departure is not "
+                f"significant ({_calibrated_tests(rounded)}): the rounding is the "
+                f"only departure found, so the standard indices apply."
+            )
         return CapabilityAnalysis(
             path="normal",
-            rationale=(
-                "the normal model was not rejected "
-                f"(Anderson-Darling p={normality.anderson_darling.p_value:.4g}, "
-                f"Shapiro-Wilk p={normality.shapiro_wilk.p_value:.4g}), so the "
-                f"standard indices apply."
-            ),
+            rationale=rationale,
             normality=normality,
             normal=report,
             box_cox=None,
             percentile=None,
             pp=report.pp,
             ppk=report.ppk,
-            warnings=report.warnings,
+            warnings=(*rounding_caveats, *inner),
+        )
+
+    rejected = "the normal model was rejected"
+    if rounded is not None:
+        rejected += (
+            f", also when judged against normal data rounded to the readings' "
+            f"resolution of {rounded.resolution:.6g} ({_calibrated_tests(rounded)})"
         )
 
     positive = bool(np.all(arr > 0.0)) and all(
@@ -588,7 +822,7 @@ def analyze_capability(
             return CapabilityAnalysis(
                 path="box-cox",
                 rationale=(
-                    "the normal model was rejected, but a Box-Cox transformation "
+                    f"{rejected}, but a Box-Cox transformation "
                     f"with lambda = {transformed.lmbda:.4f} achieved normality, "
                     f"so the standard indices were computed on the transformed "
                     f"scale against the transformed specification limits. Box-Cox "
@@ -601,24 +835,26 @@ def analyze_capability(
                 percentile=None,
                 pp=transformed.capability.pp,
                 ppk=transformed.capability.ppk,
-                warnings=transformed.warnings,
+                warnings=(*rounding_caveats, *transformed.warnings),
             )
         if box_cox_failure is not None:
+            # The failure is a sentence of its own; end it before the next one
+            # starts (UX-10 showed "...undefined The ISO 22514 ..." on screen).
             reason = (
-                "the normal model was rejected, and Box-Cox could not be applied "
-                f"here at all: {box_cox_failure} The ISO 22514 percentile method "
+                f"{rejected}, and Box-Cox could not be applied here at all: "
+                f"{box_cox_failure.rstrip('. ')}. The ISO 22514 percentile method "
                 f"was used instead."
             )
         else:
             assert transformed is not None  # narrowed: no failure means a result
             reason = (
-                "the normal model was rejected and a Box-Cox transformation "
+                f"{rejected} and a Box-Cox transformation "
                 f"(lambda = {transformed.lmbda:.4f}) failed to fix it, so the "
                 f"ISO 22514 percentile method was used instead."
             )
     else:
         reason = (
-            "the normal model was rejected, and Box-Cox is undefined here because "
+            f"{rejected}, and Box-Cox is undefined here because "
             "the data or the limits are not strictly positive, so the ISO 22514 "
             "percentile method was used. (capstat will not shift the data to make "
             "Box-Cox applicable: the offset changes the indices and must be your "
@@ -626,7 +862,7 @@ def analyze_capability(
         )
 
     percentile = percentile_capability(arr, lsl=lsl, usl=usl)
-    warnings = list(percentile.warnings)
+    warnings = [*rounding_caveats, *percentile.warnings]
     if target is not None:
         # The other two paths feed the target into Cpm. This one has no
         # within/overall split and so no Cpm to compute -- an honest answer, and

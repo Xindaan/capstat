@@ -32,6 +32,7 @@ import numpy as np
 import numpy.typing as npt
 
 from capstat_core._validation import as_sample as _as_sample
+from capstat_core._validation import is_zero_spread
 
 __all__ = [
     "DescriptiveSummary",
@@ -46,10 +47,19 @@ __all__ = [
 
 
 def _deviations(arr: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """Deviations from the sample mean (the centering step of the two-pass)."""
+    """Deviations from the sample mean (the centering step of the two-pass).
+
+    A sample with zero spread at the data's resolution gets exact zeros
+    (:func:`~capstat_core._validation.is_zero_spread`): the float mean of
+    ``[3.3] * 20`` is one ulp below 3.3, and its residue would otherwise reach
+    every statistic below as a variance of 1e-31 and a skewness of 1.0. Every
+    ``== 0.0`` guard in this module relies on this.
+    """
     # Annotated rather than returned directly: numpy < 2.5 types `ndarray.__sub__`
     # as Any, which --strict rejects as an implicit Any return.
     deviations: npt.NDArray[np.float64] = arr - arr.mean()
+    if is_zero_spread(float(deviations @ deviations) / arr.size, arr):
+        return np.zeros_like(arr)
     return deviations
 
 

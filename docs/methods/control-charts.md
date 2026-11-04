@@ -60,6 +60,16 @@ Now the limits cannot move, and only the genuinely shifted subgroups signal.
     neither phase, so capstat refuses it rather than producing limits that
     belong to no defensible chart.
 
+!!! note "No spread, no limits"
+    When every range (or moving range, or subgroup standard deviation) is zero
+    — a stuck gauge, or a resolution so coarse that repeat readings always
+    agree — the estimated sigma is zero and every limit would sit on the centre
+    line. A Phase I chart refuses that with a "zero spread" error, as Phase II,
+    EWMA, CUSUM and capability refuse a zero sigma. "Zero" is judged against
+    the data's own magnitude (a root mean square below about 1e-13 of the
+    largest reading), so twenty readings of 3.3 are refused exactly like twenty
+    readings of 5.0, although the float mean of the first is one bit off.
+
 The arithmetic is the same in both phases — every limit follows from a centre
 and a sigma, and the only question is where those came from. Handed exactly
 what it would have estimated, a Phase II chart reproduces the Phase I limits;

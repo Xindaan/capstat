@@ -117,6 +117,25 @@ def test_perfectly_on_target_leaves_r_squared_undefined() -> None:
     assert report.linearity_significant is False
 
 
+def test_a_flat_offset_read_by_a_coarse_gage_is_linear() -> None:
+    """T-0096: a gage that reads every master 0.1 high, the same every time.
+
+    The biases 2.1 - 2.0, 4.1 - 4.0, ... differ in the last bits of their
+    doubles, so the slope was -4e-17 with a standard error of 1e-17 and the
+    study was declared "not linear" (p = 0.003). Judged against the scale of
+    the readings it is a flat, zero-scatter line.
+    """
+    refs = [2.0, 4.0, 6.0, 8.0, 10.0]
+    report = linearity(refs, [[r + 0.1] * 3 for r in refs])
+    assert report.slope == 0.0
+    assert report.slope_std_error == 0.0
+    assert report.linearity_significant is False
+    assert "linearity.exact-fit" in [w.code for w in report.warnings]
+    # The bias never varies, so the share of its variation the line explains
+    # is 0/0, as for a gage that reads every master exactly.
+    assert np.isnan(report.r_squared)
+
+
 def test_one_part_is_rejected() -> None:
     with pytest.raises(ValueError, match="at least 2 reference parts"):
         linearity([5.0], [[5.0, 5.1]])
@@ -145,6 +164,25 @@ def test_non_finite_measurement_is_rejected() -> None:
 def test_non_finite_reference_is_rejected() -> None:
     with pytest.raises(ValueError, match="references contain NaN"):
         linearity([1.0, float("nan")], [[1.0, 1.1], [2.0, 2.1]])
+
+
+@pytest.mark.parametrize(
+    ("bad", "message"),
+    [
+        (0.0, "strictly positive"),
+        (-6.0, "strictly positive"),
+        (float("nan"), "a finite number"),
+        (float("inf"), "a finite number"),
+    ],
+)
+def test_process_variation_must_be_positive_and_finite(
+    bad: float, message: str
+) -> None:
+    """T-0105 / MSA-8: nothing was checked; -6 gave a negative absolute
+    linearity (-0.16) and NaN a NaN one."""
+    refs = [2.0, 4.0, 6.0]
+    with pytest.raises(ValueError, match=f"process_variation must be {message}"):
+        linearity(refs, _reconstruct(refs, [0.0, 0.1, 0.2]), process_variation=bad)
 
 
 def test_bad_alpha_is_rejected() -> None:

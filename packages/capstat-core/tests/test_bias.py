@@ -121,6 +121,23 @@ def test_zero_repeatability_on_target_is_not_biased() -> None:
     assert report.bias_significant is False
 
 
+def test_zero_repeatability_is_judged_the_same_for_any_reading() -> None:
+    """T-0096 / API-27: the two tests above read 7.0 and 5.0, whose means are
+    exact. A gauge stuck at 3.3 used to report a repeatability of 5e-16, a
+    t-statistic of -5e8 against a 1e-7 offset, and -- on target -- a
+    "significant" bias of 4e-16 for some sample sizes.
+    """
+    for n in range(3, 21):
+        on_target = bias([3.3] * n, 3.3)
+        assert on_target.repeatability == 0.0, n
+        assert on_target.bias == 0.0, n
+        assert on_target.bias_significant is False, n
+        offset = bias([3.3] * n, 3.3000001)
+        assert offset.repeatability == 0.0, n
+        assert offset.bias_significant is True, n
+        assert "bias.degenerate-t-test" in [w.code for w in offset.warnings], n
+
+
 def test_single_measurement_is_rejected() -> None:
     with pytest.raises(ValueError, match="at least 2"):
         bias([5.0], 5.0)
@@ -129,6 +146,14 @@ def test_single_measurement_is_rejected() -> None:
 def test_non_finite_is_rejected() -> None:
     with pytest.raises(ValueError, match="NaN or infinite"):
         bias([5.0, float("nan")], 5.0)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_a_non_finite_reference_is_rejected(bad: float) -> None:
+    """T-0105 / MSA-8: reference=nan returned bias nan with bias_significant
+    True and the warning "biased by nan (reads low)"."""
+    with pytest.raises(ValueError, match="reference must be a finite number"):
+        bias([1.0, 1.1, 0.9, 1.05], bad)
 
 
 def test_bad_alpha_is_rejected() -> None:

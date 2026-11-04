@@ -14,10 +14,12 @@ import {
   type RuleViolation,
 } from "@/lib/api-client";
 import { callApi } from "@/lib/call-api";
+import { readDecimal } from "@/lib/numbers";
 import { describeRuleSelection } from "@/lib/rules";
 import { chartForSize, intoSubgroups } from "@/lib/subgroups";
 import { ControlChart } from "./control-chart";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput } from "./numeric-input";
 
 type State =
   | { kind: "loading" }
@@ -41,11 +43,10 @@ const DEFAULT_RULES = [1, 2, 3, 4];
  * would be exactly that.
  */
 function readBaseline(center: string, sigma: string): Baseline | null {
-  if (center.trim() === "" || sigma.trim() === "") return null;
-  const c = Number(center);
-  const s = Number(sigma);
-  if (!Number.isFinite(c) || !Number.isFinite(s) || s <= 0) return null;
-  return { center: c, sigma: s };
+  const c = readDecimal(center);
+  const s = readDecimal(sigma);
+  if (!c.ok || !s.ok || s.value <= 0) return null;
+  return { center: c.value, sigma: s.value };
 }
 
 /** "individuals" -> "Individuals"; "X-bar" is already how the core writes it. */
@@ -123,7 +124,10 @@ export function ControlChartPanel({
       // picks and then says which it picked, rather than making the user know.
       const request = () => {
         if (subgroupSize <= 1) return imrChart(column.values, baseline);
-        const { subgroups } = intoSubgroups(column.values, subgroupSize);
+        const { subgroups } = intoSubgroups(
+          { values: column.values, rows: column.rows },
+          subgroupSize,
+        );
         return chartForSize(subgroupSize) === "xbar-r"
           ? xbarRChart(subgroups, baseline)
           : xbarSChart(subgroups, baseline);
@@ -142,7 +146,7 @@ export function ControlChartPanel({
     return () => {
       cancelled = true;
     };
-  }, [column.values, subgroupSize, baseline]);
+  }, [column.values, column.rows, subgroupSize, baseline]);
 
   // Run-rules read their sigma zones from the individuals chart's own limits,
   // so this waits for the chart and re-runs whenever the selection changes.
@@ -339,11 +343,9 @@ function BaselineFields({
           <span className="text-xs uppercase tracking-wide text-muted">
             Centre
           </span>
-          <input
-            type="number"
-            step="any"
+          <NumericInput
             value={center}
-            onChange={(e) => onCenter(e.target.value)}
+            onChange={onCenter}
             aria-label="Known centre"
             placeholder="estimated"
             className="h-9 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
@@ -353,11 +355,9 @@ function BaselineFields({
           <span className="text-xs uppercase tracking-wide text-muted">
             Sigma (within)
           </span>
-          <input
-            type="number"
-            step="any"
+          <NumericInput
             value={sigma}
-            onChange={(e) => onSigma(e.target.value)}
+            onChange={onSigma}
             aria-label="Known sigma"
             placeholder="estimated"
             className="h-9 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"

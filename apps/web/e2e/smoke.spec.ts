@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "./fixtures";
 
 import { gotoReady } from "./support";
 
@@ -8,9 +10,14 @@ const VALUES = Array.from({ length: 30 }, (_, i) =>
   Number((10 + Math.sin(i) * 0.1).toFixed(4)),
 );
 
+// The row each value came from (0-based); no gaps, so row i holds value i.
+const ROWS = VALUES.map((_, i) => i);
+
 const INGEST = {
   n_rows: VALUES.length,
-  columns: [{ name: "measurement", values: VALUES, dropped_missing: 0 }],
+  columns: [
+    { name: "measurement", values: VALUES, rows: ROWS, dropped_missing: 0 },
+  ],
   ignored_columns: ["operator"],
   warnings: [
     {
@@ -93,9 +100,10 @@ const INGEST_WITH_ROW_INDEX = {
     {
       name: "part",
       values: Array.from({ length: VALUES.length }, (_, i) => i + 1),
+      rows: ROWS,
       dropped_missing: 0,
     },
-    { name: "diameter_mm", values: VALUES, dropped_missing: 0 },
+    { name: "diameter_mm", values: VALUES, rows: ROWS, dropped_missing: 0 },
   ],
   ignored_columns: [],
   warnings: [],
@@ -377,6 +385,59 @@ test("a column that does not divide evenly says which values are left out", asyn
   );
 });
 
+test("a blank cell costs its own subgroup and no other is re-cut", async ({
+  page,
+}) => {
+  // CHART-2 / T-0102. /ingest drops the blank cell, so the column arrives
+  // compacted; the rows it came from are what let the page cut by row. Row 7 is
+  // blank, so with a subgroup size of 5 the second subgroup (rows 5-9) is
+  // incomplete -- and the others must still be the file's own, not windows of
+  // the compacted values.
+  const gapRows = ROWS.filter((r) => r !== 7);
+  const gapValues = gapRows.map((r) => r + 1000);
+  const ingest = {
+    n_rows: VALUES.length,
+    columns: [
+      {
+        name: "measurement",
+        values: gapValues,
+        rows: gapRows,
+        dropped_missing: 1,
+      },
+    ],
+    ignored_columns: [],
+    warnings: [],
+  };
+  const sent: number[][][] = [];
+  await mockApi(page, CAPABILITY, ingest);
+  await page.route("**/control-chart/xbar-r", (r) => {
+    sent.push(r.request().postDataJSON().subgroups);
+    return r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(XBAR_R),
+    });
+  });
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "gap.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n"),
+  });
+
+  await page.getByLabel("Subgroup size").fill("5");
+  const note = page.getByTestId("subgroup-incomplete");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("Subgroup 2 is missing a cell");
+
+  await expect.poll(() => sent.length).toBeGreaterThan(0);
+  const groups = sent.at(-1)!;
+  // Five subgroups, none of them mixed: each holds the values of its own rows.
+  expect(groups).toHaveLength(5);
+  expect(groups[0]).toEqual([1000, 1001, 1002, 1003, 1004]);
+  expect(groups[1]).toEqual([1010, 1011, 1012, 1013, 1014]);
+});
+
 test("the capability colouring follows the requirement you state, not 1.33", async ({
   page,
 }) => {
@@ -619,7 +680,9 @@ test("the charts carry an accessible name that says what they show", async ({
   });
 
   await expect(
-    page.getByRole("img", { name: /Individuals chart, 30 points, in control/ }),
+    page.getByRole("img", {
+      name: /Individuals chart, 30 points, limits CL 10, UCL 10.2, LCL 9.8, in control/,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("img", { name: /Moving range chart/ }),
@@ -644,9 +707,51 @@ test("an out-of-control chart names the points, not just the state", async ({
 
   await expect(
     page.getByRole("img", {
-      name: /Individuals chart, 30 points, out of control at points 3, 6/,
+      name: /Individuals chart, 30 points, limits .*, out of control at points 3, 6/,
     }),
   ).toBeVisible();
+});
+
+test("an in-control chart draws and prints its control limits", async ({
+  page,
+}) => {
+  // T-0098. The mocked series stays well inside its limits (9.9..10.1 against
+  // 9.8 and 10.2) -- an ordinary in-control process. The y-axis used to be
+  // fitted to the data alone, so ECharts clipped both limit lines, and their
+  // labels with them, exactly when nothing was wrong. Reading the drawn SVG
+  // text is the only check that sees what the reader sees.
+  await mockApi(page);
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+
+  const individuals = page.getByRole("img", { name: /^Individuals chart/ });
+  await expect(
+    individuals.locator("svg text", { hasText: /^CL 10$/ }),
+  ).toBeVisible();
+  await expect(
+    individuals.locator("svg text", { hasText: /^UCL 10\.2$/ }),
+  ).toBeVisible();
+  await expect(
+    individuals.locator("svg text", { hasText: /^LCL 9\.8$/ }),
+  ).toBeVisible();
+  // The moving range has a floor at 0 that the data never reach either.
+  const range = page.getByRole("img", { name: /^Moving range chart/ });
+  await expect(
+    range.locator("svg text", { hasText: /^UCL 0\.2$/ }),
+  ).toBeVisible();
+  await expect(range.locator("svg text", { hasText: /^LCL 0$/ })).toBeVisible();
+
+  // The numbers are also plain text under each chart, which is what a printed
+  // report and a screen reader carry.
+  const captions = page.getByTestId("chart-limits");
+  await expect(captions).toHaveText([
+    "CL 10, UCL 10.2, LCL 9.8",
+    "CL 0.06, UCL 0.2, LCL 0",
+  ]);
 });
 
 test("a second file replaces the analyses rather than reusing them", async ({
@@ -672,6 +777,7 @@ test("a second file replaces the analyses rather than reusing them", async ({
         values: VALUES.map((v, i) =>
           i === 0 || i === VALUES.length - 1 ? v : Number((v + 0.5).toFixed(4)),
         ),
+        rows: ROWS,
         dropped_missing: 0,
       },
     ],
@@ -709,4 +815,25 @@ test("a second file replaces the analyses rather than reusing them", async ({
   await expect(
     page.getByRole("button", { name: "Compute capability" }),
   ).toBeVisible();
+});
+
+test("uploading another file after choosing a subgroup size does not crash", async ({
+  page,
+}) => {
+  // The reset clears the column while the size stays 5; the usability check
+  // used to read `grouping!.subgroups` on a null grouping and threw.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await mockApi(page);
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+  await page.getByLabel("Subgroup size").fill("5");
+  await page.getByRole("button", { name: "Upload another file" }).click();
+
+  await expect(page.locator('input[type="file"]')).toBeAttached();
+  expect(errors).toEqual([]);
 });

@@ -16,9 +16,11 @@ import {
   parseRequiredIndex,
   type CapabilityBand,
 } from "@/lib/capability";
+import { readDecimal } from "@/lib/numbers";
 import { intoSubgroups } from "@/lib/subgroups";
 import { CapabilityHistogram, type NormalFit } from "./capability-histogram";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput } from "./numeric-input";
 
 /**
  * The two shapes a capability answer comes in.
@@ -76,15 +78,27 @@ export function CapabilityDashboard({
   const requiredIndex = parseRequiredIndex(required);
 
   const parsed = useMemo(() => {
-    const num = (s: string) => (s.trim() === "" ? null : Number(s));
+    // A field is empty (null), a number, or unreadable -- and an unreadable one
+    // must stay distinct from an empty one: dropping it would compute with a
+    // limit the user typed but the page threw away.
+    const num = (s: string): number | null | "bad" => {
+      const read = readDecimal(s);
+      if (read.ok) return read.value;
+      return read.empty ? null : "bad";
+    };
     const l = num(lsl);
     const u = num(usl);
     const t = num(target);
+    const unreadable = [l, u, t].some((v) => v === "bad");
+    if (unreadable) {
+      return { l: null, u: null, t: null, valid: false };
+    }
+    const nl = l as number | null;
+    const nu = u as number | null;
+    const nt = t as number | null;
     const bad =
-      [l, u, t].some((v) => v != null && Number.isNaN(v)) ||
-      (l == null && u == null) ||
-      (l != null && u != null && l >= u);
-    return { l, u, t, valid: !bad };
+      (nl == null && nu == null) || (nl != null && nu != null && nl >= nu);
+    return { l: nl, u: nu, t: nt, valid: !bad };
   }, [lsl, usl, target]);
 
   const compute = async () => {
@@ -92,7 +106,7 @@ export function CapabilityDashboard({
     setStatus({ kind: "computing" });
     const limits = { lsl: parsed.l, usl: parsed.u, target: parsed.t };
     if (subgroupSize > 1) {
-      const { subgroups } = intoSubgroups(column.values, subgroupSize);
+      const { subgroups } = intoSubgroups(column, subgroupSize);
       const outcome = await callApi(
         () => capabilityFromSubgroups(subgroups, limits),
         "Capability could not be computed.",
@@ -311,12 +325,10 @@ function SpecField({
       <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
-      <input
-        type="number"
-        inputMode="decimal"
-        step="any"
+      <NumericInput
+        aria-label={label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         className="h-10 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
         placeholder="—"
       />

@@ -19,6 +19,25 @@ export const MAX_SUBGROUP_SIZE = 25;
 /** Above this, the range loses too much efficiency and the s chart is better. */
 export const RANGE_CHART_MAX_SIZE = 10;
 
+/**
+ * A column as the ingest endpoint returns it: the values that survived, and the
+ * 0-based data row each one came from. The rows are what make a gap visible --
+ * `values` alone is compacted, and cutting it moves every boundary after a
+ * blank cell (T-0102).
+ */
+export interface RowedColumn {
+  values: number[];
+  rows: number[];
+}
+
+/** A block of rows that lost a cell and so could not make a subgroup. */
+export interface IncompleteSubgroup {
+  /** 1-based, the way the page counts subgroups. */
+  index: number;
+  /** How many of the `size` values it still holds. */
+  present: number;
+}
+
 export interface Subgrouping {
   /** Complete subgroups, each of exactly `size` values. */
   subgroups: number[][];
@@ -29,24 +48,59 @@ export interface Subgrouping {
    * 63 measurements is a different study, and nothing on screen would say so.
    */
   leftover: number[];
+  /**
+   * Blocks of `size` rows with a missing cell inside. They are left out and
+   * named, not re-cut from the values after them, which would mix neighbouring
+   * subgroups.
+   */
+  incomplete: IncompleteSubgroup[];
 }
 
 /**
- * Split `values` into consecutive subgroups of `size`.
+ * Split a column into subgroups of `size` consecutive **rows**.
  *
- * A `size` of 1 or less yields no subgroups and no leftovers -- the caller is
- * on the individuals path and should not be chunking at all.
+ * Subgroup k is rows [k*size, (k+1)*size) of the file. With no gap that is the
+ * same as chunking the values; with a blank cell in row 8 the compacted list
+ * would shift every later boundary by one, so the block that lost a cell is
+ * reported as incomplete and every other block stays where the file put it.
+ * Rows after the last full block are the leftover.
+ *
+ * A `size` of 1 or less yields nothing -- the caller is on the individuals path
+ * and should not be chunking at all.
  */
-export function intoSubgroups(values: number[], size: number): Subgrouping {
-  if (!Number.isInteger(size) || size < 2) {
-    return { subgroups: [], leftover: [] };
+export function intoSubgroups(column: RowedColumn, size: number): Subgrouping {
+  if (!Number.isInteger(size) || size < 2 || column.rows.length === 0) {
+    return { subgroups: [], leftover: [], incomplete: [] };
   }
-  const complete = Math.floor(values.length / size);
+  const lastRow = column.rows[column.rows.length - 1];
+  const blocks = Math.floor((lastRow + 1) / size);
+  const held: number[][] = Array.from({ length: blocks }, () => []);
+  const leftover: number[] = [];
+  column.rows.forEach((row, i) => {
+    const block = Math.floor(row / size);
+    if (block < blocks) held[block].push(column.values[i]);
+    else leftover.push(column.values[i]);
+  });
   const subgroups: number[][] = [];
-  for (let i = 0; i < complete; i += 1) {
-    subgroups.push(values.slice(i * size, (i + 1) * size));
-  }
-  return { subgroups, leftover: values.slice(complete * size) };
+  const incomplete: IncompleteSubgroup[] = [];
+  held.forEach((group, k) => {
+    if (group.length === size) subgroups.push(group);
+    else incomplete.push({ index: k + 1, present: group.length });
+  });
+  return { subgroups, leftover, incomplete };
+}
+
+/**
+ * Missing cells *inside* the column: rows between its first and last value that
+ * hold no value. Blanks before the first or after the last value are not gaps
+ * -- the column is just offset or shorter than its neighbour -- and shift
+ * nothing.
+ */
+export function interiorGaps(column: RowedColumn): number {
+  if (column.rows.length === 0) return 0;
+  const first = column.rows[0];
+  const last = column.rows[column.rows.length - 1];
+  return last - first + 1 - column.rows.length;
 }
 
 /**

@@ -31,6 +31,12 @@ Reference file: `tests/references/normality.yaml`
   <https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm>
 - **Royston, P. (1995). Remark AS R94: A remark on Algorithm AS 181: The W test for normality. Applied Statistics, 44(4), 547-551.**
   Retrieved 2026-07-14.
+- **NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.15, Chi-Square Goodness-of-Fit Test.**
+  <https://www.itl.nist.gov/div898/handbook/eda/section3/eda35f.htm> Retrieved 2026-10-21.
+- **Sheppard, W. F. (1898). On the calculation of the most probable values of frequency-constants, for data arranged according to equidistant division of a scale. Proceedings of the London Mathematical Society, 29, 353-380.**
+  Sheppard's correction, sigma^2 = s^2 - r^2/12, is the classical large-sample approximation to the binned estimate on a fine grid; it is the independent cross-check of capstat's binned fit (case grouped-fit-matches-sheppard).
+- **Davison, A. C., & Hinkley, D. V. (1997). Bootstrap Methods and their Application. Cambridge University Press, chapter 4.**
+  Parametric bootstrap (Monte Carlo) test: the null distribution of the unchanged Anderson-Darling and Shapiro-Wilk statistics is simulated from the fitted normal, rounded to the readings' grid. capstat has no published worked example for this combination; it is validated by its size on simulated rounded normal data (case resolution-calibrated-size), not by a quoted number.
 
 ## Capability indices and chart constants
 
@@ -54,6 +60,8 @@ Reference file: `tests/references/nonnormal.yaml`
   NIST/SEMATECH e-Handbook, section 6.5.2, describes the same transformation for capability work.
 - **ISO 22514-4, Statistical methods in process management -- Capability and performance -- Part 4: Process capability estimates and performance measures.**
   X_p are percentiles of the fitted distribution. The method yields performance (long-term) indices only: it uses the overall distribution and has no within/between subgroup split, so it cannot produce Cp/Cpk.
+- **NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.14, Anderson-Darling Test.**
+  <https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm> Retrieved 2026-10-21.
 
 ## Shewhart control charts
 
@@ -127,9 +135,9 @@ Reference file: `tests/references/acceptance_sampling.yaml`
 - **AccSamplingDesign R package, CRAN vignette "Introduction to AccSamplingDesign" -- optPlan() attribute design on the binomial model.**
   <https://cran.r-project.org/web/packages/AccSamplingDesign/vignettes/introduction.html> Retrieved 2026-07-21. Stated check value: "PRQ = 0.01, CRQ = 0.05, alpha = 0.02, beta = 0.15 -> Sample Size (n) = 144, Acceptance Number (c) = 4, Producer's Risk 0.01534843, Consumer's Risk 0.1487162"
 - **Minitab Support, "All statistics and graphs for Attributes Acceptance Sampling" -- worked example with lot size 5000, n=52, c=2, AQL 1.5 %, RQL 10 %: P(accept), AOQ, ATI and the AOQL with its location.**
-  <https://support.minitab.com/en-us/minitab/help-and-how-to/quality-and-process-improvement/acceptance-sampling/how-to/attributes-acceptance-sampling/interpret-the-results/all-statistics-and-graphs/> Retrieved 2026-07-21. Stated check value: "The worst average outgoing defect level (AOQL) of 2.603% defective occurs when the incoming quality level is 4.3% defective." The only independent source found that publishes an AOQL together with the incoming quality that produces it, which is what makes it a real check on the maximisation rather than on the AOQ formula alone. Minitab also uses the exact AOQ = Pa*p*(N-n)/N -- its 1.420 % at p=1.5 % matches capstat's 1.42013 % -- confirming which of the two AOQ formulas is the correct one where the NIST column disagrees with itself.
+  <https://support.minitab.com/en-us/minitab/help-and-how-to/quality-and-process-improvement/acceptance-sampling/how-to/attributes-acceptance-sampling/interpret-the-results/all-statistics-and-graphs/> Retrieved 2026-07-21. Stated check value: "The worst average outgoing defect level (AOQL) of 2.603% defective occurs when the incoming quality level is 4.3% defective." The only independent source found that publishes an AOQL together with the incoming quality that produces it, which is what makes it a real check on the maximisation rather than on the AOQ formula alone. Minitab also uses the exact Type B AOQ = Pa*p*(N-n)/N -- its 1.420 % at p=1.5 % matches capstat's 1.42013 % -- confirming which of the two AOQ formulas is the correct one where the NIST column disagrees with itself.
 - **scipy.stats.binom / poisson / hypergeom -- independent implementations of the three OC models, evaluated inside the tests themselves.**
-  The Type A (hypergeometric) path has no published worked example with an acceptance number above zero behind it: every Type A example found in the search was c=0, which collapses the sum to a single term and so exercises nothing. It is validated instead against scipy's hypergeom and against a hand-written combinatorial enumeration of the definition, and this gap is stated rather than papered over.
+  The Type A (hypergeometric) path has no published worked example with an acceptance number above zero behind it: every Type A example found in the search was c=0, which collapses the sum to a single term and so exercises nothing. It is validated instead against scipy's hypergeom and against a hand-written combinatorial enumeration of the definition, and this gap is stated rather than papered over. The same goes for the Type A AOQ, which is not Pa*p*(N-n)/N but (D/N)((N-n)/N) P(Hyp(N-1, D-1, n) <= c): the tests sum its definition, (1/N) sum_{x<=c} (D-x) h(x; N, D, n), with math.comb and Fraction, and enumerate the AOQL over every D.
 
 ## Switching rules
 

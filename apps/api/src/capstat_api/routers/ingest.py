@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from capstat_api.schemas import CaveatOut
-from capstat_api.tabular import UnsupportedFile, read_frame
+from capstat_api.tabular import UnsupportedFile, extract_columns, read_frame
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
@@ -44,6 +44,11 @@ HTTP_422 = 422  # Unprocessable Content
 class IngestColumn(BaseModel):
     name: str
     values: list[float]
+    # Where each value sat among the file's data rows (0-based), so a consumer
+    # that cuts subgroups can cut by row. `values` is compacted -- the missing
+    # cells are gone -- and cutting the compacted list moves every boundary
+    # after a gap (T-0102).
+    rows: list[int]
     dropped_missing: int
 
 
@@ -61,56 +66,22 @@ class IngestResponse(BaseModel):
 # text, which is then reported as "ignored non-numeric" (T-0067). Detecting them
 # is straightforward; the part that matters is saying which was detected.
 def _to_response(frame: pd.DataFrame, notes: list[Caveat]) -> IngestResponse:
-    columns: list[IngestColumn] = []
-    ignored: list[str] = []
-    # What was detected comes first: it explains the column list below it.
-    warnings: list[Caveat] = list(notes)
-
-    for name in frame.columns:
-        series = frame[name]
-        numeric = pd.to_numeric(series, errors="coerce")
-        # A genuinely non-numeric column coerces entirely to NaN; ignore it.
-        if numeric.notna().sum() == 0:
-            ignored.append(str(name))
-            continue
-        dropped = int(series.notna().sum() - numeric.notna().sum())
-        clean = numeric.dropna()
-        columns.append(
-            IngestColumn(
-                name=str(name),
-                values=[float(v) for v in clean],
-                dropped_missing=int(series.isna().sum()) + dropped,
-            )
-        )
-
-    if ignored:
-        warnings.append(
-            Caveat(
-                "ingest.non-numeric-columns-ignored",
-                f"Ignored non-numeric column(s): {', '.join(ignored)}.",
-            )
-        )
-    for col in columns:
-        if col.dropped_missing:
-            warnings.append(
-                Caveat(
-                    "ingest.cells-dropped",
-                    f"Column {col.name!r}: dropped {col.dropped_missing} "
-                    "missing/non-numeric cell(s).",
-                )
-            )
-    if not columns:
-        warnings.append(
-            Caveat("ingest.no-numeric-columns", "No numeric columns found.")
-        )
-
+    found = extract_columns(frame, notes)
     return IngestResponse(
-        n_rows=len(frame),
-        columns=columns,
-        ignored_columns=ignored,
+        n_rows=found.n_rows,
+        columns=[
+            IngestColumn(
+                name=c.name,
+                values=c.values,
+                rows=c.rows,
+                dropped_missing=c.dropped_missing,
+            )
+            for c in found.columns
+        ],
+        ignored_columns=found.ignored,
         # Split here rather than leaning on the schema's validator: the
         # declared type and the value passed should agree at the call site.
-        warnings=[CaveatOut(code=w.code, message=str(w)) for w in warnings],
+        warnings=[CaveatOut(code=w.code, message=str(w)) for w in found.warnings],
     )
 
 

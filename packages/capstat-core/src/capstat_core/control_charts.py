@@ -57,7 +57,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import as_sample
+from capstat_core._validation import as_sample, check_scalar, is_zero_deviation
 from capstat_core.caveats import Caveat
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, MAX_SUBGROUP_SIZE, c4, d2
 
@@ -148,12 +148,20 @@ def _resolve_baseline(
     estimated_sigma: float,
     center: float | None,
     sigma: float | None,
+    *,
+    data: npt.NDArray[np.float64],
+    spread: str,
 ) -> tuple[float, float, Phase]:
     """Decide whether this chart judges against its own data or against history.
 
     Both arguments together or neither: a centre from a stable period combined
     with a sigma estimated from the data under test is neither phase, and the
     resulting limits would belong to no defensible chart at all.
+
+    A Phase I estimate of zero spread -- judged against the data's scale by
+    :func:`~capstat_core._validation.is_zero_spread`, ``spread`` naming the
+    statistic it came from -- is refused, as Phase II, EWMA, CUSUM and
+    capability refuse a zero sigma: every limit would sit on the centre line.
     """
     if (center is None) != (sigma is None):
         raise ValueError(
@@ -162,10 +170,19 @@ def _resolve_baseline(
             "estimated from the data under test, which is neither phase"
         )
     if center is None or sigma is None:
+        if is_zero_deviation(estimated_sigma, data):
+            raise ValueError(
+                f"zero spread: every {spread} is zero at the resolution of the "
+                f"data, so the estimated sigma is zero and every control limit "
+                f"would sit on the centre line. Check the measurement "
+                f"resolution against the process variation, or whether the "
+                f"readings are real; a known sigma (Phase II) can still judge "
+                f"these data"
+            )
         return estimated_center, estimated_sigma, "I"
-    if sigma <= 0.0:
-        raise ValueError(f"sigma must be strictly positive, got {sigma}")
-    return center, sigma, "II"
+    # Through check_scalar, not ``sigma <= 0``: that is False for NaN, and NaN
+    # limits can never be crossed, so a NaN baseline read as "in control".
+    return check_scalar("center", center), check_scalar("sigma", sigma, above=0.0), "II"
 
 
 def _as_subgroups(x: npt.ArrayLike) -> npt.NDArray[np.float64]:
@@ -292,7 +309,12 @@ def xbar_r_chart(
     ranges = groups.max(axis=1) - groups.min(axis=1)
 
     grand_mean, sigma_within, phase = _resolve_baseline(
-        float(means.mean()), float(ranges.mean()) / d2(n), center, sigma
+        float(means.mean()),
+        float(ranges.mean()) / d2(n),
+        center,
+        sigma,
+        data=groups,
+        spread="subgroup range",
     )
     # Every limit below follows from the centre and the within-subgroup sigma,
     # whichever they came from. Rbar is recovered from sigma rather than the
@@ -368,7 +390,12 @@ def xbar_s_chart(
     sds = groups.std(axis=1, ddof=1)
 
     grand_mean, sigma_within, phase = _resolve_baseline(
-        float(means.mean()), float(sds.mean()) / c4(n), center, sigma
+        float(means.mean()),
+        float(sds.mean()) / c4(n),
+        center,
+        sigma,
+        data=groups,
+        spread="subgroup standard deviation",
     )
     sbar = sigma_within * c4(n)
 
@@ -430,7 +457,12 @@ def i_mr_chart(
     moving_ranges = np.abs(np.diff(values))
 
     centre, sigma_within, phase = _resolve_baseline(
-        float(values.mean()), float(moving_ranges.mean()) / d2(2), center, sigma
+        float(values.mean()),
+        float(moving_ranges.mean()) / d2(2),
+        center,
+        sigma,
+        data=values,
+        spread="moving range",
     )
     mrbar = sigma_within * d2(2)
     spread = 3.0 * sigma_within  # == E2(2) * mrbar

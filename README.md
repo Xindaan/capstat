@@ -537,6 +537,21 @@ carries meaning meets WCAG 2.1 AA contrast in both light and dark themes; the
 `--muted` token in `app/globals.css` records its measured ratio, and a test
 recomputes it rather than trusting the comment.
 
+**Typed numbers are read the same way in every browser locale.** A decimal point
+and a decimal comma both mean the decimal mark (`3.29` and `3,29`), so a number
+means the same in an English or a German browser, in a field or pasted from a
+spreadsheet. Thousands separators are not accepted (`1.234,5` is refused with
+that reason), and a whole-number field refuses `5.000` or `1,234` because it
+could mean 5 or 5000. In a list of readings, whitespace, new lines and
+semicolons separate readings; a comma with a digit on both sides (`36,1`) is a
+decimal comma, any other comma (`36, 35`) a separator, and a text that mixes the
+two (`36,1, 35,9`) or crams several commas into one token (`1,2,3`) is refused
+with the reason instead of guessed at. The page says how many readings it read.
+You can paste a block of cells from a spreadsheet into the Gage R&R grid: it
+fills from the cell you pasted into (rows are parts, columns run through each
+operator's trials) or is refused whole. Arrow keys move between cells and never
+change a reading.
+
 Run it against a local API:
 
 ```bash
@@ -567,6 +582,11 @@ npm run test        # vitest unit tests (pure binning / stats)
 npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
 npm run build       # production build + type-check
 ```
+
+The mocked e2e suite still checks the contract: every request the page sends
+to the API is validated against `apps/api/openapi.json` (request body, path,
+method), and a request the real API would refuse fails the test whatever its
+mock answered. `E2E_PORT` moves the dev server off port 3000.
 
 ### Screenshots
 
@@ -657,6 +677,23 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
 - **An upload is rejected with 413** — `/ingest` caps a file at 10 MB. The body
   is read in chunks and refused at the first one that crosses the limit, so an
   oversized upload is turned away before it is resident, not after.
+- **How a CSV is read, and what is refused** — the separator (comma,
+  semicolon, tab, pipe), the encoding and a decimal comma are detected and
+  named in the warnings, never applied silently. A file with a single column
+  has no separator, so its commas are read as decimal marks (`9,79` is 9.79).
+  Data rows that all end in a delimiter the header lacks keep their labels. A
+  first row that holds only numbers is read as data, not as column names
+  (`column 1`, `column 2`, ...), with a warning, so no measurement is lost to a
+  header. Refused with a named reason (422, exit 2): a data row with more fields
+  than the header, and a header-less file of rows like `9,71`, which could be
+  one column of decimals or two of integers. Add a header row to either.
+- **A blank cell and subgroups** — a subgroup is a block of `n` consecutive
+  file *rows*, in the web app and in `capstat capability|chart --subgroup-size`
+  alike. A blank or non-numeric cell does not move later boundaries: the block
+  that lost a cell is left out and named (`subgroups.incomplete`), rows after
+  the last full block are reported (`subgroups.leftover`), and dropped cells are
+  listed by data row (`ingest.cells-dropped`). `/ingest` returns each value's
+  row in `rows`, next to the compacted `values`.
 - **A compute request is rejected with 413** — `/compute/*` caps a request body
   at 10 MB, the same ceiling `/ingest` uses. That is about 1.5 million points,
   three orders of magnitude beyond a capability study. The limit exists because
@@ -667,6 +704,13 @@ The client's API base URL is set at build time via `NEXT_PUBLIC_API_URL`
   deliberately *not* in the OpenAPI schema — it is a transport-level guard, so
   the contract and its generated client are unaffected, and a client learns the
   limit by receiving the 413.
+- **A request with `NaN` or `Infinity` is rejected with 422** — Python's `json`
+  writes those tokens, but no statistic here is defined on them: a NaN sigma or
+  limit used to slip past the positivity checks and come back as "in control".
+  Every float in a request, scalar or list item, must be finite; the 422 names
+  the field (`"loc": ["body", "sigma"]`). The library raises `ValueError` for
+  the same input, and the CLI exits 2 (`--sigma nan` included, so
+  `--fail-on-signal` cannot pass on it).
 
 ## Development
 

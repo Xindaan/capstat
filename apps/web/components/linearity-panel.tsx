@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { linearityStudy, type LinearityReport } from "@/lib/api-client";
-import { parseNumberList } from "@/lib/stats";
+import { readDecimal, readNumberList } from "@/lib/numbers";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput } from "./numeric-input";
 import { callApi } from "@/lib/call-api";
 
 export interface Row {
@@ -63,23 +64,38 @@ export function LinearityPanel({
   const setRow = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
+  // Each row is read once; the first thing wrong with any of them is the
+  // sentence the panel shows, so a refusal says which part and why.
+  const reads = rows.map((row) => ({
+    reference: readDecimal(row.reference),
+    readings: readNumberList(row.readings),
+  }));
+  const firstProblem = (() => {
+    for (const [i, r] of reads.entries()) {
+      if (!r.reference.ok && !r.reference.empty) {
+        return `Part ${i + 1}: ${r.reference.reason}`;
+      }
+      if (!r.readings.ok && !r.readings.empty) {
+        return `Part ${i + 1}: ${r.readings.reason}`;
+      }
+    }
+    return null;
+  })();
   const parsed = (() => {
     if (rows.length < 2) return null;
     const references: number[] = [];
     const measurements: number[][] = [];
-    for (const row of rows) {
-      const ref = Number(row.reference);
-      const vals = parseNumberList(row.readings);
-      if (row.reference.trim() === "" || !Number.isFinite(ref)) return null;
-      if (vals == null) return null;
-      references.push(ref);
-      measurements.push(vals);
+    for (const r of reads) {
+      if (!r.reference.ok || !r.readings.ok) return null;
+      references.push(r.reference.value);
+      measurements.push(r.readings.value.values);
     }
     return { references, measurements };
   })();
 
-  const pv = processVariation.trim() === "" ? null : Number(processVariation);
-  const pvInvalid = pv != null && !Number.isFinite(pv);
+  const pvRead = readDecimal(processVariation);
+  const pv = pvRead.ok ? pvRead.value : null;
+  const pvInvalid = processVariation.trim() !== "" && !pvRead.ok;
   const valid = parsed != null && !pvInvalid;
 
   const compute = async () => {
@@ -111,11 +127,10 @@ export function LinearityPanel({
       <div className="flex flex-col gap-2">
         {rows.map((row, i) => (
           <div key={i} className="flex items-center gap-2">
-            <input
-              type="number"
-              step="any"
+            <NumericInput
+              showProblem={false}
               value={row.reference}
-              onChange={(e) => setRow(i, { reference: e.target.value })}
+              onChange={(v) => setRow(i, { reference: v })}
               aria-label={`Reference for part ${i + 1}`}
               placeholder="ref"
               className="h-9 w-20 rounded-lg border border-foreground/20 bg-transparent px-2 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
@@ -124,7 +139,7 @@ export function LinearityPanel({
               value={row.readings}
               onChange={(e) => setRow(i, { readings: e.target.value })}
               aria-label={`Readings for part ${i + 1}`}
-              placeholder="readings, comma separated"
+              placeholder="readings, space or ; separated"
               className="h-9 flex-1 rounded-lg border border-foreground/20 bg-transparent px-3 font-mono text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
             />
             <button
@@ -152,11 +167,10 @@ export function LinearityPanel({
             <span className="text-xs uppercase tracking-wide text-muted">
               Process variation
             </span>
-            <input
-              type="number"
-              step="any"
+            <NumericInput
+              aria-label="Process variation"
               value={processVariation}
-              onChange={(e) => setProcessVariation(e.target.value)}
+              onChange={setProcessVariation}
               placeholder="optional"
               className="h-9 w-32 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
             />
@@ -175,7 +189,17 @@ export function LinearityPanel({
         </button>
         {!valid && (
           <span className="text-xs text-amber-600 dark:text-amber-400">
-            Every part needs a numeric reference and numeric readings.
+            {firstProblem ??
+              "Every part needs a numeric reference and numeric readings."}
+          </span>
+        )}
+        {parsed != null && (
+          <span className="text-xs text-muted" data-testid="readings-note">
+            {parsed.measurements.reduce((n, m) => n + m.length, 0)} readings
+            read
+            {reads.some((r) => r.readings.ok && r.readings.value.decimalComma)
+              ? ", decimal comma"
+              : ""}
           </span>
         )}
       </div>

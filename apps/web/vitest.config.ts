@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["lib/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "e2e/contract/**/*.test.ts"],
     environment: "node",
   },
 });

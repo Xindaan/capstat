@@ -38,7 +38,12 @@ from capstat_core.control_charts import (
 )
 
 from capstat_api import __version__
-from capstat_api.tabular import UnsupportedFile, read_frame
+from capstat_api.tabular import (
+    Column,
+    UnsupportedFile,
+    extract_columns,
+    read_frame,
+)
 
 #: Exit codes. ``2`` is "your input was refused", which is a different thing
 #: from a crash and scripts should be able to tell them apart.
@@ -52,22 +57,18 @@ EXIT_SIGNAL = 3
 RANGE_CHART_MAX_SIZE = 10
 
 
-def _numeric_columns(path: Path) -> tuple[dict[str, list[float]], list[Caveat]]:
-    """The file's numeric columns, and what had to be detected to read it."""
+def _numeric_columns(path: Path) -> tuple[dict[str, Column], list[Caveat]]:
+    """The file's numeric columns, and what was detected or left out reading it.
+
+    The same extraction as ``/ingest``, so a dropped cell, an ignored column or a
+    detected separator is reported here exactly as it is there (API-9).
+    """
     frame, notes = read_frame(path.name, path.read_bytes())
-    columns: dict[str, list[float]] = {}
-    import pandas as pd  # local: keeps `--help` off the pandas import path
-
-    for name in frame.columns:
-        numeric = pd.to_numeric(frame[name], errors="coerce").dropna()
-        if not numeric.empty:
-            columns[str(name)] = [float(v) for v in numeric]
-    return columns, list(notes)
+    found = extract_columns(frame, notes)
+    return {c.name: c for c in found.columns}, found.warnings
 
 
-def _pick(
-    columns: dict[str, list[float]], wanted: str | None
-) -> tuple[str, list[float]]:
+def _pick(columns: dict[str, Column], wanted: str | None) -> Column:
     if not columns:
         raise ValueError("no numeric columns in this file")
     if wanted is None:
@@ -77,18 +78,50 @@ def _pick(
                 f"this file has several numeric columns ({names}); name one "
                 f"with --column"
             )
-        return next(iter(columns.items()))
+        return next(iter(columns.values()))
     if wanted not in columns:
         names = ", ".join(columns) or "none"
         raise ValueError(f"no numeric column named {wanted!r}; found: {names}")
-    return wanted, columns[wanted]
+    return columns[wanted]
 
 
-def _subgroup(values: list[float], size: int) -> tuple[list[list[float]], int]:
-    """Consecutive subgroups in file order, and how many values are left over."""
-    complete = len(values) // size
-    groups = [values[i * size : (i + 1) * size] for i in range(complete)]
-    return groups, len(values) - complete * size
+def _subgroup(column: Column, size: int) -> tuple[list[list[float]], list[Caveat]]:
+    """Subgroups of ``size`` consecutive *rows*, and what did not make one.
+
+    Cut by row, not by position among the values that survived: with a blank
+    cell in row 8, the compacted list shifts every later boundary by one and
+    mixes neighbouring subgroups (T-0102). A block of rows that lost a cell is
+    left out and named; rows after the last full block are reported as leftover.
+    """
+    blocks = (column.rows[-1] + 1) // size
+    held: list[list[float]] = [[] for _ in range(blocks)]
+    leftover = 0
+    for row, value in zip(column.rows, column.values, strict=True):
+        if row // size < blocks:
+            held[row // size].append(value)
+        else:
+            leftover += 1
+    groups = [g for g in held if len(g) == size]
+    caveats: list[Caveat] = []
+    short = [str(k + 1) for k, g in enumerate(held) if len(g) != size]
+    if short:
+        caveats.append(
+            Caveat(
+                "subgroups.incomplete",
+                f"Subgroup(s) {', '.join(short)} hold fewer than {size} values "
+                "because a cell in their rows is missing; they were left out "
+                "rather than re-cut from the values after them.",
+            )
+        )
+    if leftover:
+        caveats.append(
+            Caveat(
+                "subgroups.leftover",
+                f"{leftover} value(s) at the end form no complete subgroup and "
+                "took no part in this analysis.",
+            )
+        )
+    return groups, caveats
 
 
 def _print_caveats(caveats: Sequence[Caveat], stream: Any) -> None:
@@ -109,7 +142,7 @@ def _cmd_columns(args: argparse.Namespace, out: Any) -> int:
         print(
             json.dumps(
                 {
-                    "columns": {k: len(v) for k, v in columns.items()},
+                    "columns": {k: len(v.values) for k, v in columns.items()},
                     "warnings": [{"code": c.code, "message": c.message} for c in notes],
                 },
                 indent=2,
@@ -117,21 +150,20 @@ def _cmd_columns(args: argparse.Namespace, out: Any) -> int:
             file=out,
         )
         return EXIT_OK
-    if not columns:
-        print("No numeric columns found.", file=out)
-    for name, values in columns.items():
-        print(f"{name}: {len(values)} values", file=out)
+    for name, column in columns.items():
+        print(f"{name}: {len(column.values)} values", file=out)
     _print_caveats(notes, out)
     return EXIT_OK
 
 
 def _cmd_capability(args: argparse.Namespace, out: Any) -> int:
     columns, notes = _numeric_columns(args.file)
-    name, values = _pick(columns, args.column)
+    picked = _pick(columns, args.column)
+    name, values = picked.name, picked.values
 
-    leftover = 0
     if args.subgroup_size > 1:
-        groups, leftover = _subgroup(values, args.subgroup_size)
+        groups, cut = _subgroup(picked, args.subgroup_size)
+        notes = notes + cut
         report = capability(groups, lsl=args.lsl, usl=args.usl, target=args.target)
         indices = {
             "cp": report.cp,
@@ -182,34 +214,32 @@ def _cmd_capability(args: argparse.Namespace, out: Any) -> int:
     print(f"Column {name!r}, {len(values)} measurements — {path}", file=out)
     print(f"  Cp  {_fmt(indices['cp'])}    Pp  {_fmt(indices['pp'])}", file=out)
     print(f"  Cpk {_fmt(indices['cpk'])}    Ppk {_fmt(indices['ppk'])}", file=out)
-    if leftover:
-        print(
-            f"\n  {leftover} value(s) at the end form no complete subgroup and "
-            f"took no part in this report.",
-            file=out,
-        )
     _print_caveats(notes + caveats, out)
     return EXIT_OK
 
 
-def _chart_for(values: list[float], args: argparse.Namespace) -> ChartPair:
+def _chart_for(
+    column: Column, args: argparse.Namespace
+) -> tuple[ChartPair, list[Caveat]]:
     baseline: dict[str, float] = {}
     if args.center is not None or args.sigma is not None:
         # Passed straight through so the core's own message explains a half
         # baseline, rather than this layer inventing a second wording for it.
         baseline = {"center": args.center, "sigma": args.sigma}
     if args.subgroup_size <= 1:
-        return i_mr_chart(values, **baseline)
-    groups, _ = _subgroup(values, args.subgroup_size)
+        return i_mr_chart(column.values, **baseline), []
+    groups, cut = _subgroup(column, args.subgroup_size)
     if args.subgroup_size <= RANGE_CHART_MAX_SIZE:
-        return xbar_r_chart(groups, **baseline)
-    return xbar_s_chart(groups, **baseline)
+        return xbar_r_chart(groups, **baseline), cut
+    return xbar_s_chart(groups, **baseline), cut
 
 
 def _cmd_chart(args: argparse.Namespace, out: Any) -> int:
     columns, notes = _numeric_columns(args.file)
-    name, values = _pick(columns, args.column)
-    pair = _chart_for(values, args)
+    picked = _pick(columns, args.column)
+    name = picked.name
+    pair, cut = _chart_for(picked, args)
+    notes = notes + cut
 
     if args.json:
         print(

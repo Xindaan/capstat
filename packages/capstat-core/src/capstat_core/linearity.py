@@ -39,7 +39,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample
+from capstat_core._validation import (
+    as_sample,
+    check_scalar,
+    is_zero_deviation,
+    is_zero_spread,
+)
 from capstat_core.caveats import Caveat
 
 __all__ = [
@@ -107,10 +112,13 @@ def linearity(
     ValueError
         If fewer than two parts are given, the two sequences differ in length,
         the references are all equal, there are fewer than three readings in
-        total, any data is non-finite, or ``alpha`` is not in ``(0, 1)``.
+        total, any data is non-finite, ``alpha`` is not in ``(0, 1)``, or
+        ``process_variation`` is given and is not a finite positive number.
     """
-    if not 0.0 < alpha < 1.0:
-        raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+    check_scalar("alpha", alpha, above=0.0, below=1.0)
+    if process_variation is not None:
+        # Unchecked before: -6 gave a negative absolute linearity (MSA-8).
+        check_scalar("process_variation", process_variation, above=0.0)
     if len(references) != len(measurements):
         raise ValueError(
             f"references ({len(references)}) and measurements "
@@ -127,9 +135,11 @@ def linearity(
 
     xs: list[float] = []
     ys: list[float] = []
+    readings: list[npt.NDArray[np.float64]] = [refs]
     part_mean_biases: list[float] = []
     for reference, raw in zip(refs, measurements, strict=True):
         sample = as_sample(raw, minimum=1)
+        readings.append(sample)
         biases = sample - reference
         xs.extend([float(reference)] * sample.size)
         ys.extend(float(b) for b in biases)
@@ -146,11 +156,25 @@ def linearity(
     s_xx = float(((x - x_mean) ** 2).sum())
     s_xy = float(((x - x_mean) * (y - y_mean)).sum())
     slope = s_xy / s_xx
+
+    # Zero is decided against the scale of the readings and references, not by
+    # float equality (T-0096). A bias is a difference of two such numbers, so it
+    # carries their rounding: a gage reading 2.1, 4.1, ... 10.1 for masters
+    # 2, 4, ... 10 has biases that differ in their last bits, and the residue
+    # alone produced a slope of -4e-17 with p = 0.003. Each sum of squares runs
+    # over the n readings, so SS / n is a per-reading mean square.
+    scale = np.concatenate(readings)
+    if is_zero_deviation(slope * math.sqrt(s_xx / n), scale):
+        slope = 0.0
     intercept = y_mean - slope * x_mean
 
     residuals = y - (slope * x + intercept)
     ss_res = float((residuals**2).sum())
     ss_tot = float(((y - y_mean) ** 2).sum())
+    if is_zero_spread(ss_res / n, scale):
+        ss_res = 0.0
+    if is_zero_spread(ss_tot / n, scale):
+        ss_tot = 0.0
     df = n - 2
 
     warnings: list[Caveat] = []

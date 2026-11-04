@@ -17,11 +17,13 @@ one meeting both risk conditions, which no published table is needed to check.
 from __future__ import annotations
 
 import math
+from fractions import Fraction
 
 import numpy as np
 import pytest
 import yaml
 from capstat_core import (
+    AOQLimit,
     SamplingPlan,
     aoq_limit,
     average_outgoing_quality,
@@ -279,14 +281,150 @@ def test_aoql_is_a_maximum_and_matches_the_published_reading() -> None:
     )
 
 
-def test_aoql_on_the_hypergeometric_model_stays_on_the_grid() -> None:
-    """A step function has no peak to refine; the grid maximum is the answer."""
+def _type_a_aoq_by_enumeration(lot: int, n: int, ac: int, defectives: int) -> float:
+    """The Type A AOQ from its definition, in exact integer arithmetic.
+
+    A lot holding ``D`` defectives is accepted when the sample holds ``x <= Ac``
+    of them; the sample's defectives are replaced, so ``D - x`` leave with the
+    lot. Rejected lots are screened and leave clean. Hence
+    ``AOQ = sum_{x <= Ac} (D - x) h(x; N, D, n) / N`` -- written out with
+    ``math.comb`` and ``Fraction``, sharing nothing with scipy.
+    """
+    total = sum(
+        (defectives - x) * math.comb(defectives, x) * math.comb(lot - defectives, n - x)
+        for x in range(ac + 1)
+    )
+    return float(Fraction(total, lot * math.comb(lot, n)))
+
+
+@pytest.mark.parametrize(
+    ("lot", "n", "ac", "defectives"),
+    [
+        (10, 5, 0, 1),  # the hand case: accepted half the time, then 1 of 10 bad
+        (100, 20, 1, 5),
+        (200, 50, 2, 10),
+        (1000, 80, 2, 20),
+        (50, 8, 0, 5),
+        (60, 60, 3, 6),  # n == N: every item inspected, nothing defective leaves
+        (40, 10, 10, 8),  # Ac == n: every lot accepted, the sample's defectives fixed
+    ],
+)
+def test_type_a_aoq_is_the_exact_finite_lot_value(
+    lot: int, n: int, ac: int, defectives: int
+) -> None:
+    """SAMP-2: under the hypergeometric model the AOQ is the Type A value.
+
+    The large-lot formula ``Pa * p * (N - n) / N`` ignores that an *accepted*
+    lot is one whose sample happened to hold few defectives, so more of them
+    stayed in the remainder. At (10, 5, 0, D=1) it gave 0.025 for a true 0.05.
+    """
+    plan = SamplingPlan(n, ac, lot_size=lot)
+    exact = _type_a_aoq_by_enumeration(lot, n, ac, defectives)
+    got = average_outgoing_quality(plan, defectives / lot, model="hypergeometric")
+    assert got == pytest.approx(exact, rel=1e-12, abs=1e-300)
+
+
+def test_type_a_lot_quality_is_rounded_not_floored() -> None:
+    """100 * 0.29 is 28.999999999999996 in floating point. The lot holds 29
+    defectives, and both Pa and the AOQ must be evaluated there, not at 28."""
+    plan = SamplingPlan(20, 1, lot_size=100)
+    pa_at_29 = sum(
+        math.comb(29, d) * math.comb(71, 20 - d) for d in range(2)
+    ) / math.comb(100, 20)
+    assert probability_of_acceptance(plan, 0.29, model="hypergeometric") == (
+        pytest.approx(pa_at_29, rel=1e-12)
+    )
+    assert average_outgoing_quality(plan, 0.29, model="hypergeometric") == (
+        pytest.approx(_type_a_aoq_by_enumeration(100, 20, 1, 29), rel=1e-12)
+    )
+
+
+def test_type_a_aoq_hand_case() -> None:
+    """N=10, n=5, Ac=0, one defective: accepted with probability 1/2, and an
+    accepted lot still holds its one defective -- AOQ = 0.5 * 1/10 = 0.05."""
+    plan = SamplingPlan(5, 0, lot_size=10)
+    assert average_outgoing_quality(plan, 0.1, model="hypergeometric") == (
+        pytest.approx(0.05, rel=1e-14)
+    )
+
+
+@pytest.mark.parametrize(
+    ("lot", "n", "ac"),
+    [(10, 5, 0), (100, 50, 0), (200, 60, 1), (50, 8, 0), (200, 50, 2)],
+)
+def test_type_a_aoql_is_the_exact_maximum_over_attainable_lots(
+    lot: int, n: int, ac: int
+) -> None:
+    plan = SamplingPlan(n, ac, lot_size=lot)
+    best_value, best_d = max(
+        (_type_a_aoq_by_enumeration(lot, n, ac, d), d) for d in range(lot + 1)
+    )
+    limit = aoq_limit(plan, model="hypergeometric")
+    assert limit.aoql == pytest.approx(best_value, rel=1e-12)
+    assert limit.at_fraction_defective == best_d / lot
+
+
+def test_type_a_aoql_of_a_large_lot_is_searched_not_read_off_a_grid() -> None:
+    """SAMP-1: N=20000, n=2000, Ac=0 peaks at D=9 (p=0.00045).
+
+    The old 1001-point grid for N > 1000 had nothing below p=0.001 and
+    reported 1.09e-4 there. For Ac = 0 the Type A AOQ is exactly
+    ``(D/N) * Pa`` with ``Pa = prod_{i<n} (N-D-i)/(N-i)``; enumerated below for
+    every D up to 600, far past the peak (the AOQ at D=600 is ~1e-35).
+    """
+    lot, n = 20000, 2000
+    plan = SamplingPlan(n, 0, lot_size=lot)
+
+    def aoq(d: int) -> float:
+        pa = 1.0
+        for i in range(n):
+            pa *= (lot - d - i) / (lot - i)
+        return d / lot * pa
+
+    best_value, best_d = max((aoq(d), d) for d in range(601))
+    assert best_d == 9
+    limit = aoq_limit(plan, model="hypergeometric")
+    assert limit.aoql == pytest.approx(best_value, rel=1e-9)
+    assert limit.aoql == pytest.approx(1.7430434526e-4, rel=1e-9)
+    assert limit.at_fraction_defective == 0.00045
+
+
+def test_type_a_aoql_search_over_a_huge_lot_finds_the_full_enumeration_peak() -> None:
+    """N=200000, n=20, Ac=1: the search bound is ~10^5 lot qualities, so the
+    peak is located on a grid of D and enumerated around it. Checked against
+    the AOQ of every one of the lot's 200000 non-zero qualities."""
+    lot = 200_000
+    plan = SamplingPlan(20, 1, lot_size=lot)
+    every_d = np.arange(1, lot + 1)
+    every = (
+        (every_d / lot)
+        * ((lot - 20) / lot)
+        * stats.hypergeom.cdf(1, lot - 1, every_d - 1, 20)
+    )
+    limit = aoq_limit(plan, model="hypergeometric")
+    assert limit.aoql == pytest.approx(float(every.max()), rel=1e-12)
+    assert limit.at_fraction_defective == int(every_d[np.argmax(every)]) / lot
+
+
+def test_type_a_aoql_of_plans_that_inspect_all_or_accept_all() -> None:
+    # n == N: nothing defective ever leaves.
+    assert aoq_limit(SamplingPlan(30, 2, lot_size=30), model="hypergeometric") == (
+        AOQLimit(aoql=0.0, at_fraction_defective=0.0)
+    )
+    # Ac == n: every lot passes, so the worst lot is the wholly defective one,
+    # minus the sample that was fixed: (N - n)/N.
+    limit = aoq_limit(SamplingPlan(10, 10, lot_size=40), model="hypergeometric")
+    assert limit.aoql == pytest.approx(0.75, rel=1e-14)
+    assert limit.at_fraction_defective == 1.0
+
+
+def test_type_a_aoql_is_located_on_an_attainable_lot_quality() -> None:
+    """A step function has no peak to refine; the AOQL sits at some D/N."""
     plan = SamplingPlan(20, 1, lot_size=200)
     limit = aoq_limit(plan, model="hypergeometric")
     assert limit.aoql > 0.0
-    assert limit.at_fraction_defective == pytest.approx(
-        round(limit.at_fraction_defective, 3), abs=1e-12
-    )
+    defectives = limit.at_fraction_defective * 200
+    assert defectives == round(defectives)
 
 
 # ---------------------------------------------------------------------------

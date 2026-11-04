@@ -442,6 +442,48 @@ def test_non_positive_sigma_is_rejected(chart: object) -> None:
         chart([1.0, 2.0, 3.0], target=1.0, sigma=0.0)  # type: ignore[operator]
 
 
+@pytest.mark.parametrize(
+    ("chart", "field"),
+    [
+        (ewma_chart, "target"),
+        (ewma_chart, "sigma"),
+        (ewma_chart, "L"),
+        (ewma_chart, "lmbda"),
+        (cusum_chart, "target"),
+        (cusum_chart, "sigma"),
+        (cusum_chart, "k"),
+        (cusum_chart, "h"),
+    ],
+)
+@pytest.mark.parametrize("bad", [math.nan, math.inf])
+def test_non_finite_design_parameters_are_rejected(
+    chart: object, field: str, bad: float
+) -> None:
+    """T-0105 / CHART-3: ``L <= 0`` and friends are False for NaN, and +inf is
+    positive. A 1.5-sigma shift flagged at 15 points became 0 violations and
+    "in control" with L, h, k, target or sigma set to nan or inf.
+    """
+    data = [1.0, 2.0, 3.0, 2.5, 1.5]
+    with pytest.raises(ValueError, match=f"{field} must be"):
+        chart(data, **{"target": 2.0, "sigma": 1.0, field: bad})  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("chart", [ewma_chart, cusum_chart])
+@pytest.mark.parametrize(
+    "data",
+    [[3.3] * 8, [3.3, float(np.nextafter(3.3, 4.0))] * 4],
+    ids=["constant", "one-ulp-apart"],
+)
+def test_an_estimated_zero_spread_is_refused(chart: object, data: list[float]) -> None:
+    """T-0096: the moving-range estimate is judged against the data's scale.
+
+    Readings one ulp apart have a moving range of 4e-16: not zero in float, but
+    zero spread for any instrument. Exact zero was already refused.
+    """
+    with pytest.raises(ValueError, match="zero spread"):
+        chart(data)  # type: ignore[operator]
+
+
 @pytest.mark.parametrize("chart", [ewma_chart, cusum_chart])
 def test_charts_need_two_observations(chart: object) -> None:
     with pytest.raises(ValueError, match="at least 2 observation"):

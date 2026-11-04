@@ -19,7 +19,9 @@ const ROUTES = ["/", "/gage-rr", "/msa", "/acceptance-sampling"];
 
 export default async function warmRoutes() {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ baseURL: "http://localhost:3000" });
+  const page = await browser.newPage({
+    baseURL: `http://localhost:${process.env.E2E_PORT ?? 3000}`,
+  });
   for (const route of ROUTES) {
     await page.goto(route, { waitUntil: "load", timeout: 120_000 });
     // Hydration is the half being warmed, so wait for it rather than for the

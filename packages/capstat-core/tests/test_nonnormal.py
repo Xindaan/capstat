@@ -17,6 +17,7 @@ forgetting the specification limits.
 
 from __future__ import annotations
 
+import functools
 import math
 
 import numpy as np
@@ -24,10 +25,13 @@ import pytest
 import yaml
 from capstat_core import (
     DistributionFit,
+    PercentileCapability,
     analyze_capability,
+    assess_normality,
     box_cox_capability,
     capability,
     fit_distribution,
+    nonnormal,
     percentile_capability,
 )
 from capstat_core.capability import STABILITY_RATIO
@@ -163,7 +167,10 @@ def test_percentile_method_uses_the_median_not_the_mean() -> None:
     data = _lognormal()
     iso = percentile_capability(data, lsl=5.0, usl=60.0, distribution="lognorm")
 
-    frozen = stats.lognorm(*stats.lognorm.fit(data))
+    # Compared with the fit the report carries, not with a refit: the fit is
+    # made on standardised data (CAP-1), and scipy's optimiser stops at a
+    # slightly different point on the raw ones (4e-6 relative here).
+    frozen = stats.lognorm(*iso.params)
     assert iso.p_median == pytest.approx(float(frozen.ppf(0.5)), rel=1e-12)
     assert iso.p_median != pytest.approx(float(data.mean()), rel=1e-3)
 
@@ -533,9 +540,37 @@ def test_at_least_one_limit_is_required(function: object) -> None:
 @pytest.mark.parametrize(
     "function", [analyze_capability, box_cox_capability, percentile_capability]
 )
-def test_inverted_limits_are_rejected(function: object) -> None:
+@pytest.mark.parametrize(("lsl", "usl"), [(60.0, 5.0), (5.0, 5.0)])
+def test_inverted_limits_are_rejected(function: object, lsl: float, usl: float) -> None:
+    """Equal limits too (TQ-24): a zero-width specification gave Pp = 0.0 on the
+    percentile path instead of an error once the check was relaxed to ``>``."""
     with pytest.raises(ValueError, match="must be strictly below"):
-        function(_lognormal(), lsl=60.0, usl=5.0)  # type: ignore[operator]
+        function(_lognormal(), lsl=lsl, usl=usl)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize(
+    "function", [analyze_capability, box_cox_capability, percentile_capability]
+)
+@pytest.mark.parametrize("field", ["lsl", "usl"])
+@pytest.mark.parametrize("bad", [math.nan, math.inf, -math.inf])
+def test_non_finite_limits_are_rejected(
+    function: object, field: str, bad: float
+) -> None:
+    """T-0105 / CAP-4: ``lsl >= usl`` is False for NaN, so a NaN limit passed.
+
+    analyze_capability(lsl=7, usl=nan) returned a Ppk against the lower limit
+    only, with no one-sided caveat.
+    """
+    limits = {"lsl": 5.0, "usl": 60.0, field: bad}
+    with pytest.raises(ValueError, match=f"{field} must be a finite number"):
+        function(_lognormal(), **limits)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("function", [analyze_capability, box_cox_capability])
+@pytest.mark.parametrize("bad", [math.nan, math.inf])
+def test_a_non_finite_target_is_rejected(function: object, bad: float) -> None:
+    with pytest.raises(ValueError, match="target must be a finite number"):
+        function(_lognormal(), lsl=5.0, usl=60.0, target=bad)  # type: ignore[operator]
 
 
 def test_one_sided_limits_are_supported() -> None:
@@ -574,20 +609,8 @@ class _NanCdf:
         return np.full(np.shape(data), np.nan)
 
 
-class _ConstantCdf:
-    """A distribution whose CDF is constant, so the transform has no variance."""
-
-    def cdf(self, data: np.ndarray) -> np.ndarray:
-        return np.full(np.shape(data), 0.5)
-
-
 def test_fit_score_is_infinite_for_a_nan_cdf() -> None:
     assert math.isinf(_fit_score(_lognormal(n=50), _NanCdf()))
-
-
-def test_fit_score_is_infinite_when_the_transform_has_no_variance() -> None:
-    """Anderson-Darling is undefined on a zero-variance sample; score it out."""
-    assert math.isinf(_fit_score(_lognormal(n=50), _ConstantCdf()))
 
 
 def test_a_candidate_that_cannot_be_fitted_is_skipped_not_fatal(
@@ -657,4 +680,328 @@ def test_the_other_two_paths_do_not_gain_a_target_warning() -> None:
     assert analysis.path == "normal"
     assert not any(
         "not used" in w.lower() and "target" in w.lower() for w in analysis.warnings
+    )
+
+
+# ---------------------------------------------------------------------------
+# T-0097: the unit must not matter (CAP-1)
+# ---------------------------------------------------------------------------
+
+
+@functools.cache
+def _sweep(seed: int) -> tuple[np.ndarray, PercentileCapability]:
+    """One sample of the sweep that exposed CAP-1, and its report in the
+    original unit. Cached: every transformation below compares against it."""
+    data = np.asarray(stats.lognorm(s=0.3).rvs(100, random_state=seed))
+    return data, percentile_capability(data, lsl=0.3, usl=3.0)
+
+
+@pytest.mark.parametrize(
+    ("factor", "shift", "seeds"),
+    [
+        # The sweep of the own verification (2026-10-01): 40 of 120 moved.
+        (1e-5, 0.0, 40),
+        (1e-6, 0.0, 40),
+        (1e-7, 0.0, 40),
+        # The rest of the range, and a change of origin with it.
+        (1e-9, 0.0, 10),
+        (1e9, 0.0, 10),
+        (1e-6, -1.0, 10),
+        (1e6, 25.0, 10),
+    ],
+)
+def test_the_percentile_indices_do_not_depend_on_the_unit(
+    factor: float, shift: float, seeds: int
+) -> None:
+    """Pp and Ppk are ratios of lengths; metres instead of millimetres must not
+    move them. Before the fit was made on standardised data, scipy's optimiser
+    stalled on readings near 1e-5 and a capable process (Ppk 1.09) came out at
+    Ppk -121 -- with no warning, because the fit score could not see it."""
+    tol = CASES["percentile-unit-invariance"]["tolerance"]["rel"]
+
+    def moved(value: float) -> float:
+        return (value + shift) * factor
+
+    for seed in range(seeds):
+        data, base = _sweep(seed)
+        report = percentile_capability(
+            (data + shift) * factor, lsl=moved(0.3), usl=moved(3.0)
+        )
+        assert report.distribution == base.distribution, seed
+        assert report.ppk == pytest.approx(base.ppk, rel=tol), seed
+        assert report.pp == pytest.approx(base.pp, rel=tol), seed
+        assert report.ppl == pytest.approx(base.ppl, rel=tol), seed
+        assert report.ppu == pytest.approx(base.ppu, rel=tol), seed
+        assert report.p_median == pytest.approx(moved(base.p_median), rel=tol), seed
+
+
+def test_the_fit_score_sees_a_fit_in_the_wrong_place() -> None:
+    """The score judges the fitted distribution as it stands (CAP-1).
+
+    It used to map the data to normal scores and run the Anderson-Darling
+    *normality* test on them, which re-standardises its input -- so a normal
+    fit with the wrong mean and the wrong sigma scored exactly as well as the
+    right one, and a stalled fit (median at half the data's) could win.
+    """
+    data = _normal()  # N(100, 2)
+    right = _fit_score(data, stats.norm(100.0, 2.0))
+    wrong = _fit_score(data, stats.norm(101.0, 3.0))
+    assert right < 2.0
+    assert wrong > 10.0 * right
+
+
+# ---------------------------------------------------------------------------
+# T-0097: the lower one-sided index on a skewed fit (TQ-6)
+# ---------------------------------------------------------------------------
+
+
+def test_ppl_uses_the_lower_spread_on_a_skewed_distribution() -> None:
+    """On a symmetric fit the two one-sided spreads are equal, so a formula that
+    took the upper spread for Ppl passed every earlier test. On this lognormal
+    they differ six-fold, and the closed forms pin each index."""
+    case = CASES["percentile-lognormal-closed-form"]
+    given, expected = case["input"], case["expected"]
+    tol = case["tolerance"]["rel"]
+    fit = DistributionFit(
+        name="lognorm", params=(given["shape"], 0.0, 1.0), fit_score=0.0
+    )
+
+    both = percentile_capability(
+        _lognormal(), lsl=given["lsl"], usl=given["usl"], distribution=fit
+    )
+    assert both.ppl == pytest.approx(expected["ppl"], rel=tol)
+    assert both.ppu == pytest.approx(expected["ppu"], rel=tol)
+    assert both.pp == pytest.approx(expected["pp"], rel=tol)
+    assert both.ppk == pytest.approx(expected["ppk"], rel=tol)
+
+    lower = percentile_capability(_lognormal(), lsl=given["lsl"], distribution=fit)
+    assert lower.ppk == pytest.approx(expected["ppl"], rel=tol)
+    upper = percentile_capability(_lognormal(), usl=given["usl"], distribution=fit)
+    assert upper.ppk == pytest.approx(expected["ppu"], rel=tol)
+
+
+# ---------------------------------------------------------------------------
+# T-0097: the candidates and the positivity routing (TQ-24)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("seed", range(4))
+def test_gamma_data_select_the_gamma_candidate(seed: int) -> None:
+    data = stats.gamma(2.0, scale=3.0).rvs(300, random_state=seed)
+    assert fit_distribution(data).name == "gamma"
+
+
+def test_box_cox_refuses_a_zero_reading_with_its_own_explanation() -> None:
+    """Zero is not positive: capstat's reason, not scipy's bare "Data must be
+    positive", must reach the caller."""
+    data = np.concatenate([_lognormal(n=50), np.array([0.0])])
+    with pytest.raises(ValueError, match="will not shift silently"):
+        box_cox_capability(data, lsl=1.0, usl=60.0)
+
+
+@pytest.mark.parametrize("where", ["lsl", "data"])
+def test_a_zero_skips_box_cox_and_says_why(where: str) -> None:
+    """An LSL of 0 is the ordinary spec of a non-negative quantity. Box-Cox is
+    undefined there, and the rationale must say exactly that -- not that
+    Box-Cox was tried and failed."""
+    data = _lognormal()
+    lsl = 1.0
+    if where == "data":
+        data = np.concatenate([data, np.array([0.0])])
+    else:
+        lsl = 0.0
+    analysis = analyze_capability(data, lsl=lsl, usl=60.0)
+    assert analysis.path == "percentile"
+    assert "Box-Cox is undefined here" in analysis.rationale
+    assert "could not be applied" not in analysis.rationale
+
+
+# ---------------------------------------------------------------------------
+# T-0097: readings rounded to a gauge resolution (CAP-6 / API-28)
+# ---------------------------------------------------------------------------
+
+
+def _gauge(data: np.ndarray, step: float) -> np.ndarray:
+    rounded: np.ndarray = np.round(data / step) * step
+    return rounded
+
+
+@pytest.fixture
+def calibration_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rounding calibration is off by decision (T-0118); these tests keep
+    the dormant machinery right for the day it is switched on."""
+    monkeypatch.setattr(nonnormal, "RESOLUTION_CALIBRATION_ENABLED", True)
+
+
+def test_the_rounding_calibration_is_off_by_default() -> None:
+    """Off until it has a reference-validated test (AGENTS.md, T-0118): gauge-
+    rounded normal readings are judged by the uncalibrated tests, the
+    percentile path is taken, and nothing claims a calibration happened."""
+    assert nonnormal.RESOLUTION_CALIBRATION_ENABLED is False
+    data = _gauge(np.random.default_rng(0).normal(10.0, 0.05, 1000), 0.01)
+    analysis = analyze_capability(data, lsl=9.8, usl=10.2)
+    assert analysis.path != "normal"
+    assert "nonnormal.resolution-limited" not in {w.code for w in analysis.warnings}
+    assert "rounded" not in analysis.rationale
+
+
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.usefixtures("calibration_on")
+def test_normal_readings_rounded_by_a_gauge_keep_the_normal_path(seed: int) -> None:
+    """N(10, 0.05) read to 0.01 -- a resolution of 0.2 sigma -- went down the
+    percentile path in 40 of 40 runs at n = 1000, losing Cp and Cpk and being
+    called non-normal for having been measured."""
+    data = _gauge(np.random.default_rng(seed).normal(10.0, 0.05, 1000), 0.01)
+    # Precondition: the continuous-data tests do reject it, for the ties.
+    assert assess_normality(data).normal is False
+
+    analysis = analyze_capability(data, lsl=9.8, usl=10.2)
+    assert analysis.path == "normal"
+    assert analysis.normal is not None and analysis.normal.cpk is not None
+    assert "rounded to a resolution of 0.01" in analysis.rationale
+    assert "the rounding is the only departure found" in analysis.rationale
+    codes = {w.code for w in analysis.warnings}
+    assert "nonnormal.resolution-limited" in codes
+    # The inner report's uncalibrated "these numbers are wrong" must not ride
+    # along and contradict the path in the same response.
+    assert "capability.non-normal" not in codes
+
+
+@pytest.mark.parametrize("seed", range(3))
+@pytest.mark.usefixtures("calibration_on")
+def test_a_skewed_process_read_by_a_gauge_is_still_not_normal(seed: int) -> None:
+    """Allowing for the rounding must not wave skewness through: the calibrated
+    tests keep their statistics, and so their power against skew."""
+    rng = np.random.default_rng(seed)
+    data = _gauge(10.0 + 0.025 * rng.gamma(4.0, size=200), 0.01)
+    analysis = analyze_capability(data, lsl=9.9, usl=10.5)
+    assert analysis.path != "normal"
+    assert "also when judged against normal data rounded" in analysis.rationale
+    assert "nonnormal.resolution-limited" in {w.code for w in analysis.warnings}
+
+
+@pytest.mark.usefixtures("calibration_on")
+def test_the_calibrated_verdict_needs_both_tests_like_the_uncalibrated_one() -> None:
+    """A flat (uniform) process read to 0.01: calibrated Anderson-Darling does
+    not reject it (p = 0.071) but Shapiro-Wilk does (p = 0.024). The normal
+    path needs both, as it does on continuous data -- otherwise allowing for
+    the rounding would quietly drop one of the two tests."""
+    rng = np.random.default_rng(0)
+    data = _gauge(10.0 + 0.1 * rng.uniform(size=60), 0.01)
+    analysis = analyze_capability(data, lsl=9.9, usl=10.2)
+    assert "also when judged against normal data rounded" in analysis.rationale
+    assert "Anderson-Darling p=0.071" in analysis.rationale
+    assert analysis.path != "normal"
+
+
+@pytest.mark.usefixtures("calibration_on")
+def test_continuous_data_are_not_calibrated_even_when_it_is_on() -> None:
+    """The calibration answers ties from a gauge's grid; a skewed sample with
+    no grid keeps its uncalibrated verdict and gets no resolution caveat."""
+    data = np.random.default_rng(1).lognormal(0.0, 0.5, 200)
+    analysis = analyze_capability(data, lsl=0.1, usl=6.0)
+    assert analysis.path != "normal"
+    assert "nonnormal.resolution-limited" not in {w.code for w in analysis.warnings}
+
+
+@pytest.mark.usefixtures("calibration_on")
+def test_large_samples_are_not_calibrated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The calibration costs draws x n; above the cap it is not run and the
+    uncalibrated verdict stands (and the caveat does not claim otherwise). The
+    cap is lowered here so that the test stays fast."""
+    monkeypatch.setattr(nonnormal, "RESOLUTION_MAX_SAMPLE_SIZE", 999)
+    data = _gauge(np.random.default_rng(0).normal(10.0, 0.05, 1000), 0.01)
+    analysis = analyze_capability(data, lsl=9.8, usl=10.2)
+    assert analysis.path != "normal"
+    assert "nonnormal.resolution-limited" not in {w.code for w in analysis.warnings}
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        [5.0] * 29 + [5.1],  # CAP-6: Pp 2.08e7
+        [10.0] * 28 + [10.01] * 2,  # API-28: Pp 4570
+    ],
+)
+@pytest.mark.parametrize(
+    "function", [analyze_capability, percentile_capability, fit_distribution]
+)
+def test_two_distinct_readings_are_refused_not_given_an_index(
+    data: list[float], function: object
+) -> None:
+    """A continuous fit to two tied values piles its mass onto the tie: the
+    fitted 99.865 % point fell below the largest reading and Pp came out in the
+    millions. Two values cannot identify a distribution, so none is given."""
+    limits = {} if function is fit_distribution else {"lsl": 4.0, "usl": 11.0}
+    with pytest.raises(ValueError, match="only two distinct values"):
+        function(data, **limits)  # type: ignore[operator]
+
+
+@pytest.mark.parametrize("n", [15, 25, 35])
+def test_identical_readings_are_refused_whatever_their_value(n: int) -> None:
+    """[3.3] * n has a mean one ulp off 3.3 for most n, so its standard
+    deviation is about 5e-16 rather than 0, and the analysis answered anything
+    from an HTTP 500 to Pp 3e14 (API-27). Constant is decided on the values."""
+    with pytest.raises(ValueError, match="zero variance"):
+        analyze_capability([3.3] * n, lsl=1.0, usl=5.0)
+    with pytest.raises(ValueError, match="zero variance"):
+        percentile_capability([3.3] * n, lsl=1.0, usl=5.0)
+
+
+# ---------------------------------------------------------------------------
+# T-0097: a Box-Cox that collapses the data says so (UX-10 / ARCH-16)
+# ---------------------------------------------------------------------------
+
+
+def _drifting() -> np.ndarray:
+    rng = np.random.default_rng(0)
+    data = 10.0 + rng.normal(0.0, 0.05, 40)
+    data[-8:] += np.linspace(0.02, 0.16, 8)
+    return data
+
+
+def _tight_skewed() -> np.ndarray:
+    draws = 10.0 + 0.03 * np.random.default_rng(0).gamma(2.0, size=60)
+    rounded: np.ndarray = np.round(draws, 4)
+    return rounded
+
+
+@pytest.mark.parametrize(("make", "usl"), [(_drifting, 10.3), (_tight_skewed, 10.4)])
+def test_a_box_cox_that_collapses_the_data_is_refused_for_that_reason(
+    make: object, usl: float
+) -> None:
+    """With one limit there is no pair of limits to collide, so the collapse of
+    the *data* went unnoticed: lambda near -100 maps 40-60 distinct readings onto
+    one float, Shapiro-Wilk returned NaN, and the rationale told the user
+    "every subgroup is constant" or "sample has zero variance" -- about data
+    that are neither."""
+    data = make()  # type: ignore[operator]
+    with pytest.raises(ValueError, match="degenerate for these data"):
+        box_cox_capability(data, usl=usl)
+
+    analysis = analyze_capability(data, usl=usl)
+    assert analysis.path == "percentile"
+    assert "degenerate for these data" in analysis.rationale
+    assert "constant" not in analysis.rationale
+    assert "zero variance" not in analysis.rationale
+    # The failure is a sentence; the next one starts after its full stop.
+    assert "would mean anything. The ISO 22514 percentile method" in (
+        analysis.rationale
+    )
+
+
+def test_a_box_cox_failure_without_a_full_stop_still_ends_its_sentence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reason is pasted into the rationale; a message without a full stop
+    used to run straight into the next sentence ("...undefined The ISO 22514
+    ..." on screen, UX-10). Any message, with or without one, must end once."""
+
+    def failing(*args: object, **kwargs: object) -> None:
+        raise ValueError("the transform is unusable")
+
+    monkeypatch.setattr(nonnormal, "box_cox_capability", failing)
+    analysis = analyze_capability(_lognormal(), lsl=5.0, usl=60.0)
+    assert "the transform is unusable. The ISO 22514 percentile method" in (
+        analysis.rationale
     )

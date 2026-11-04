@@ -29,8 +29,11 @@ def test_columns_lists_what_is_numeric(capsys: pytest.CaptureFixture[str]) -> No
     code, out, _ = run(capsys, "columns", str(DEMO))
     assert code == EXIT_OK
     assert "diameter_mm: 60 values" in out
-    # The text column is not numeric and is simply absent.
-    assert "operator" not in out
+    # The text column is not a numeric column -- but it is named as ignored,
+    # exactly as /ingest names it, so a mistyped column is visible (API-9).
+    assert "operator:" not in out
+    assert "[ingest.non-numeric-columns-ignored]" in out
+    assert "operator" in out
 
 
 def test_capability_reproduces_the_documented_demo_figures(
@@ -293,3 +296,172 @@ def test_the_chart_command_follows_the_subgroup_size_to_the_right_pair(
     deviation = json.loads(out)
     assert deviation["location"]["name"] == "X-bar"
     assert deviation["dispersion"]["name"] == "s"
+
+
+def test_a_one_column_german_csv_gives_the_same_indices_as_its_dot_twin(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """The report that started T-0095: Cp 1.97 became 0.0197 and Cpk -8.61.
+
+    A file `Wert / 9,79 / ...` has no separator, so the comma was taken for one
+    and the integer part became the row index. The same readings with a decimal
+    point are the reference; the German file must reproduce them exactly.
+    """
+    rows = [line.split(",")[2] for line in DEMO.read_text().splitlines()[1:]]
+    dot = tmp_path / "dot.csv"
+    dot.write_text("Wert\n" + "\n".join(rows) + "\n")
+    german = tmp_path / "de.csv"
+    german.write_text("Wert\n" + "\n".join(r.replace(".", ",") for r in rows) + "\n")
+    args = ("--lsl", "9.7", "--usl", "10.3")
+
+    code_dot, out_dot, _ = run(capsys, "capability", str(dot), *args)
+    code_de, out_de, _ = run(capsys, "capability", str(german), *args)
+
+    assert code_dot == code_de == EXIT_OK
+
+    def indices(out: str) -> list[str]:
+        return [line for line in out.splitlines() if line.startswith("  C")]
+
+    assert indices(out_de) == indices(out_dot)
+    assert len(indices(out_de)) == 2
+    assert "[ingest.single-column-detected]" in out_de
+
+
+# --- T-0102: a dropped cell must not shift later subgroups --------------------
+
+
+def _hourly_csv(
+    tmp_path: Path, *, blank_row: int | None, skip_hour: int | None
+) -> Path:
+    """Six hours of five readings, each hour at its own level, one blank cell.
+
+    Deterministic, with a level that differs per hour and a spread that differs
+    per position, so a subgroup cut at the wrong boundary changes every index.
+    """
+    spread = [-0.04, 0.01, 0.05, -0.02, 0.03]
+    level = [10.00, 10.02, 9.99, 10.03, 10.01, 9.98]
+    cells: list[str] = []
+    for hour in range(6):
+        if hour == skip_hour:
+            continue
+        for k in range(5):
+            row = hour * 5 + k
+            cells.append("" if row == blank_row else f"{level[hour] + spread[k]:.3f}")
+    path = tmp_path / f"hourly-{blank_row}-{skip_hour}.csv"
+    # A blank *line* would be skipped by the reader; a second column keeps the
+    # row alive, which is how a real gap looks in a two-column export.
+    path.write_text("x,y\n" + "".join(f"{v},1\n" for v in cells))
+    return path
+
+
+def _indices(capsys: pytest.CaptureFixture[str], path: Path) -> dict[str, float]:
+    code, out, _ = run(
+        capsys,
+        "capability",
+        str(path),
+        "--column",
+        "x",
+        "--lsl",
+        "9.8",
+        "--usl",
+        "10.2",
+        "--subgroup-size",
+        "5",
+        "--json",
+    )
+    assert code == EXIT_OK
+    report = json.loads(out)
+    return {k: report[k] for k in ("cp", "cpk", "pp", "ppk")}
+
+
+def test_a_blank_cell_costs_its_own_subgroup_and_moves_no_other(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """The subgroups are cut by ROW (CHART-2).
+
+    Cutting the compacted list moved every boundary after the gap by one, so the
+    gap's subgroup was mixed into its neighbours. Reading the file with hour 2's
+    cell blank must give exactly what reading it with hour 2 removed gives.
+    """
+    gap = _hourly_csv(tmp_path, blank_row=7, skip_hour=None)
+    removed = _hourly_csv(tmp_path, blank_row=None, skip_hour=1)
+    assert _indices(capsys, gap) == _indices(capsys, removed)
+
+
+def test_the_cli_names_the_subgroup_a_gap_cost_and_the_dropped_cell(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    gap = _hourly_csv(tmp_path, blank_row=7, skip_hour=None)
+    _, out, _ = run(
+        capsys,
+        "chart",
+        str(gap),
+        "--column",
+        "x",
+        "--subgroup-size",
+        "5",
+        "--json",
+    )
+    warnings = {w["code"]: w["message"] for w in json.loads(out)["warnings"]}
+    assert "data row(s) 8" in warnings["ingest.cells-dropped"]
+    assert warnings["subgroups.incomplete"].startswith(
+        "Subgroup(s) 2 hold fewer than 5"
+    )
+    assert "subgroups.leftover" not in warnings
+
+
+@pytest.mark.parametrize(
+    ("size", "rows", "left"),
+    [(5, 12, 2), (11, 25, 3)],
+    ids=["x-bar-r", "x-bar-s"],
+)
+def test_chart_reports_leftover_values_instead_of_dropping_them(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    size: int,
+    rows: int,
+    left: int,
+) -> None:
+    """`capability` named the leftovers; `chart` threw them away in silence (API-9).
+
+    Both chart pairs: the range pair (size <= 10) and the s pair (size > 10) are
+    separate return paths.
+    """
+    path = tmp_path / "leftover.csv"
+    path.write_text(
+        "x\n" + "\n".join(f"{10 + (i % 4) * 0.01:.2f}" for i in range(rows))
+    )
+    for args in (("chart",), ("capability", "--lsl", "9.5", "--usl", "10.5")):
+        _, out, _ = run(
+            capsys, *args, str(path), "--subgroup-size", str(size), "--json"
+        )
+        warnings = {w["code"]: w["message"] for w in json.loads(out)["warnings"]}
+        assert (
+            f"{left} value(s) at the end form no complete subgroup"
+            in warnings["subgroups.leftover"]
+        ), args
+        assert "subgroups.incomplete" not in warnings
+
+
+def test_columns_reports_what_was_dropped_the_way_ingest_does(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    path = tmp_path / "naish.csv"
+    path.write_text("d,note\n9.71,a\nn.a.,b\n9.70,c\n")
+    code, out, _ = run(capsys, "columns", str(path))
+    assert code == EXIT_OK
+    assert "d: 2 values" in out
+    assert "[ingest.cells-dropped]" in out
+    assert "data row(s) 2" in out
+    assert "[ingest.non-numeric-columns-ignored]" in out
+
+
+def test_a_clean_file_prints_no_warnings_block(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Nothing dropped, nothing detected, nothing ignored: nothing to say."""
+    path = tmp_path / "clean.csv"
+    path.write_text("x\n1.0\n2.0\n")
+    code, out, _ = run(capsys, "columns", str(path))
+    assert code == EXIT_OK
+    assert out == "x: 2 values\n"

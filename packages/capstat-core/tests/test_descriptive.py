@@ -140,6 +140,39 @@ def test_zero_variance_still_has_a_defined_mean_and_spread() -> None:
     assert math.isnan(summary.lag1_autocorrelation)
 
 
+@pytest.mark.parametrize("value", [3.3, 0.1, 7.1, 9.97])
+def test_a_constant_series_has_zero_spread_whatever_its_value(value: float) -> None:
+    """T-0096 / API-27: 7.0 above is exactly representable, and so is its mean.
+
+    For 3.3 the float mean of ``[3.3] * n`` is one ulp off for most n, so every
+    deviation is ~4e-16 instead of 0. A stuck gauge does not read 7.0; it reads
+    whatever it reads, and the answer must not depend on how that number rounds.
+    """
+    for n in range(3, 60):
+        summary = describe([value] * n)
+        assert summary.variance == 0.0, n
+        assert math.isnan(summary.skewness), n
+        assert math.isnan(summary.kurtosis), n
+        assert math.isnan(summary.lag1_autocorrelation), n
+
+
+@pytest.mark.parametrize(
+    ("center", "sd"),
+    [(1e-6, 1e-9), (1e9, 1e-3)],
+    ids=["tiny-values", "large-offset"],
+)
+def test_genuinely_small_spread_is_not_called_zero(center: float, sd: float) -> None:
+    """The zero decision is relative to the data's own magnitude, and tight.
+
+    sd 1e-9 around 1e-6 is small in absolute terms; sd 1e-3 around 1e9 is
+    small relative to the offset (1e-12). Both are real variation.
+    """
+    data = np.random.default_rng(3).normal(center, sd, 50)
+    assert std_dev(data) == pytest.approx(float(np.std(data, ddof=1)), rel=1e-6)
+    assert not math.isnan(skewness(data))
+    assert not math.isnan(lag1_autocorrelation(data))
+
+
 # ---------------------------------------------------------------------------
 # Input validation
 # ---------------------------------------------------------------------------

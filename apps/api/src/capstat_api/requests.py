@@ -20,7 +20,14 @@ from capstat_api.schemas import (
 class _Request(BaseModel):
     # Reject unknown keys: a mistyped field (``smaple`` for ``sample``) becomes
     # a 422 the caller can see, not a silently ignored default.
-    model_config = ConfigDict(extra="forbid")
+    #
+    # Reject NaN and +-Infinity in every float, scalar or list item (T-0105,
+    # API-2). Python's json writes those tokens, and pydantic accepted them by
+    # default; a NaN sigma or limit slipped past the core's ``x <= 0`` guards
+    # and came back as a 200 with null limits next to "in control". The core
+    # now refuses non-finite parameters too; this answers first, naming the
+    # field. The 422 must not echo the NaN back -- see errors.py.
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 # A non-empty series of measurements. The core validates ranges and lengths and

@@ -21,9 +21,15 @@ from capstat_core import (
     anderson_darling,
     anderson_darling_pvalue,
     assess_normality,
+    normality,
     shapiro_wilk,
 )
-from capstat_core.normality import AD_MIN_SAMPLE_SIZE
+from capstat_core.normality import (
+    AD_MIN_SAMPLE_SIZE,
+    _grid_resolution,
+    _grouped_normal_fit,
+    _normality_at_resolution,
+)
 from conftest import REFERENCES, load_strd_dataset
 from scipy import stats
 
@@ -321,6 +327,18 @@ def test_constant_sample_is_rejected(function: object) -> None:
         function([3.0] * 12)  # type: ignore[operator]
 
 
+@pytest.mark.parametrize("function", [anderson_darling, shapiro_wilk, assess_normality])
+def test_a_constant_sample_is_rejected_whatever_its_value(function: object) -> None:
+    """3.0 is exact in binary; 3.3 is not, and the mean of n readings of 3.3 is
+    one ulp off for most n -- so their standard deviation is about 5e-16 and an
+    ``sd == 0`` guard let them through: Shapiro-Wilk then returned NaN with a
+    RuntimeWarning (API-27). The same happened to a Box-Cox-collapsed sample
+    (ARCH-16). Constant is decided on the values themselves."""
+    for n in range(AD_MIN_SAMPLE_SIZE, 60):
+        with pytest.raises(ValueError, match="zero variance"):
+            function([3.3] * n)  # type: ignore[operator]
+
+
 @pytest.mark.parametrize("alpha", [0.0, 1.0, -0.1, 1.5])
 def test_invalid_alpha_is_rejected(alpha: float) -> None:
     data = _normal_sample(30)
@@ -344,6 +362,79 @@ def test_alpha_moves_the_verdict_not_the_pvalue() -> None:
     assert lenient.p_value == strict.p_value == p, "alpha must not move the p-value"
     assert lenient.normal is True
     assert strict.normal is False
+
+
+def _rounded(seed: int, n: int, step: float, sigma: float = 0.05) -> np.ndarray:
+    raw = np.random.default_rng(seed).normal(10.0, sigma, n)
+    rounded: np.ndarray = np.round(raw / step) * step
+    return rounded
+
+
+def test_the_grid_of_rounded_readings_is_found() -> None:
+    data = _rounded(0, 200, 0.01)
+    assert _grid_resolution(data) == pytest.approx(0.01, rel=1e-9)
+    # Units do not matter.
+    assert _grid_resolution(data * 1e-6) == pytest.approx(0.01e-6, rel=1e-9)
+
+
+def test_continuous_readings_have_no_grid() -> None:
+    data = np.random.default_rng(1).normal(10.0, 0.05, 200)
+    assert _grid_resolution(data) is None  # no ties at all
+    # One duplicated reading ties, but the rest do not sit on its grid.
+    assert _grid_resolution(np.concatenate([data, data[:1]])) is None
+    # Evenly spaced but untied readings are not a gauge's rounding either.
+    assert _grid_resolution(np.arange(50.0)) is None
+
+
+def test_the_binned_fit_removes_the_rounding_from_sigma() -> None:
+    """Rounding to a step r inflates the variance by about r^2/12 (Sheppard).
+    The binned maximum-likelihood sigma must take that back out; the raw sd of
+    the rounded readings does not."""
+    case = CASES["grouped-fit-matches-sheppard"]
+    given, tol = case["input"], case["tolerance"]
+    sigma = given["sigma"]
+    fine, coarse = given["steps"]
+    for seed in range(3):
+        raw = np.random.default_rng(seed).normal(10.0, sigma, given["n"])
+
+        rounded = np.round(raw / fine) * fine
+        s = float(rounded.std(ddof=1))
+        sheppard = math.sqrt(s * s - fine * fine / 12.0)
+        _, fitted = _grouped_normal_fit(rounded, fine)
+        assert fitted == pytest.approx(sheppard, rel=tol["sheppard_rel"])
+        assert s > 1.03 * fitted  # the inflation that had to be removed
+
+        rounded = np.round(raw / coarse) * coarse
+        _, fitted = _grouped_normal_fit(rounded, coarse)
+        assert fitted == pytest.approx(float(raw.std(ddof=1)), rel=tol["unrounded_rel"])
+
+
+def test_rounded_normal_readings_are_rejected_at_about_the_nominal_rate() -> None:
+    """The calibration's whole point: its size. The uncalibrated tests reject a
+    large share of these samples for their ties alone."""
+    case = CASES["resolution-calibrated-size"]
+    given = case["input"]
+    sigma = 0.05
+    step = given["step_in_sigma"] * sigma
+    rejected = 0
+    for seed in range(given["samples"]):
+        data = _rounded(seed, given["n"], step, sigma)
+        verdict = _normality_at_resolution(data, step, draws=given["draws"])
+        rejected += not verdict.normal
+    assert rejected <= case["expected"]["max_rejections"]
+
+
+def test_the_calibration_cannot_test_a_process_the_gauge_never_resolves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If every simulated sample rounds to a single value there is no null
+    distribution to compare against. Without the guard the p-values would be
+    1/1 = 1 -- "normal" -- on no evidence at all. A fitted sigma far below the
+    step is forced here; real data put at least two readings off the mode."""
+    monkeypatch.setattr(normality, "_grouped_normal_fit", lambda arr, r: (10.0, 1e-9))
+    data = np.array([10.0] * 58 + [9.99, 10.01])
+    with pytest.raises(ValueError, match="cannot be judged"):
+        _normality_at_resolution(data, 0.01, draws=20)
 
 
 def test_results_are_immutable() -> None:
