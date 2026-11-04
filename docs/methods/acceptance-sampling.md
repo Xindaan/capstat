@@ -44,18 +44,40 @@ model, and capstat says so instead of quietly carrying on.
 
 ## Rectifying inspection: AOQ, AOQL, ATI
 
-If rejected lots are screened 100 % and their defectives replaced, two more
+If rejected lots are screened 100 % and their defectives replaced — and the
+defectives found in the sample of an accepted lot are replaced too — two more
 quantities follow:
 
 ```
 AOQ = Pa(p) * p * (N - n) / N        ATI = n + (1 - Pa(p)) * (N - n)
 ```
 
+That AOQ is the binomial / Poisson (Type B) one: the unsampled remainder of a
+lot drawn from a process does not depend on what the sample showed. On the
+hypergeometric (Type A) model it does. A lot holding exactly `D = round(N p)`
+defectives is accepted *because* its sample held few of them, so more stayed
+behind, and the exact AOQ is
+
+```
+AOQ = (D / N) * ((N - n) / N) * P(Hyp(N - 1, D - 1, n) <= Ac)
+```
+
+It follows from the definition `AOQ = (1/N) sum_{x <= Ac} (D - x) h(x; N, D, n)`
+and the identity `(D - x) h(x; N, D, n) = D (N - n)/N h(x; N - 1, D - 1, n)`.
+The large-lot formula applied to a finite lot understates it — for `Ac = 0` by
+exactly the sampling fraction, by half when half the lot is sampled. ATI needs
+no such correction; it is exact under both models.
+
 The AOQ curve starts at zero (perfect incoming quality), returns to zero (every
 lot rejected and screened), and peaks in between. That peak is the **AOQL** —
 the worst long-run outgoing quality the scheme can produce. capstat finds it by
 searching the curve rather than reading it off a grid, which is why its AOQL
-generally sits between the tabulated points of published examples.
+generally sits between the tabulated points of published examples. On the Type
+A model it is a maximum over the lot's whole numbers of defectives: every `D`
+is tried up to the point past which no lot can beat the one with a single
+defective (a provable bound, not a tolerance), so even a 2000-item sample from
+a 20000-item lot, which peaks at 9 defectives (`p = 0.045 %`), is found
+exactly.
 
 !!! warning "The AOQL is an average"
     It bounds the mean outgoing quality over a stream of rectified lots.
@@ -119,7 +141,9 @@ truncated rather than rounded, and its AOQL is quoted with a digit missing. See
 The one gap, stated plainly: no published worked example with an acceptance
 number above zero was found for the Type A (hypergeometric) curve, so that path
 is validated against `scipy.stats.hypergeom` and a hand-written enumeration of
-the definition instead of against a citation.
+the definition instead of against a citation. The same holds for its AOQ and
+AOQL, which the tests check against the definition summed in exact integer
+arithmetic.
 
 ## In the app
 
