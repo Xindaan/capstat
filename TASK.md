@@ -31,101 +31,27 @@
   vitest. Mutation kill rate 66 % (71 % without equivalent mutants; the
   agent's two tallies give 509 and 524 mutants for that figure) -- the suite is
   broad, and thinner than the coverage figure suggests.
-  **Suggested order: T-0095..T-0099 first** -- they print a wrong number or
-  break a feature without saying so.
+  **T-0095..T-0100, T-0102, T-0105, T-0106 are done** (see Done).
 
-- T-0095 **A German CSV with one column is read as wrong numbers, silently.**
-  (API-1, TQ-17, found a third time by the API gate.) A file `Wert\n9,79\n...`
-  has no separator, so the comma is taken as one; pandas makes the integer
-  part the row index and the column comes back as 79, 72, 70, ...
-  * Measured: 30 readings around 9.75, `capstat capability ... --lsl 9.6 --usl
-    9.9` -> Cp 0.0197, Cpk -8.61, no ingest warning, exit 0. The same values
-    with a decimal point: Cp 1.97, Cpk 1.91. A two-column `;` file is read
-    correctly and names what it detected -- so T-0067 covers `;` files only.
-  * Same family: data rows ending with a delimiter while the header does not
-    shift every label one column left (API-1); a header-less CSV loses its
-    first value to the column name (API-6). `index_col=False` alone does not
-    cure the one-column case (it yields 9, 9, 9).
-  * Acceptance: each case read correctly or refused with a named reason, one
-    test per case; the 13 surviving `tabular.py` mutants (TQ-14) killed.
-
-- T-0096 **"Zero spread" is decided by exact float equality, and Phase I does
-  not refuse it.**
-  * API-27: a constant series of 3.3 is not recognised as constant (its mean
-    is one ulp off), and the I-MR chart flags all 20 points; the same series of
-    5.0 is in control.
-  * MSA-2 / TQ-21: every reading of a part identical -- parts 2.1..3.0 give
-    verdict `good`, ndc 1.3e15, %SV 1e-13 and no zero-repeatability caveat;
-    parts 1..10 give verdict `None` and the caveat. Same study, the float
-    representation decides.
-  * CHART-4 / WEB-28: all ranges zero -> zero-width limits and a confident
-    verdict; the page shows a green "In control" pill next to a rules error
-    whose advice is wrong. On coarse-resolution gauge data `stability()` says
-    "the gage drifted" in 189 of 200 runs (gate G1).
-  * One fix class: decide "zero" against the data's scale, in `descriptive`,
-    `gage_rr` and the Phase I chart estimate alike.
-
-- T-0097 **The non-normal path is not unit-invariant, and tied data are
-  misrouted.**
-  * CAP-1: `percentile_capability` fits scipy distributions to the raw data;
-    near 1e-5 and below the optimiser stalls, and `_fit_score` cannot see it
-    because `anderson_darling` re-standardises the PIT. Measured: 40 of 120
-    seeds change Ppk by > 0.05 when data and limits are rescaled by
-    1e-5..1e-7; worst 1.325 -> 0.130 (fitted median 0.51 vs data 0.96). The
-    gate saw Ppk -12.9. Data in metres instead of millimetres is enough.
-  * CAP-6 / API-28: rounding to a realistic gauge step sends truly normal
-    data down the percentile path (40/40 runs at n = 1000); heavily tied data
-    give Pp around 2e7.
-  * UX-10 / ARCH-16: on the bundled example with only a USL, Box-Cox picks
-    lambda = -46, the transformed data collapse, Shapiro-Wilk returns NaN, and
-    the rationale says "every subgroup is constant" -- which is false. Not just
-    the example: with one spec limit and a small spread, every non-normal
-    sample of 200 simulated got a false constant-data sentence (gate G3b); with
-    both limits the sentence is right. This is the one-sided half of T-0027.
-  * TQ-6: a swapped Ppl denominator survives the suite (only symmetric fits
-    are tested).
-  * Acceptance: a unit-invariance test (scale data and limits by 1e-9..1e9,
-    Ppk unchanged) and a fully specified PIT score.
-
-- T-0098 **The control limits are not drawn on most in-control charts.**
-  (CHART-1 / WEB-8 / UX-3.) `control-chart.tsx` sets `yAxis {scale: true}`
-  with no min/max; ECharts fits the axis to the data and drops markLines
-  outside it. Live run: one of six in-control individuals charts showed both
-  limits, two showed neither; the bundled example only looks right because its
-  outlier stretches the axis. WEB-9: the limit values are never printed as
-  numbers either. Acceptance: the axis always contains UCL/LCL, and the values
-  are on the page and in the print.
-
-- T-0099 **"Decide the lot" always fails against the real API -- a regression
-  from T-0061.** (WEB-3 / UX-9.) The page posts the report's plan including
-  `rejection_number`; the endpoint forbids extra fields, answers 422, and the
-  whole result block is wiped. The e2e suite mocks the route and never
-  validates requests (WEB-21), and no CI job runs web and API together
-  (ARCH-8), so nothing could see it. Acceptance: the fix, plus a check that
-  validates every mocked request body against `openapi.json` (or one e2e run
-  against the real API).
-
-- T-0100 **Decimal commas in hand-entered data are split or swallowed.**
-  WEB-1 / UX-5: the textareas on `/msa` and `/acceptance-sampling` split
-  "36,1" into 36 and 1 -- ten readings become twenty and a verdict is still
-  returned. UX-6 (narrowed): `type=number` inputs follow the browser's number
-locale -- in an English-locale browser "3,29" becomes 329 and an LTPD typed as
-"2,5" designs n 13 / Ac 1 instead of n 667 / Ac 12, silently; in a German
-locale a lot size "5.000" becomes 5.
-  WEB-22: an Excel block pasted into a Gage R&R cell collapses into one number.
-  WEB-12: arrow keys change grid values. The upload path got this right in
-  T-0067; the typed paths did not.
+- T-0118 (2026-11-04) **Finish the integration of the 2026-10-21 agent work.**
+  * Playwright on the integrated branch: 2 of 62 fail,
+    `e2e/numbers.spec.ts:164` "a spec limit typed '9,85' is 9.85" (en-US and
+    de-DE). Unknown yet whether it fails on `impl-web-a` alone or only after
+    the merge; find out first.
+  * Uncommitted work left in three agent worktrees under `.claude/worktrees/`
+    (all from 2026-10-21, not on any branch): `agent-acf0da0dcc7da2790`
+    (impl-ingest) 2 files, +528 -- looks like T-0110 (placeholders, a column and
+    cell cap, US-thousands lookalikes); `agent-ac3e00f2c11466d26` (impl-web-a)
+    11 files, +269 -589, components and e2e specs; `agent-ade2915e78c774d2a`
+    (impl-sampling) 4 files, +144 -- `_validation`/`acceptance_sampling`, likely
+    SAMP-12. The fourth worktree (impl-nonnormal) is clean and merged. Decide
+    per worktree: finish and commit, or drop. Removing a worktree discards
+    its uncommitted changes.
 
 - T-0101 **Results stay on screen after their inputs change.** WEB-4 / UX-1 /
   UX-4 on all four pages: editing a spec limit or a reading leaves the old
   verdict standing, unmarked. WEB-27: a response arriving after an edit
   overwrites the invalidation.
-
-- T-0102 **A dropped cell shifts every later subgroup.** CHART-2: `/ingest`
-  compacts the column and reports only a count; `lib/subgroups.ts` and the CLI
-  then cut subgroups from consecutive values, so every boundary after the gap
-  moves by one. API-9: the CLI never reports dropped cells at all, and `chart`
-  drops leftover values silently (`cli.py:203`).
 
 - T-0103 **Cpm -- needs a decision.** CAP-2: Cpm uses sigma_within (stated in
   the module docstring, pinned by a test asserting Cpm == Cp on target); on a
@@ -153,21 +79,6 @@ locale a lot size "5.000" becomes 5.
   `stability()` and `--fail-on-signal` include them; the wording names the
   chart that signalled instead of "the gage drifted"; the pair false-alarm
   rate is documented. Breaking.
-
-- T-0105 **Non-finite and out-of-range parameters are accepted.** CAP-4,
-  CHART-3, API-2, MSA-8, SAMP-12: NaN/inf limits, targets, sigma, L/k/h,
-  alpha or multipliers pass the `<=` guards (every NaN comparison is False).
-  Measured: `--sigma nan --fail-on-signal` exits 0, so a CI gate passes;
-  NaN sigma gives a green "in control" with null limits. API-3: NaN in a field
-  that fails validation turns the 422 into a 500. One scalar validator in
-  `_validation`, used everywhere.
-
-- T-0106 **Hypergeometric AOQ and AOQL are optimistic.** SAMP-2: the Type B
-  formula Pa(N, D) p (N-n)/N is used for every model; the exact Type A value
-  needs P(Hyp(N-1, D-1, n) <= c). Measured against enumeration: ratio 0.50 at
-  (N 10, n 5, c 0, D 1), 0.88 at (200, 50, 2, 10). SAMP-1: for N > 1000 the
-  AOQL is read off a 1001-point grid without refinement -- n 2000, c 0,
-  N 20000: 1.09e-4 against 1.57e-4 by exhaustive search.
 
 - T-0107 **The switching-score fallback is not the conservative branch.**
   SAMP-3: with the tighter-AQL question unanswered every accepted lot scores
@@ -713,6 +624,49 @@ locale a lot size "5.000" becomes 5.
 ## Done
 
 Older Done entries (before 2026-10-01): `docs/task_done_bis_2026-Q3.md`.
+
+- T-0095, T-0096, T-0097, T-0098, T-0099, T-0100, T-0102, T-0105, T-0106
+  (implemented 2026-10-21 by parallel agents, integrated into
+  `fix/review-2026-10-01` on 2026-11-04) **The silent-wrong-number items of
+  the third review are fixed.** Each commit message carries the measurement
+  before -> after, the red tests and the negative probe; this entry only
+  indexes them.
+  * T-0095 (`d90a896`): one-column German CSV, trailing delimiters and
+    header-less files read correctly; the indistinguishable header-less
+    `9,71` shape is refused with a named reason (API-1, API-6, TQ-14, TQ-17).
+  * T-0096 (`6b1b135`): "zero spread" decided against the data's scale
+    (`_validation.is_zero_spread`, threshold 2**-43 of max|x|).
+    **Follow-up 2026-11-04 (`fix(core)`, compare a root spread without
+    squaring it):** five callers squared a root before the helper took the
+    root again; a Python float above ~1e154 raises `OverflowError`, which a
+    Box-Cox fit with a large lambda reaches from ordinary readings --
+    `capstat capability` on 30 rounded diameters crashed after the T-0095
+    merge exposed the path. New `is_zero_deviation`; one regression case per
+    caller, each caller reverted alone turns exactly its case red.
+  * T-0097 (`08341aa`): percentile fit on the standardised sample (unit
+    invariant: 0 of 320 rescalings move Ppk), fully specified
+    Anderson-Darling score, gauge-rounded normal data recognised by a
+    parametric bootstrap, fewer than three distinct readings refused, a
+    degenerate Box-Cox lambda refused with its true reason. Checked in the
+    integrating session: the loc/scale back-mapping and the AD formula
+    (NIST 1.3.5.14); the bootstrap calibration was not re-derived there.
+  * T-0098 (`0a7dbbf`): the axis always contains UCL/LCL; limit values
+    printed. T-0099 (`c782be7`): "Decide the lot" sends a valid plan, every
+    mocked e2e request body is validated against `openapi.json`.
+    T-0100 (`da16ede`): hand-entered numbers read the same in every locale.
+  * T-0102 (`708b52d`): subgroups are cut by file row, so a blank cell
+    shifts nothing (API and CLI).
+  * T-0105 (`6734545`): non-finite and out-of-range parameters refused by
+    `check_scalar`; API 422 instead of a 500. Left open: NaN in `rules.py`
+    via the library, Box-Cox's caller-supplied lambda, SAMP-12.
+  * T-0106 (`1ca99bf`): exact Type A AOQ
+    `(D/N)((N-n)/N) P(Hyp(N-1, D-1, n) <= Ac)` and an exhaustive Type A AOQL
+    with the exact stopping bound F(D) < 1/N. Re-derived in the integrating
+    session: the identity `(D-x) h(x;N,D,n) = D (N-n)/N h(x;N-1,D-1,n)`, the
+    hand case (10, 5, 0, D 1) = 0.05 and the bound.
+  * Gates on the integrated branch (2026-11-04): 957 Python tests, coverage
+    100 %, ruff, ruff format, mypy --strict, `export_openapi --check`; web:
+    tsc, eslint, 152 vitest. Playwright: 60 passed, 2 failed (T-0118).
 
 - T-0117 (2026-10-22) **Security update of locked dependencies (patch check
   2026-10-22); no code change.** Raised each flagged package to the smallest
