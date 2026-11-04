@@ -34,6 +34,17 @@
   **T-0095..T-0100, T-0102, T-0105, T-0106 are done** (see Done).
 
 - T-0118 (2026-11-04) **Finish the integration of the 2026-10-21 agent work.**
+  * **Needs the maintainer (Codex review on PR #56, P1):** T-0097's
+    calibrated rounding test can switch a rejected sample to the normal path,
+    but it has no published reference case (`normality.yaml` says it is
+    validated by simulation only). `AGENTS.md` says a method without a
+    reference-validated test does not ship. Options: (a) keep the routing and
+    record an explicit exception to the rule for simulation-validated
+    calibrations; (b) keep only the ValueError for fewer than three distinct
+    values and switch the re-routing off until a reference case exists.
+  * Codex review fixes on PR #56 (2026-11-04): re-upload crash after a
+    subgroup size (workspace `grouping!`), RangeError in `yAxisExtent` and
+    `histogram` on ~150k points.
   * Playwright on the integrated branch: 2 of 62 failed,
     `e2e/numbers.spec.ts:164` (T-0100) -- its `/ingest` mock lacked the `rows`
     field T-0102 made required, so `interiorGaps` threw. Mock fixed
@@ -109,8 +120,8 @@
   print as 0.00000. WEB-13: the print truncates the measurement data. UX-14
   (narrowed): emerald-600 and amber-600 text reach 3.65:1 and 3.20:1 on white
   (AA needs 4.5:1); the acceptance-sampling risk cards say nowhere what amber
-  means. WEB-2: the histogram crashes the page
-  above ~120k values (`Math.min(...values)`).
+  means. WEB-2 (histogram crash above ~120k values) fixed 2026-11-04 on
+  PR #56, with the same class in `yAxisExtent`.
 
 - T-0110 **Ingest robustness beyond T-0095.** API-16: locale handling is
   CSV-only and all-or-nothing. API-7: xlsx date and boolean columns arrive as
