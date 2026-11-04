@@ -35,11 +35,12 @@ Royston, P. (1995). Remark AS R94: A remark on Algorithm AS 181: The W test for
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
-from scipy import stats
+from scipy import optimize, stats
 
 from capstat_core._validation import as_sample
 from capstat_core.caveats import Caveat
@@ -133,6 +134,23 @@ def _check_alpha(alpha: float) -> None:
         raise ValueError(f"alpha must be in (0.0, 1.0), got {alpha}")
 
 
+def _require_spread(arr: npt.NDArray[np.float64]) -> None:
+    """Refuse a sample whose readings are all the same value.
+
+    Decided on the range, not on the standard deviation: ``max == min`` is exact
+    in floating point, while a standard deviation of identical readings is only
+    zero when their mean happens to be representable. Twenty readings of 3.3
+    have a mean one ulp off 3.3 and a standard deviation of about 5e-16, which
+    an ``sd == 0`` test lets through -- and the tests then run on rounding noise
+    (Shapiro-Wilk returns NaN with a RuntimeWarning, Anderson-Darling a
+    confident p-value). See T-0096 / API-27 for the same defect elsewhere.
+    """
+    if np.ptp(arr) == 0.0:
+        raise ValueError(
+            "sample has zero variance; normality is undefined for a constant sample"
+        )
+
+
 def anderson_darling(x: npt.ArrayLike, *, alpha: float = 0.05) -> NormalityTestResult:
     """Anderson-Darling test for normality, with a p-value.
 
@@ -162,11 +180,8 @@ def anderson_darling(x: npt.ArrayLike, *, alpha: float = 0.05) -> NormalityTestR
     arr = as_sample(x, minimum=AD_MIN_SAMPLE_SIZE)
     n = arr.size
 
+    _require_spread(arr)
     spread = std_dev(arr)
-    if spread == 0.0:
-        raise ValueError(
-            "sample has zero variance; normality is undefined for a constant sample"
-        )
 
     ordered = np.sort(arr)
     z = (ordered - ordered.mean()) / spread
@@ -214,11 +229,7 @@ def shapiro_wilk(x: npt.ArrayLike, *, alpha: float = 0.05) -> NormalityTestResul
     """
     _check_alpha(alpha)
     arr = as_sample(x, minimum=3)
-
-    if std_dev(arr) == 0.0:
-        raise ValueError(
-            "sample has zero variance; normality is undefined for a constant sample"
-        )
+    _require_spread(arr)
 
     result = stats.shapiro(arr)
     p_value = float(result.pvalue)
@@ -352,4 +363,229 @@ def assess_normality(x: npt.ArrayLike, *, alpha: float = 0.05) -> NormalityAsses
         normal=normal,
         warnings=tuple(warnings),
         recommendation=recommendation,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Readings rounded to a gauge resolution (T-0097, CAP-6)
+# ---------------------------------------------------------------------------
+
+#: Relative tolerance for "this gap is a whole number of resolution steps".
+#: Decimal readings are not exact in binary (10.01 - 10.00 is 0.0099999999999979),
+#: so the test cannot be exact; 1e-6 is far above that representation noise and
+#: far below anything a continuous sample produces by accident.
+_GRID_TOLERANCE = 1e-6
+
+#: Monte Carlo draws for :func:`_normality_at_resolution`. With 999 draws the
+#: p-value has a resolution of 0.001 and, near alpha = 0.05, a Monte Carlo
+#: standard error of about 0.007 -- small against the decision it informs.
+RESOLUTION_DRAWS = 999
+
+#: The largest sample the calibration is run on. Its cost is draws x n (40 MB
+#: and about 0.7 s at n = 5000, measured 2026-10-21), and a request may carry
+#: millions of readings. 5000 is also where scipy stops vouching for its
+#: Shapiro-Wilk p-value, and beyond it the large-sample caveat of
+#: :func:`assess_normality` already says that a rejection may not matter.
+RESOLUTION_MAX_SAMPLE_SIZE = 5000
+
+
+def _grid_resolution(x: npt.ArrayLike) -> float | None:
+    """The gauge step the readings are rounded to, or ``None``.
+
+    Returns the smallest gap between distinct readings when (a) some readings
+    are tied and (b) every gap between neighbouring distinct readings is a whole
+    multiple of that smallest gap -- i.e. the sample lies on a regular grid, as
+    readings from a gauge with a fixed resolution do. A continuous sample has no
+    ties; a sample with an odd duplicate does not lie on a grid. Both return
+    ``None`` and keep the ordinary treatment.
+    """
+    arr = np.asarray(x, dtype=np.float64)
+    values = np.unique(arr)
+    if values.size < 2 or values.size == arr.size:
+        return None
+    gaps = np.diff(values)
+    step = float(gaps.min())
+    steps = gaps / step
+    if np.all(np.abs(steps - np.round(steps)) <= _GRID_TOLERANCE * steps):
+        return step
+    return None
+
+
+def _log_cell_probability(
+    lower: npt.NDArray[np.float64], upper: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
+    """``log(Phi(upper) - Phi(lower))``, accurate in both tails.
+
+    Cells above the median are taken from the survival function, so a cell at
+    z = 9 does not become ``log(1 - 1)``.
+    """
+    probability = np.where(
+        lower > 0.0,
+        stats.norm.sf(lower) - stats.norm.sf(upper),
+        stats.norm.cdf(upper) - stats.norm.cdf(lower),
+    )
+    logs: npt.NDArray[np.float64] = np.log(
+        np.maximum(probability, np.finfo(np.float64).tiny)
+    )
+    return logs
+
+
+def _grouped_normal_fit(
+    arr: npt.NDArray[np.float64], resolution: float
+) -> tuple[float, float]:
+    """Maximum-likelihood mean and sigma of a normal seen through a gauge.
+
+    A reading ``v`` from a gauge of resolution ``r`` says only that the true
+    value lies in ``[v - r/2, v + r/2]``, so the likelihood is the binned one::
+
+        l(mu, sigma) = sum_i O_i * ln(Phi((b_i - mu)/sigma) - Phi((a_i - mu)/sigma))
+
+    over the occupied cells ``[a_i, b_i]`` with counts ``O_i`` -- the "maximum
+    likelihood estimate derived from the observed bin counts, not from the
+    individual observations" of NIST/SEMATECH e-Handbook section 1.3.5.15.
+    Maximised numerically on standardised data, so that the optimiser's
+    tolerances do not depend on the unit.
+    """
+    centre = float(arr.mean())
+    spread = float(arr.std(ddof=1))
+    values, counts = np.unique((arr - centre) / spread, return_counts=True)
+    half = resolution / spread / 2.0
+    lower, upper = values - half, values + half
+
+    def negative_log_likelihood(theta: npt.NDArray[np.float64]) -> float:
+        sigma = math.exp(float(theta[1]))
+        mu = float(theta[0])
+        log_p = _log_cell_probability((lower - mu) / sigma, (upper - mu) / sigma)
+        return -float(np.sum(counts * log_p))
+
+    result = optimize.minimize(
+        negative_log_likelihood,
+        x0=np.zeros(2),
+        method="Nelder-Mead",
+        options={"xatol": 1e-9, "fatol": 1e-12, "maxiter": 4000},
+    )
+    mu, log_sigma = float(result.x[0]), float(result.x[1])
+    return centre + spread * mu, spread * math.exp(log_sigma)
+
+
+def _anderson_darling_statistics(
+    samples: npt.NDArray[np.float64],
+) -> npt.NDArray[np.float64]:
+    """The (unadjusted) Anderson-Darling ``A^2`` of every row, vectorised.
+
+    The same formula as :func:`anderson_darling`; no row may be constant.
+    """
+    n = samples.shape[1]
+    ordered = np.sort(samples, axis=1)
+    z = (ordered - ordered.mean(axis=1, keepdims=True)) / ordered.std(
+        axis=1, ddof=1, keepdims=True
+    )
+    i = np.arange(1, n + 1)
+    weighted = (2 * i - 1) * (stats.norm.logcdf(z) + stats.norm.logsf(z)[:, ::-1])
+    statistics: npt.NDArray[np.float64] = -n - weighted.mean(axis=1)
+    return statistics
+
+
+@dataclass(frozen=True, slots=True)
+class _RoundedNormality:
+    """Normality of rounded readings, judged against rounded normal data."""
+
+    resolution: float
+    distinct: int
+    mu: float
+    sigma: float
+    draws: int
+    anderson_darling_p: float
+    shapiro_wilk_p: float
+    normal: bool
+
+
+def _normality_at_resolution(
+    x: npt.ArrayLike,
+    resolution: float,
+    *,
+    alpha: float = 0.05,
+    draws: int = RESOLUTION_DRAWS,
+    seed: int = 0,
+) -> _RoundedNormality:
+    """Anderson-Darling and Shapiro-Wilk, calibrated for a gauge's rounding.
+
+    Both tests assume continuous data, and readings rounded to a gauge step are
+    not: they tie. With enough readings the tests detect the ties themselves,
+    and a perfectly normal process is "rejected" for having been measured.
+    Measured on N(10, 0.05) rounded to 0.2 sigma (2026-10-21, 100 runs each):
+    the combined verdict of :func:`assess_normality` rejects 18 % of samples at
+    n = 100 and 100 % at n = 1000, where 5-8 % would be nominal.
+
+    The remedy is a parametric bootstrap (Monte Carlo) test of the hypothesis
+    that is actually in question -- *a normal process, read by this gauge*:
+
+    1. Estimate ``mu`` and ``sigma`` of the process from the binned likelihood
+       (:func:`_grouped_normal_fit`, NIST/SEMATECH e-Handbook 1.3.5.15).
+    2. Draw ``draws`` samples of the same size from ``N(mu, sigma)`` and round
+       each one to the same grid.
+    3. Compute both statistics on every draw. The p-value of each test is the
+       share of draws at least as extreme as the observed statistic,
+       ``(1 + #{T* at least as extreme as T}) / (B + 1)``.
+
+    The statistics themselves are unchanged, so the tests keep their power
+    against skewness -- a skewed process is still skewed after rounding -- and
+    only their null distribution now includes the rounding. A grouped
+    chi-square test, the textbook alternative, held its size as well but
+    detected a gamma(4) process at n = 100 in roughly half the runs where the
+    unadjusted tests did (measured 2026-10-21); that loss of power would have
+    sent skewed processes down the normal path.
+
+    Draws whose readings all round to one value have no spread to test and are
+    left out, so the p-value is conditional on a sample with a spread, as the
+    observed one has. The generator is seeded: the verdict is reproducible.
+
+    References
+    ----------
+    Davison, A. C., & Hinkley, D. V. (1997). *Bootstrap Methods and their
+        Application*. Cambridge University Press, ch. 4 (parametric bootstrap
+        and Monte Carlo tests).
+    NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.15 (the
+        binned maximum-likelihood estimate).
+    """
+    _check_alpha(alpha)
+    arr = as_sample(x, minimum=AD_MIN_SAMPLE_SIZE)
+    _require_spread(arr)
+    n = arr.size
+
+    mu, sigma = _grouped_normal_fit(arr, resolution)
+    observed_ad = anderson_darling(arr).statistic
+    observed_sw = float(stats.shapiro(arr).statistic)
+
+    origin = float(arr.min())
+    latent = np.random.default_rng(seed).normal(mu, sigma, size=(draws, n))
+    rounded = origin + resolution * np.round((latent - origin) / resolution)
+    usable = rounded[np.ptp(rounded, axis=1) > 0.0]
+    if usable.shape[0] == 0:
+        raise ValueError(
+            f"at a resolution of {resolution:.6g} the fitted process (sigma = "
+            f"{sigma:.3g}) never shows two different readings, so its normality "
+            f"cannot be judged"
+        )
+
+    with warnings.catch_warnings():
+        # Above n = 5000 scipy warns on every call that its p-value may be
+        # inaccurate. Only the statistic is used here.
+        warnings.simplefilter("ignore", UserWarning)
+        simulated_sw = np.array([stats.shapiro(row).statistic for row in usable])
+    simulated_ad = _anderson_darling_statistics(usable)
+
+    total = usable.shape[0] + 1
+    ad_p = float((1 + np.sum(simulated_ad >= observed_ad)) / total)
+    sw_p = float((1 + np.sum(simulated_sw <= observed_sw)) / total)
+
+    return _RoundedNormality(
+        resolution=resolution,
+        distinct=int(np.unique(arr).size),
+        mu=mu,
+        sigma=sigma,
+        draws=int(usable.shape[0]),
+        anderson_darling_p=ad_p,
+        shapiro_wilk_p=sw_p,
+        normal=ad_p >= alpha and sw_p >= alpha,
     )

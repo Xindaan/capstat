@@ -69,6 +69,17 @@ sources:
       X_p are percentiles of the fitted distribution. The method yields
       performance (long-term) indices only: it uses the overall distribution and
       has no within/between subgroup split, so it cannot produce Cp/Cpk.
+  fit_score:
+    title: >
+      NIST/SEMATECH e-Handbook of Statistical Methods, section 1.3.5.14,
+      Anderson-Darling Test.
+    url: https://www.itl.nist.gov/div898/handbook/eda/section3/eda35e.htm
+    retrieved: 2026-10-21
+    formula: >
+      A^2 = -N - S, S = sum_i (2i - 1)/N * [ln F(Y_i) + ln(1 - F(Y_{N+1-i}))],
+      "F is the cumulative distribution function of the specified
+      distribution" -- used as it stands, with the fitted F, to rank the
+      candidate distributions (T-0097, CAP-1).
 
 cases:
   - id: percentile-percentiles-are-the-three-sigma-points
@@ -131,3 +142,45 @@ cases:
       index_at_the_just_capable_point: 1.0
     tolerance:
       abs: 0.02
+
+  - id: percentile-lognormal-closed-form
+    method: percentile_method
+    description: >
+      The ISO formulas evaluated on a GIVEN lognormal (s = 0.6, loc = 0,
+      scale = 1), where every percentile has a closed form:
+      X_p = exp(s * z_p), so X50 = 1, X0.135 = exp(-0.6 * 2.9999770) =
+      0.16530117 and X99.865 = exp(+0.6 * 2.9999770) = 6.0495640
+      (z_0.99865 = 2.99997699 is the standard normal quantile; ISO's 0.135 %
+      is rounded, hence not exactly 3). The distribution is strongly
+      right-skewed (upper spread 5.05, lower spread 0.83), so a formula that
+      used the wrong side's spread -- (X50 - LSL) / (X99.865 - X50) -- would
+      give Ppl 0.1386 instead of 0.8386 (TQ-6: only symmetric fits were tested,
+      where the two spreads are equal and the swap is invisible). Values
+      computed by hand from these closed forms and checked against
+      scipy.stats.lognorm(0.6).ppf on 2026-10-21.
+    input:
+      shape: 0.6
+      lsl: 0.3
+      usl: 7.0
+    expected:
+      ppl: 0.8386258311537851     # (1 - 0.3) / (1 - 0.16530117)
+      ppu: 1.1882214098895805     # (7 - 1) / (6.0495640 - 1)
+      pp: 1.1386303172988523      # (7 - 0.3) / (6.0495640 - 0.16530117)
+      ppk: 0.8386258311537851     # min(ppl, ppu): the lower side decides
+      ppl_with_swapped_denominator: 0.13862583115378438
+    tolerance:
+      rel: 1.0e-12
+
+  - id: percentile-unit-invariance
+    method: percentile_method
+    description: >
+      Pp and Ppk are ratios of lengths, and every candidate family is a
+      location-scale family, so rescaling and shifting data and limits
+      together (x -> b * (x + c), b > 0) must leave every index unchanged. The
+      sweep is the one that exposed CAP-1 (own verification, 2026-10-01):
+      lognormal(0, 0.3), n = 100, LSL 0.3, USL 3.0, seeds 0..39, rescaled to
+      1e-5..1e-7 -- before the fix 40 to 45 of 120 cases moved Ppk by more than
+      0.05, the worst from 1.09 to -121. After it the largest change over
+      1e-9..1e9 and shifted variants is 8e-11.
+    tolerance:
+      rel: 1.0e-8
