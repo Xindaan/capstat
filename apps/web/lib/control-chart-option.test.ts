@@ -5,6 +5,7 @@ import {
   describeLimits,
   formatLimit,
   type ControlChartProps,
+  yAxisExtent,
 } from "./control-chart-option";
 
 // An in-control series whose data stay well inside the limits -- the normal
@@ -149,5 +150,15 @@ describe("formatLimit", () => {
 describe("describeLimits", () => {
   it("lists CL, UCL and LCL in that order", () => {
     expect(describeLimits(10, 9.8, 10.2)).toBe("CL 10, UCL 10.2, LCL 9.8");
+  });
+});
+
+describe("yAxisExtent on a long series", () => {
+  it("handles more points than a function call takes arguments", () => {
+    // Spreading 150,000 values into Math.min threw RangeError in V8.
+    const values = Array.from({ length: 150_000 }, (_, i) => (i % 100) / 10);
+    const { min, max } = yAxisExtent(values);
+    expect(min).toBeLessThan(0);
+    expect(max).toBeGreaterThan(9.9);
   });
 });

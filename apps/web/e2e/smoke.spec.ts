@@ -816,3 +816,24 @@ test("a second file replaces the analyses rather than reusing them", async ({
     page.getByRole("button", { name: "Compute capability" }),
   ).toBeVisible();
 });
+
+test("uploading another file after choosing a subgroup size does not crash", async ({
+  page,
+}) => {
+  // The reset clears the column while the size stays 5; the usability check
+  // used to read `grouping!.subgroups` on a null grouping and threw.
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await mockApi(page);
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n10.1\n"),
+  });
+  await page.getByLabel("Subgroup size").fill("5");
+  await page.getByRole("button", { name: "Upload another file" }).click();
+
+  await expect(page.locator('input[type="file"]')).toBeAttached();
+  expect(errors).toEqual([]);
+});

@@ -95,9 +95,15 @@ export function describeLimits(
  * handed over as a number, never left to the series.
  */
 export function yAxisExtent(values: number[]): { min: number; max: number } {
-  const finite = values.filter((v) => Number.isFinite(v));
-  const lo = Math.min(...finite);
-  const hi = Math.max(...finite);
+  // A loop, not Math.min(...values): spreading a long series passes one
+  // argument per point and overflows the call stack (~150k points in V8).
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
   const span = hi - lo;
   // A constant series with collapsed limits has no span to take a margin from.
   const pad = span > 0 ? span * 0.08 : Math.max(Math.abs(hi) * 0.05, 1e-6);

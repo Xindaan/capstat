@@ -76,8 +76,14 @@ export function binCount(values: number[], min: number, max: number): number {
 /** Density histogram: bars integrate to 1, so a PDF overlays on the same axis. */
 export function histogram(values: number[]): Bins {
   const n = values.length;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  // A loop, not Math.min(...values): one argument per value overflows the
+  // call stack on long series (WEB-2, ~120k values).
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
   const k = binCount(values, min, max);
   const width = (max - min) / k || 1;
   const edges = Array.from({ length: k + 1 }, (_, i) => min + i * width);

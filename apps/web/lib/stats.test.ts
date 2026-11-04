@@ -153,3 +153,13 @@ describe("capabilityDomain", () => {
     expect(hi).toBeGreaterThan(10.1);
   });
 });
+
+describe("histogram on a long series", () => {
+  it("bins more values than a function call takes arguments", () => {
+    // Spreading 150,000 values into Math.min threw RangeError (WEB-2).
+    const values = Array.from({ length: 150_000 }, (_, i) => (i % 100) / 10);
+    const { bars } = histogram(values);
+    expect(bars[0][0]).toBe(0);
+    expect(bars[bars.length - 1][1]).toBeCloseTo(9.9);
+  });
+});

@@ -45,8 +45,12 @@ export function Workspace() {
   const grouping =
     size == null || column == null ? null : intoSubgroups(column, size);
   const gaps = column == null ? 0 : interiorGaps(column);
+  // `grouping` is null whenever the column is (an "Upload another file"
+  // reset keeps the size), so it is checked, never asserted.
   const usable =
-    size != null && (size === 1 || grouping!.subgroups.length >= 2);
+    size != null &&
+    column != null &&
+    (size === 1 || (grouping != null && grouping.subgroups.length >= 2));
 
   return (
     <div className="flex flex-col gap-10">
