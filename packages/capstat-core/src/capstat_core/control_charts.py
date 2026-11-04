@@ -57,7 +57,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import as_sample, check_scalar, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_deviation
 from capstat_core.caveats import Caveat
 from capstat_core.constants import A2, A3, B3, B4, D3, D4, MAX_SUBGROUP_SIZE, c4, d2
 
@@ -170,7 +170,7 @@ def _resolve_baseline(
             "estimated from the data under test, which is neither phase"
         )
     if center is None or sigma is None:
-        if is_zero_spread(estimated_sigma**2, data):
+        if is_zero_deviation(estimated_sigma, data):
             raise ValueError(
                 f"zero spread: every {spread} is zero at the resolution of the "
                 f"data, so the estimated sigma is zero and every control limit "

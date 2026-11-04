@@ -39,7 +39,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample, check_scalar, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_deviation
 from capstat_core.caveats import Caveat
 from capstat_core.descriptive import mean as _mean
 from capstat_core.descriptive import std_dev
@@ -125,7 +125,7 @@ def bias(
         # whether that bias is zero is decided against the scale of the readings
         # and the reference, not by float equality: the mean of seven readings
         # of 3.3 is 4e-16 above 3.3, which is no bias at all (T-0096).
-        if is_zero_spread(bias_value**2, np.append(x, reference)):
+        if is_zero_deviation(bias_value, np.append(x, reference)):
             bias_value = 0.0
         t_statistic = (
             math.copysign(math.inf, bias_value) if bias_value != 0.0 else math.nan

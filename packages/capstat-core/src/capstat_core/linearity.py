@@ -39,7 +39,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
-from capstat_core._validation import as_sample, check_scalar, is_zero_spread
+from capstat_core._validation import (
+    as_sample,
+    check_scalar,
+    is_zero_deviation,
+    is_zero_spread,
+)
 from capstat_core.caveats import Caveat
 
 __all__ = [
@@ -159,7 +164,7 @@ def linearity(
     # alone produced a slope of -4e-17 with p = 0.003. Each sum of squares runs
     # over the n readings, so SS / n is a per-reading mean square.
     scale = np.concatenate(readings)
-    if is_zero_spread(slope**2 * s_xx / n, scale):
+    if is_zero_deviation(slope * math.sqrt(s_xx / n), scale):
         slope = 0.0
     intercept = y_mean - slope * x_mean
 

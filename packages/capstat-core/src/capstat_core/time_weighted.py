@@ -40,7 +40,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import as_sample, check_scalar, is_zero_spread
+from capstat_core._validation import as_sample, check_scalar, is_zero_deviation
 from capstat_core.caveats import Caveat
 from capstat_core.constants import d2
 
@@ -85,7 +85,7 @@ def _resolve(
         sigma = _moving_range_sigma(values)
         # Judged against the data's scale, as the Shewhart charts judge their
         # Phase I estimate: readings one ulp apart are no spread at all.
-        if is_zero_spread(sigma**2, values):
+        if is_zero_deviation(sigma, values):
             raise ValueError(
                 "zero spread: every moving range is zero at the resolution of "
                 "the data, so the estimated sigma is zero and the chart has no "

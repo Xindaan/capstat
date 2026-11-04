@@ -114,10 +114,21 @@ def is_zero_spread(mean_square: float, data: npt.NDArray[np.float64]) -> bool:
     Higham, N. J. *Accuracy and Stability of Numerical Algorithms*, 2nd ed.,
         SIAM, 2002, ch. 4 (error bounds of recursive and pairwise summation).
     """
+    return is_zero_deviation(math.sqrt(mean_square), data)
+
+
+def is_zero_deviation(root: float, data: npt.NDArray[np.float64]) -> bool:
+    """``is_zero_spread`` for a quantity that is already a root mean square.
+
+    A standard deviation, a bias or a slope term is compared as it is. Squaring
+    it first, only for ``is_zero_spread`` to take the root again, raises
+    ``OverflowError`` for a Python float above ~1e154 -- which a Box-Cox
+    transform with a large lambda produces from ordinary readings.
+    """
     scale = float(np.max(np.abs(data)))
     # Compared as root mean squares rather than squares: squaring the scale
     # overflows for data near 1e154 and underflows for data near 1e-162.
-    return math.sqrt(mean_square) <= ZERO_SPREAD_RELATIVE * scale
+    return abs(root) <= ZERO_SPREAD_RELATIVE * scale
 
 
 def as_sample(x: npt.ArrayLike, *, minimum: int = 1) -> npt.NDArray[np.float64]:

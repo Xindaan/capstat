@@ -49,7 +49,7 @@ from typing import Literal
 import numpy as np
 import numpy.typing as npt
 
-from capstat_core._validation import check_scalar, is_zero_spread
+from capstat_core._validation import check_scalar, is_zero_deviation
 from capstat_core.caveats import Caveat
 from capstat_core.constants import MAX_SUBGROUP_SIZE, c4, d2
 from capstat_core.descriptive import std_dev
@@ -282,7 +282,7 @@ def capability(
         raise ValueError("data have zero variance; capability is undefined")
 
     sigma_within = _sigma_within(groups, within_method)
-    if is_zero_spread(sigma_within**2, flat):
+    if is_zero_deviation(sigma_within, flat):
         raise ValueError(
             "the estimated within-subgroup sigma is zero (every subgroup is "
             "constant); capability is undefined"
