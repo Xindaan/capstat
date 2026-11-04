@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { biasStudy, type BiasReport } from "@/lib/api-client";
-import { parseNumberList } from "@/lib/stats";
+import { readDecimal, readNumberList } from "@/lib/numbers";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput, ReadingsNote } from "./numeric-input";
 import { callApi } from "@/lib/call-api";
 
 const EXAMPLE = "36.1, 35.9, 36.0, 36.05, 35.95, 36.2, 35.85, 36.0, 36.1, 35.9";
@@ -44,10 +45,11 @@ export function BiasPanel({
   }, [readings, reference, onInputsChange]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
-  const values = parseNumberList(readings);
-  const ref = reference.trim() === "" ? null : Number(reference);
-  const refValid = ref != null && Number.isFinite(ref);
-  const valid = values != null && values.length >= 2 && refValid;
+  const list = readNumberList(readings);
+  const values = list.ok ? list.value.values : null;
+  const refRead = readDecimal(reference);
+  const ref = refRead.ok ? refRead.value : null;
+  const valid = values != null && values.length >= 2 && ref != null;
 
   const compute = async () => {
     if (!valid) return;
@@ -91,11 +93,10 @@ export function BiasPanel({
           <span className="text-xs uppercase tracking-wide text-muted">
             Reference
           </span>
-          <input
-            type="number"
-            step="any"
+          <NumericInput
+            aria-label="Reference"
             value={reference}
-            onChange={(e) => setReference(e.target.value)}
+            onChange={setReference}
             className="h-10 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
           />
         </label>
@@ -110,7 +111,8 @@ export function BiasPanel({
         >
           {status.kind === "computing" ? "Computing…" : "Compute bias"}
         </button>
-        {!valid && (
+        <ReadingsNote read={list} />
+        {!valid && (list.ok || list.empty) && (
           <span className="text-xs text-amber-600 dark:text-amber-400">
             Need at least two numeric readings and a numeric reference.
           </span>

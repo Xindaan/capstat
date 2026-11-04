@@ -537,6 +537,21 @@ carries meaning meets WCAG 2.1 AA contrast in both light and dark themes; the
 `--muted` token in `app/globals.css` records its measured ratio, and a test
 recomputes it rather than trusting the comment.
 
+**Typed numbers are read the same way in every browser locale.** A decimal point
+and a decimal comma both mean the decimal mark (`3.29` and `3,29`), so a number
+means the same in an English or a German browser, in a field or pasted from a
+spreadsheet. Thousands separators are not accepted (`1.234,5` is refused with
+that reason), and a whole-number field refuses `5.000` or `1,234` because it
+could mean 5 or 5000. In a list of readings, whitespace, new lines and
+semicolons separate readings; a comma with a digit on both sides (`36,1`) is a
+decimal comma, any other comma (`36, 35`) a separator, and a text that mixes the
+two (`36,1, 35,9`) or crams several commas into one token (`1,2,3`) is refused
+with the reason instead of guessed at. The page says how many readings it read.
+You can paste a block of cells from a spreadsheet into the Gage R&R grid: it
+fills from the cell you pasted into (rows are parts, columns run through each
+operator's trials) or is refused whole. Arrow keys move between cells and never
+change a reading.
+
 Run it against a local API:
 
 ```bash
@@ -567,6 +582,11 @@ npm run test        # vitest unit tests (pure binning / stats)
 npm run test:e2e    # Playwright smoke test (API mocked, no backend needed)
 npm run build       # production build + type-check
 ```
+
+The mocked e2e suite still checks the contract: every request the page sends
+to the API is validated against `apps/api/openapi.json` (request body, path,
+method), and a request the real API would refuse fails the test whatever its
+mock answered. `E2E_PORT` moves the dev server off port 3000.
 
 ### Screenshots
 

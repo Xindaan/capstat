@@ -21,6 +21,8 @@
  * is exactly why this asks rather than assumes.
  */
 
+import { readDecimal } from "@/lib/numbers";
+
 /** The index below which a process cannot hold its tolerance at all. */
 export const CAPABLE_AT_OR_ABOVE = 1.0;
 
@@ -35,10 +37,9 @@ export type CapabilityBand = "meets" | "capable" | "incapable" | "unjudged";
  * default". A requirement nobody could read must not colour anything.
  */
 export function parseRequiredIndex(text: string): number | null {
-  if (text.trim() === "") return null;
-  const value = Number(text);
-  if (!Number.isFinite(value) || value <= 0) return null;
-  return value;
+  const read = readDecimal(text);
+  if (!read.ok || read.value <= 0) return null;
+  return read.value;
 }
 
 /**

@@ -10,13 +10,16 @@ import {
   type LotDecision,
   type OCCurve,
   type SamplingModel,
+  type SamplingPlan,
   type SamplingPlanInput,
   type SamplingPlanReport,
 } from "@/lib/api-client";
 import { callApi } from "@/lib/call-api";
+import { readCount, readDecimal } from "@/lib/numbers";
 
 import { OcCurveChart } from "./oc-curve-chart";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput } from "./numeric-input";
 
 // The AccSamplingDesign vignette's worked example: 1 % acceptable at 2 %
 // producer's risk, 5 % rejectable at 15 % consumer's risk. It designs to
@@ -72,17 +75,32 @@ function riskTone(risk: number | null, allowed: number): string {
 
 /** Percent in the box, fraction on the wire. Returns null when unusable. */
 function asFraction(text: string): number | null {
-  if (text.trim() === "") return null;
-  const value = Number(text);
-  if (!Number.isFinite(value) || value < 0 || value > 100) return null;
-  return value / 100;
+  const read = readDecimal(text);
+  if (!read.ok || read.value < 0 || read.value > 100) return null;
+  return read.value / 100;
 }
 
 function asCount(text: string, minimum: number): number | null {
-  if (text.trim() === "") return null;
-  const value = Number(text);
-  if (!Number.isInteger(value) || value < minimum) return null;
-  return value;
+  const read = readCount(text, { min: minimum });
+  return read.ok ? read.value : null;
+}
+
+/**
+ * The plan a request may carry, taken from the plan a report describes.
+ *
+ * The report's plan is an *output* (`SamplingPlanOut`) and has a derived field,
+ * `rejection_number`, that the request model (`SamplingPlanIn`, which forbids
+ * extra fields) does not accept. Passing the whole object on compiled -- an
+ * object that arrives through a variable is checked structurally, so extra
+ * keys are fine to tsc -- and was answered with a 422 on every click
+ * (T-0099, WEB-3). So the three input fields are picked out by name.
+ */
+function asPlanInput(plan: SamplingPlan): SamplingPlanInput {
+  return {
+    sample_size: plan.sample_size,
+    acceptance_number: plan.acceptance_number,
+    lot_size: plan.lot_size,
+  };
 }
 
 export function AcceptanceSamplingPanel({
@@ -103,6 +121,7 @@ export function AcceptanceSamplingPanel({
   const [defectivesText, setDefectivesText] = useState(initial.defectives);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [decision, setDecision] = useState<LotDecision | null>(null);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
 
   useEffect(() => {
     onInputsChange?.({
@@ -166,6 +185,7 @@ export function AcceptanceSamplingPanel({
     if (plan == null || aql == null || ltpd == null) return;
     setStatus({ kind: "computing" });
     setDecision(null);
+    setDecisionError(null);
     const [evaluated, curved] = await Promise.all([
       callApi(
         () => evaluateSamplingPlan(plan, aql, ltpd, model),
@@ -192,6 +212,7 @@ export function AcceptanceSamplingPanel({
     if (producerRisk == null || consumerRisk == null) return;
     setStatus({ kind: "computing" });
     setDecision(null);
+    setDecisionError(null);
     const plan_ = await callApi(
       () =>
         designSamplingPlan({
@@ -246,14 +267,18 @@ export function AcceptanceSamplingPanel({
    * decision belongs to the plan on screen; taking it from the report also
    * means there is no null case left to fall through.
    */
-  const decide = async (judged: SamplingPlanInput) => {
+  const decide = async (judged: SamplingPlan) => {
     if (defectives == null) return;
+    setDecisionError(null);
     const outcome = await callApi(
-      () => inspectLot(judged, defectives, model),
+      () => inspectLot(asPlanInput(judged), defectives, model),
       "The lot could not be judged.",
     );
     if (!outcome.ok) {
-      fail(outcome.message);
+      // Its own message, beside the Decide box: a failed decision says nothing
+      // about the plan, so it must not replace the report the user is reading
+      // (the old `fail()` wiped the whole result block).
+      setDecisionError(outcome.message);
       return;
     }
     setDecision(outcome.data);
@@ -298,16 +323,19 @@ export function AcceptanceSamplingPanel({
             value={lotText}
             onChange={setLotText}
             hint="Blank = treat as large"
+            kind="integer"
           />
           <Field
             label="Sample size n"
             value={sampleText}
             onChange={setSampleText}
+            kind="integer"
           />
           <Field
             label="Accept on Ac"
             value={acceptText}
             onChange={setAcceptText}
+            kind="integer"
           />
           <label className="no-print flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-muted">
@@ -435,12 +463,12 @@ export function AcceptanceSamplingPanel({
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <span className="text-foreground/60">Defectives found</span>
-                <input
+                <NumericInput
                   aria-label="Defectives found in the sample"
-                  type="number"
+                  kind="integer"
                   min={0}
                   value={defectivesText}
-                  onChange={(e) => setDefectivesText(e.target.value)}
+                  onChange={setDefectivesText}
                   className="h-9 w-24 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
                 />
               </label>
@@ -465,6 +493,7 @@ export function AcceptanceSamplingPanel({
                 </span>
               )}
             </div>
+            {decisionError && <ErrorAlert message={decisionError} />}
             {decision && (
               <ul className="list-disc space-y-1 pl-5 text-xs text-foreground/60">
                 {decision.warnings.map((w, i) => (
@@ -496,23 +525,24 @@ function Field({
   value,
   onChange,
   hint,
+  kind = "decimal",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   hint?: string;
+  kind?: "decimal" | "integer";
 }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
-      <input
+      <NumericInput
         aria-label={label}
-        type="number"
-        step="any"
+        kind={kind}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         className="h-10 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
       />
       {hint && <span className="text-[11px] text-muted">{hint}</span>}

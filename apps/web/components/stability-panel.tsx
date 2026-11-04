@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { stabilityStudy, type StabilityReport } from "@/lib/api-client";
-import { parseNumberList } from "@/lib/stats";
+import { readNumberList } from "@/lib/numbers";
 import { ControlChart } from "./control-chart";
 import { ErrorAlert } from "./error-alert";
+import { ReadingsNote } from "./numeric-input";
 import { callApi } from "@/lib/call-api";
 
 // A master measured over time, with one late excursion — the gage drifting,
@@ -44,7 +45,8 @@ export function StabilityPanel({
   }, [readings, onInputsChange]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
-  const values = parseNumberList(readings);
+  const list = readNumberList(readings);
+  const values = list.ok ? list.value.values : null;
   const valid = values != null && values.length >= 2;
 
   const compute = async () => {
@@ -106,7 +108,8 @@ export function StabilityPanel({
             {result.stable ? "Stable" : "Not stable"}
           </span>
         )}
-        {!valid && (
+        <ReadingsNote read={list} />
+        {!valid && (list.ok || list.empty) && (
           <span className="text-xs text-amber-600 dark:text-amber-400">
             Need at least two numeric readings.
           </span>

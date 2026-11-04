@@ -7,7 +7,6 @@ import {
   histogram,
   looksLikeRowIndex,
   normalPdf,
-  parseNumberList,
 } from "@/lib/stats";
 
 describe("looksLikeRowIndex", () => {
@@ -38,27 +37,6 @@ describe("looksLikeRowIndex", () => {
   it("needs enough rows to show a pattern", () => {
     // 1, 2 is as likely a measurement as an index; do not guess from two points.
     expect(looksLikeRowIndex([1, 2])).toBe(false);
-  });
-});
-
-describe("parseNumberList", () => {
-  it("accepts commas, spaces and newlines in any mix", () => {
-    expect(parseNumberList("1, 2\n3;4  5")).toEqual([1, 2, 3, 4, 5]);
-  });
-
-  it("handles decimals and negatives", () => {
-    expect(parseNumberList("-1.5 2.25")).toEqual([-1.5, 2.25]);
-  });
-
-  it("returns null for empty or whitespace-only input", () => {
-    expect(parseNumberList("")).toBeNull();
-    expect(parseNumberList("   \n ")).toBeNull();
-  });
-
-  it("returns null rather than dropping a non-numeric token", () => {
-    expect(parseNumberList("1, 2, oops, 4")).toBeNull();
-    expect(parseNumberList("1 2 NaN")).toBeNull();
-    expect(parseNumberList("1 2 Infinity")).toBeNull();
   });
 });
 

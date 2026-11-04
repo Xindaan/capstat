@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   gageRR,
@@ -9,7 +9,15 @@ import {
   type GageRRVerdict,
 } from "@/lib/api-client";
 import { ErrorAlert } from "./error-alert";
+import { NumericInput } from "./numeric-input";
 import { callApi } from "@/lib/call-api";
+import {
+  readCount,
+  readDecimal,
+  readPastedBlock,
+  type Block,
+  type Read,
+} from "@/lib/numbers";
 
 // The SPC/AIAG worked example (5 parts x 3 operators x 3 trials), so the page
 // computes something real on first load.
@@ -143,6 +151,8 @@ export function GageRRPanel({
   const [method, setMethod] = useState<GageRRMethod>(initial.method);
   const [tolerance, setTolerance] = useState(initial.tolerance);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  // Why the last paste into the grid was refused, if it was.
+  const [pasteNote, setPasteNote] = useState<string | null>(null);
 
   useEffect(() => {
     onInputsChange?.({ parts, operators, trials, grid, method, tolerance });
@@ -154,6 +164,7 @@ export function GageRRPanel({
     setTrials(t);
     setGrid((g) => resizeGrid(g, p, o, t));
     setStatus({ kind: "idle" });
+    setPasteNote(null);
   }, []);
 
   const setCell = useCallback(
@@ -171,6 +182,60 @@ export function GageRRPanel({
     [],
   );
 
+  /**
+   * Fill the grid from a block copied out of a spreadsheet (T-0100, WEB-22).
+   *
+   * The sheet's layout is the grid's layout: one row per part, and the columns
+   * run through each operator's trials in turn. The block lands with its
+   * top-left corner on the cell it was pasted into. A block that does not fit,
+   * or whose rows are uneven, is refused whole -- a partly pasted study is the
+   * thing to avoid, since the rest of the grid already holds the example.
+   */
+  const pasteBlock = (
+    p0: number,
+    o0: number,
+    t0: number,
+    pasted: Read<Block>,
+  ) => {
+    if (!pasted.ok) {
+      setPasteNote(pasted.reason);
+      return;
+    }
+    const block = pasted.value;
+    const columns = operators * trials;
+    const start = o0 * trials + t0;
+    const width = block[0].length;
+    const where = `Part ${p0 + 1}, operator ${OPERATOR_LABELS[o0] ?? o0 + 1}, trial ${t0 + 1}`;
+    if (block.some((row) => row.length !== width)) {
+      setPasteNote(
+        "Nothing was pasted: the rows of the block have different numbers of columns.",
+      );
+      return;
+    }
+    if (p0 + block.length > parts || start + width > columns) {
+      setPasteNote(
+        `Nothing was pasted: the block has ${block.length} rows and ${width} columns, ` +
+          `but from ${where} only ${parts - p0} rows and ${columns - start} columns fit. ` +
+          "Rows are parts; columns run through each operator's trials.",
+      );
+      return;
+    }
+    setPasteNote(null);
+    setGrid((g) =>
+      g.map((part, p) =>
+        part.map((op, o) =>
+          op.map((cell, t) => {
+            const row = block[p - p0];
+            const col = o * trials + t - start;
+            return row !== undefined && col >= 0 && col < width
+              ? row[col]
+              : cell;
+          }),
+        ),
+      ),
+    );
+  };
+
   // Parse to numbers; the grid is valid only when every cell is a finite number.
   const parsed = useMemo(() => {
     const data: number[][][] = [];
@@ -179,9 +244,9 @@ export function GageRRPanel({
       for (const op of part) {
         const cells: number[] = [];
         for (const cell of op) {
-          const n = Number(cell);
-          if (cell.trim() === "" || Number.isNaN(n)) return null;
-          cells.push(n);
+          const read = readDecimal(cell);
+          if (!read.ok) return null;
+          cells.push(read.value);
         }
         prow.push(cells);
       }
@@ -190,8 +255,10 @@ export function GageRRPanel({
     return data;
   }, [grid]);
 
-  const tol = tolerance.trim() === "" ? null : Number(tolerance);
-  const tolInvalid = tol != null && (Number.isNaN(tol) || tol <= 0);
+  const tolRead = readDecimal(tolerance);
+  const tol = tolRead.ok ? tolRead.value : null;
+  const tolInvalid =
+    tolerance.trim() !== "" && (!tolRead.ok || (tol != null && tol <= 0));
   const canCompute =
     parsed != null && !tolInvalid && status.kind !== "computing";
 
@@ -249,19 +316,22 @@ export function GageRRPanel({
           <span className="text-xs uppercase tracking-wide text-muted">
             Tolerance
           </span>
-          <input
-            type="number"
-            inputMode="decimal"
-            step="any"
+          <NumericInput
+            aria-label="Tolerance"
             value={tolerance}
-            onChange={(e) => setTolerance(e.target.value)}
+            onChange={setTolerance}
             placeholder="optional"
             className="h-10 w-28 rounded-lg border border-foreground/20 bg-transparent px-3 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
           />
         </label>
       </div>
 
-      <DataGrid grid={grid} onCell={setCell} />
+      <DataGrid grid={grid} onCell={setCell} onBlock={pasteBlock} />
+      {pasteNote && (
+        <p role="status" className="text-xs text-amber-600 dark:text-amber-400">
+          {pasteNote}
+        </p>
+      )}
 
       <div className="flex items-center gap-3">
         <button
@@ -323,12 +393,9 @@ function DimField({
     setDraft(String(value));
   }
 
-  const parsed = Number(draft);
-  const valid =
-    draft.trim() !== "" &&
-    Number.isInteger(parsed) &&
-    parsed >= min &&
-    parsed <= MAX_DIMENSION;
+  const read = readCount(draft, { min, max: MAX_DIMENSION });
+  const valid = read.ok;
+  const parsed = read.ok ? read.value : NaN;
 
   const commit = () => {
     if (valid) {
@@ -345,17 +412,18 @@ function DimField({
       <span className="text-xs uppercase tracking-wide text-muted">
         {label}
       </span>
-      <input
+      <NumericInput
         // Named explicitly because the range hint below lives inside this
         // label, and without an aria-label it would join the field's accessible
         // name the moment it appears — the box would stop being "Parts" and
         // become "Parts 2–30" exactly when a user most needs it to be findable.
         aria-label={label}
-        type="number"
+        kind="integer"
         min={min}
         max={MAX_DIMENSION}
+        showProblem={false}
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={setDraft}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -374,18 +442,39 @@ function DimField({
   );
 }
 
+/**
+ * The cell above or below the one that has focus (Up, Down, Enter).
+ *
+ * A grid of text boxes has no stepping arrows to misuse, so the keys are free
+ * to do what a spreadsheet's do. Left and Right stay with the caret.
+ */
+function moveFocus(
+  table: HTMLTableElement | null,
+  p: number,
+  o: number,
+  t: number,
+  by: 1 | -1,
+) {
+  table
+    ?.querySelector<HTMLInputElement>(`[data-cell="${p + by}-${o}-${t}"]`)
+    ?.focus();
+}
+
 function DataGrid({
   grid,
   onCell,
+  onBlock,
 }: {
   grid: string[][][];
   onCell: (p: number, o: number, t: number, value: string) => void;
+  onBlock: (p: number, o: number, t: number, block: Read<Block>) => void;
 }) {
   const operators = grid[0]?.length ?? 0;
   const trials = grid[0]?.[0]?.length ?? 0;
+  const tableRef = useRef<HTMLTableElement>(null);
   return (
     <div className="overflow-x-auto rounded-lg border border-foreground/15">
-      <table className="w-full border-collapse text-sm">
+      <table ref={tableRef} className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-foreground/15">
             <th className="p-2 text-left font-medium text-muted">Part</th>
@@ -412,12 +501,35 @@ function DataGrid({
                       t === 0 ? "border-l border-foreground/15 p-1" : "p-1"
                     }
                   >
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      step="any"
+                    <NumericInput
+                      showProblem={false}
                       value={cell}
-                      onChange={(e) => onCell(p, o, t, e.target.value)}
+                      onChange={(v) => onCell(p, o, t, v)}
+                      data-cell={`${p}-${o}-${t}`}
+                      onPaste={(e) => {
+                        const block = readPastedBlock(
+                          e.clipboardData.getData("text/plain"),
+                        );
+                        // A single value is not a block: the box takes it in.
+                        if (block === null) return;
+                        e.preventDefault();
+                        onBlock(p, o, t, block);
+                      }}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "ArrowDown" ||
+                          (e.key === "Enter" && !e.shiftKey)
+                        ) {
+                          e.preventDefault();
+                          moveFocus(tableRef.current, p, o, t, 1);
+                        } else if (
+                          e.key === "ArrowUp" ||
+                          (e.key === "Enter" && e.shiftKey)
+                        ) {
+                          e.preventDefault();
+                          moveFocus(tableRef.current, p, o, t, -1);
+                        }
+                      }}
                       aria-label={`Part ${p + 1}, operator ${OPERATOR_LABELS[o] ?? o + 1}, trial ${t + 1}`}
                       className="h-8 w-16 rounded border border-foreground/15 bg-transparent px-2 text-sm tabular-nums focus:border-foreground/50 focus:outline-none"
                     />

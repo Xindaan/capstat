@@ -1,4 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+
+import { test, expect } from "./fixtures";
 
 import { gotoReady, requestDuring } from "./support";
 
@@ -541,14 +543,51 @@ test("deciding a lot judges the plan on screen, not whatever is left in the fiel
   await page.getByLabel("Sample size n").fill("");
   await page.getByLabel("Defectives found in the sample").fill("2");
 
-  const body = await requestDuring<{ plan?: { sample_size?: number } }>(
+  const body = await requestDuring<{ plan?: unknown }>(
     page,
     "**/acceptance-sampling/inspect",
     () => page.getByRole("button", { name: "Decide the lot" }).click(),
   );
 
   await expect(page.getByText("Accept", { exact: true })).toBeVisible();
-  expect(body.plan).toMatchObject({ sample_size: PLAN.sample_size });
+  // Exactly the three input fields. The report's plan also carries the derived
+  // `rejection_number`, which the endpoint forbids (T-0099); `toMatchObject`
+  // here used to let that extra key through.
+  expect(body.plan).toEqual({
+    sample_size: PLAN.sample_size,
+    acceptance_number: PLAN.acceptance_number,
+    lot_size: PLAN.lot_size,
+  });
+});
+
+test("a refused lot decision is reported beside the decision, and keeps the report", async ({
+  page,
+}) => {
+  // T-0099. The decision failed with a 422 and the old handler turned that into
+  // the page-wide error status, which discards the report and OC curve the user
+  // was reading -- one click replaced the whole analysis with a red box.
+  await mockApi(page);
+  await page.route("**/acceptance-sampling/inspect", (r) =>
+    r.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "the lot could not be judged here" }),
+    }),
+  );
+  await gotoReady(page, "/acceptance-sampling");
+  await page.getByRole("button", { name: "Judge this plan" }).click();
+  await expect(page.getByText("4 or fewer")).toBeVisible();
+
+  await page.getByRole("button", { name: "Decide the lot" }).click();
+
+  await expect(
+    page.locator('[aria-label="Acceptance sampling"] [role="alert"]'),
+  ).toContainText("the lot could not be judged here");
+  // The report and the OC curve are still there.
+  await expect(page.getByText("4 or fewer")).toBeVisible();
+  await expect(
+    page.locator('[aria-label="Acceptance sampling"] svg').first(),
+  ).toBeVisible();
 });
 
 // A guard on the suite itself rather than on the page.

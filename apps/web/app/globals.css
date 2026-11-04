@@ -40,6 +40,12 @@ body {
     sans-serif;
 }
 
+/* A number that cannot be read (components/numeric-input.tsx) is marked on the
+   field itself, not only in the sentence beside it. */
+input[aria-invalid="true"] {
+  border-color: rgb(217 119 6 / 0.8) !important;
+}
+
 /* ---------------------------------------------------------------------------
  * Print: the page becomes the report.
  *

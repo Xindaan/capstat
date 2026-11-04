@@ -12,6 +12,11 @@ describe("parseRequiredIndex", () => {
     expect(parseRequiredIndex(" 1.67 ")).toBe(1.67);
   });
 
+  it("reads a decimal comma like a decimal point", () => {
+    // T-0100: the requirement is typed by hand, in whatever locale.
+    expect(parseRequiredIndex("1,67")).toBe(1.67);
+  });
+
   it("refuses anything it cannot judge by, rather than substituting a default", () => {
     // null means "unjudged" downstream. Falling back to 1.33 here would put
     // the very assumption back that this field exists to remove.
