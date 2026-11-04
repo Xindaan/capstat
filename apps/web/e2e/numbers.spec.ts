@@ -169,7 +169,12 @@ for (const locale of ["en-US", "de-DE"]) {
           body: JSON.stringify({
             n_rows: 3,
             columns: [
-              { name: "x", values: [10, 10.1, 9.9], dropped_missing: 0 },
+              {
+                name: "x",
+                values: [10, 10.1, 9.9],
+                rows: [0, 1, 2],
+                dropped_missing: 0,
+              },
             ],
             ignored_columns: [],
             warnings: [],

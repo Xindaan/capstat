@@ -34,10 +34,11 @@
   **T-0095..T-0100, T-0102, T-0105, T-0106 are done** (see Done).
 
 - T-0118 (2026-11-04) **Finish the integration of the 2026-10-21 agent work.**
-  * Playwright on the integrated branch: 2 of 62 fail,
-    `e2e/numbers.spec.ts:164` "a spec limit typed '9,85' is 9.85" (en-US and
-    de-DE). Unknown yet whether it fails on `impl-web-a` alone or only after
-    the merge; find out first.
+  * Playwright on the integrated branch: 2 of 62 failed,
+    `e2e/numbers.spec.ts:164` (T-0100) -- its `/ingest` mock lacked the `rows`
+    field T-0102 made required, so `interiorGaps` threw. Mock fixed
+    2026-11-04: 62/62. The class remains: mocked *responses* are not checked
+    against `openapi.json` (T-0099 checks only request bodies); worth adding.
   * Uncommitted work left in three agent worktrees under `.claude/worktrees/`
     (all from 2026-10-21, not on any branch): `agent-acf0da0dcc7da2790`
     (impl-ingest) 2 files, +528 -- looks like T-0110 (placeholders, a column and
@@ -666,7 +667,7 @@ Older Done entries (before 2026-10-01): `docs/task_done_bis_2026-Q3.md`.
     hand case (10, 5, 0, D 1) = 0.05 and the bound.
   * Gates on the integrated branch (2026-11-04): 957 Python tests, coverage
     100 %, ruff, ruff format, mypy --strict, `export_openapi --check`; web:
-    tsc, eslint, 152 vitest. Playwright: 60 passed, 2 failed (T-0118).
+    tsc, eslint, 152 vitest, Playwright 62/62 (after the T-0118 mock fix).
 
 - T-0117 (2026-10-22) **Security update of locked dependencies (patch check
   2026-10-22); no code change.** Raised each flagged package to the smallest

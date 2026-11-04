@@ -23,7 +23,7 @@ byte-verified release.
 - **Branch `fix/review-2026-10-01` integrates the 2026-10-21 agent work:**
   T-0095..T-0100, T-0102, T-0105, T-0106 done, plus a 2026-11-04 overflow
   fix in the T-0096 helper. Gates: 957 Python tests, 100 % coverage, mypy,
-  ruff, 152 vitest; Playwright 60/62 (T-0118).
+  ruff, 152 vitest, Playwright 62/62.
 - **Third review 2026-10-01** (T-0095..T-0115): open are T-0101, T-0103,
   T-0104, T-0107..T-0115; T-0103/T-0104/T-0108 decided 2026-10-07.
 - **Release path is hardened but one proof short** (T-0093, T-0047).
@@ -49,8 +49,8 @@ byte-verified release.
 
 ## Next actions
 
-1. **T-0118** -- fix the two failing Playwright cases, then open the PR of
-   `fix/review-2026-10-01` into main; decide the three dirty worktrees.
+1. **T-0118** -- merge the PR of
+   `fix/review-2026-10-01`; decide the three dirty worktrees.
 2. **T-0081** -- diagnose the release-please breaking-commit drop (scratch
    branch, not a real release).
 3. **T-0101 / T-0107** -- the next review items (T-0103/T-0104 are decided).
