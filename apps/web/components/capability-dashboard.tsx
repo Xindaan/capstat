@@ -92,7 +92,7 @@ export function CapabilityDashboard({
     setStatus({ kind: "computing" });
     const limits = { lsl: parsed.l, usl: parsed.u, target: parsed.t };
     if (subgroupSize > 1) {
-      const { subgroups } = intoSubgroups(column.values, subgroupSize);
+      const { subgroups } = intoSubgroups(column, subgroupSize);
       const outcome = await callApi(
         () => capabilityFromSubgroups(subgroups, limits),
         "Capability could not be computed.",

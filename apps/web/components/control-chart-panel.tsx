@@ -123,7 +123,10 @@ export function ControlChartPanel({
       // picks and then says which it picked, rather than making the user know.
       const request = () => {
         if (subgroupSize <= 1) return imrChart(column.values, baseline);
-        const { subgroups } = intoSubgroups(column.values, subgroupSize);
+        const { subgroups } = intoSubgroups(
+          { values: column.values, rows: column.rows },
+          subgroupSize,
+        );
         return chartForSize(subgroupSize) === "xbar-r"
           ? xbarRChart(subgroups, baseline)
           : xbarSChart(subgroups, baseline);
@@ -142,7 +145,7 @@ export function ControlChartPanel({
     return () => {
       cancelled = true;
     };
-  }, [column.values, subgroupSize, baseline]);
+  }, [column.values, column.rows, subgroupSize, baseline]);
 
   // Run-rules read their sigma zones from the individuals chart's own limits,
   // so this waits for the chart and re-runs whenever the selection changes.

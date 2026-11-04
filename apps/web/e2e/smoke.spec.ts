@@ -8,9 +8,14 @@ const VALUES = Array.from({ length: 30 }, (_, i) =>
   Number((10 + Math.sin(i) * 0.1).toFixed(4)),
 );
 
+// The row each value came from (0-based); no gaps, so row i holds value i.
+const ROWS = VALUES.map((_, i) => i);
+
 const INGEST = {
   n_rows: VALUES.length,
-  columns: [{ name: "measurement", values: VALUES, dropped_missing: 0 }],
+  columns: [
+    { name: "measurement", values: VALUES, rows: ROWS, dropped_missing: 0 },
+  ],
   ignored_columns: ["operator"],
   warnings: [
     {
@@ -93,9 +98,10 @@ const INGEST_WITH_ROW_INDEX = {
     {
       name: "part",
       values: Array.from({ length: VALUES.length }, (_, i) => i + 1),
+      rows: ROWS,
       dropped_missing: 0,
     },
-    { name: "diameter_mm", values: VALUES, dropped_missing: 0 },
+    { name: "diameter_mm", values: VALUES, rows: ROWS, dropped_missing: 0 },
   ],
   ignored_columns: [],
   warnings: [],
@@ -375,6 +381,59 @@ test("a column that does not divide evenly says which values are left out", asyn
   await expect(note).toContainText(
     "the last 2 values are not part of any subgroup",
   );
+});
+
+test("a blank cell costs its own subgroup and no other is re-cut", async ({
+  page,
+}) => {
+  // CHART-2 / T-0102. /ingest drops the blank cell, so the column arrives
+  // compacted; the rows it came from are what let the page cut by row. Row 7 is
+  // blank, so with a subgroup size of 5 the second subgroup (rows 5-9) is
+  // incomplete -- and the others must still be the file's own, not windows of
+  // the compacted values.
+  const gapRows = ROWS.filter((r) => r !== 7);
+  const gapValues = gapRows.map((r) => r + 1000);
+  const ingest = {
+    n_rows: VALUES.length,
+    columns: [
+      {
+        name: "measurement",
+        values: gapValues,
+        rows: gapRows,
+        dropped_missing: 1,
+      },
+    ],
+    ignored_columns: [],
+    warnings: [],
+  };
+  const sent: number[][][] = [];
+  await mockApi(page, CAPABILITY, ingest);
+  await page.route("**/control-chart/xbar-r", (r) => {
+    sent.push(r.request().postDataJSON().subgroups);
+    return r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(XBAR_R),
+    });
+  });
+  await gotoReady(page, "/");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "gap.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("measurement\n10.0\n"),
+  });
+
+  await page.getByLabel("Subgroup size").fill("5");
+  const note = page.getByTestId("subgroup-incomplete");
+  await expect(note).toBeVisible();
+  await expect(note).toContainText("Subgroup 2 is missing a cell");
+
+  await expect.poll(() => sent.length).toBeGreaterThan(0);
+  const groups = sent.at(-1)!;
+  // Five subgroups, none of them mixed: each holds the values of its own rows.
+  expect(groups).toHaveLength(5);
+  expect(groups[0]).toEqual([1000, 1001, 1002, 1003, 1004]);
+  expect(groups[1]).toEqual([1010, 1011, 1012, 1013, 1014]);
 });
 
 test("the capability colouring follows the requirement you state, not 1.33", async ({
@@ -672,6 +731,7 @@ test("a second file replaces the analyses rather than reusing them", async ({
         values: VALUES.map((v, i) =>
           i === 0 || i === VALUES.length - 1 ? v : Number((v + 0.5).toFixed(4)),
         ),
+        rows: ROWS,
         dropped_missing: 0,
       },
     ],

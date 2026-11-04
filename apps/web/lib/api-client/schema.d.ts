@@ -895,6 +895,8 @@ export interface components {
             dropped_missing: number;
             /** Name */
             name: string;
+            /** Rows */
+            rows: number[];
             /** Values */
             values: number[];
         };
