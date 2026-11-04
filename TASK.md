@@ -34,14 +34,16 @@
   **T-0095..T-0100, T-0102, T-0105, T-0106 are done** (see Done).
 
 - T-0118 (2026-11-04) **Finish the integration of the 2026-10-21 agent work.**
-  * **Needs the maintainer (Codex review on PR #56, P1):** T-0097's
-    calibrated rounding test can switch a rejected sample to the normal path,
-    but it has no published reference case (`normality.yaml` says it is
-    validated by simulation only). `AGENTS.md` says a method without a
-    reference-validated test does not ship. Options: (a) keep the routing and
-    record an explicit exception to the rule for simulation-validated
-    calibrations; (b) keep only the ValueError for fewer than three distinct
-    values and switch the re-routing off until a reference case exists.
+  * **Decided 2026-11-04 (maintainer): the rounding re-routing from T-0097
+    is switched off** until it has a reference-validated test (Codex P1 on
+    PR #56: `AGENTS.md` ships no method without one; the calibration is
+    validated by simulation only). `nonnormal.RESOLUTION_CALIBRATION_ENABLED
+    = False`; the machinery stays and its tests run with the switch on.
+    Consequence: gauge-rounded normal data take the percentile path again
+    (CAP-6 is open again). To switch it on: find or build a reference case
+    for the calibrated AD/SW verdict on rounded data (e.g. grouped-data
+    goodness-of-fit literature), transcribe it into `normality.yaml`, then
+    flip the switch.
   * Codex review fixes on PR #56 (2026-11-04): re-upload crash after a
     subgroup size (workspace `grouping!`), RangeError in `yAxisExtent` and
     `histogram` on ~150k points.
@@ -663,7 +665,8 @@ Older Done entries (before 2026-10-01): `docs/task_done_bis_2026-Q3.md`.
   * T-0097 (`08341aa`): percentile fit on the standardised sample (unit
     invariant: 0 of 320 rescalings move Ppk), fully specified
     Anderson-Darling score, gauge-rounded normal data recognised by a
-    parametric bootstrap, fewer than three distinct readings refused, a
+    parametric bootstrap (switched off 2026-11-04, see T-0118), fewer than
+    three distinct readings refused, a
     degenerate Box-Cox lambda refused with its true reason. Checked in the
     integrating session: the loc/scale back-mapping and the AD formula
     (NIST 1.3.5.14); the bootstrap calibration was not re-derived there.

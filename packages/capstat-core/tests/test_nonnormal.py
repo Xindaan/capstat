@@ -826,7 +826,27 @@ def _gauge(data: np.ndarray, step: float) -> np.ndarray:
     return rounded
 
 
+@pytest.fixture
+def calibration_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rounding calibration is off by decision (T-0118); these tests keep
+    the dormant machinery right for the day it is switched on."""
+    monkeypatch.setattr(nonnormal, "RESOLUTION_CALIBRATION_ENABLED", True)
+
+
+def test_the_rounding_calibration_is_off_by_default() -> None:
+    """Off until it has a reference-validated test (AGENTS.md, T-0118): gauge-
+    rounded normal readings are judged by the uncalibrated tests, the
+    percentile path is taken, and nothing claims a calibration happened."""
+    assert nonnormal.RESOLUTION_CALIBRATION_ENABLED is False
+    data = _gauge(np.random.default_rng(0).normal(10.0, 0.05, 1000), 0.01)
+    analysis = analyze_capability(data, lsl=9.8, usl=10.2)
+    assert analysis.path != "normal"
+    assert "nonnormal.resolution-limited" not in {w.code for w in analysis.warnings}
+    assert "rounded" not in analysis.rationale
+
+
 @pytest.mark.parametrize("seed", range(3))
+@pytest.mark.usefixtures("calibration_on")
 def test_normal_readings_rounded_by_a_gauge_keep_the_normal_path(seed: int) -> None:
     """N(10, 0.05) read to 0.01 -- a resolution of 0.2 sigma -- went down the
     percentile path in 40 of 40 runs at n = 1000, losing Cp and Cpk and being
@@ -848,6 +868,7 @@ def test_normal_readings_rounded_by_a_gauge_keep_the_normal_path(seed: int) -> N
 
 
 @pytest.mark.parametrize("seed", range(3))
+@pytest.mark.usefixtures("calibration_on")
 def test_a_skewed_process_read_by_a_gauge_is_still_not_normal(seed: int) -> None:
     """Allowing for the rounding must not wave skewness through: the calibrated
     tests keep their statistics, and so their power against skew."""
@@ -859,6 +880,7 @@ def test_a_skewed_process_read_by_a_gauge_is_still_not_normal(seed: int) -> None
     assert "nonnormal.resolution-limited" in {w.code for w in analysis.warnings}
 
 
+@pytest.mark.usefixtures("calibration_on")
 def test_the_calibrated_verdict_needs_both_tests_like_the_uncalibrated_one() -> None:
     """A flat (uniform) process read to 0.01: calibrated Anderson-Darling does
     not reject it (p = 0.071) but Shapiro-Wilk does (p = 0.024). The normal
@@ -872,6 +894,17 @@ def test_the_calibrated_verdict_needs_both_tests_like_the_uncalibrated_one() -> 
     assert analysis.path != "normal"
 
 
+@pytest.mark.usefixtures("calibration_on")
+def test_continuous_data_are_not_calibrated_even_when_it_is_on() -> None:
+    """The calibration answers ties from a gauge's grid; a skewed sample with
+    no grid keeps its uncalibrated verdict and gets no resolution caveat."""
+    data = np.random.default_rng(1).lognormal(0.0, 0.5, 200)
+    analysis = analyze_capability(data, lsl=0.1, usl=6.0)
+    assert analysis.path != "normal"
+    assert "nonnormal.resolution-limited" not in {w.code for w in analysis.warnings}
+
+
+@pytest.mark.usefixtures("calibration_on")
 def test_large_samples_are_not_calibrated(monkeypatch: pytest.MonkeyPatch) -> None:
     """The calibration costs draws x n; above the cap it is not run and the
     uncalibrated verdict stands (and the caveat does not claim otherwise). The

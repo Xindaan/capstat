@@ -194,6 +194,17 @@ def _fit_family(family: object, arr: npt.NDArray[np.float64]) -> tuple[float, ..
     return (*shapes, centre + spread * loc, spread * scale)
 
 
+#: Whether a rejected verdict on gauge-rounded readings is re-taken with the
+#: rounding-calibrated tests (``normality._normality_at_resolution``). Off by
+#: the maintainer's decision of 2026-11-04 (T-0118): the calibration is
+#: validated by simulation only and has no published reference case, and
+#: AGENTS.md ships no method without a reference-validated test. With it off,
+#: rounded readings are judged by the uncalibrated tests, as before T-0097.
+#: The machinery stays, tested with the switch turned on, for the day a
+#: reference case exists.
+RESOLUTION_CALIBRATION_ENABLED = False
+
+
 #: The fewest distinct readings from which a distribution is estimated at all.
 MIN_DISTINCT_VALUES = 3
 
@@ -691,7 +702,10 @@ def analyze_capability(
     fixed resolution tie, and with enough of them the tests reject a perfectly
     normal process for the ties alone: N(10, 0.05) read to 0.01 took the
     percentile path in 40 of 40 runs at n = 1000 (CAP-6), losing Cp and Cpk and
-    being called "not normal" for having been measured. So when the tests
+    being called "not normal" for having been measured. This is still the
+    behaviour by default: the remedy below runs only with
+    :data:`RESOLUTION_CALIBRATION_ENABLED` switched on, which it is not until
+    the calibration has a reference-validated test. With it on: when the tests
     reject and the readings lie on a regular grid with ties, the verdict is
     re-taken with the same two statistics calibrated against normal data
     rounded to the same grid (``normality._normality_at_resolution``, a
@@ -724,7 +738,11 @@ def analyze_capability(
     normality = assess_normality(arr, alpha=alpha)
 
     rounded: _RoundedNormality | None = None
-    if not normality.normal and arr.size <= RESOLUTION_MAX_SAMPLE_SIZE:
+    if (
+        RESOLUTION_CALIBRATION_ENABLED
+        and not normality.normal
+        and arr.size <= RESOLUTION_MAX_SAMPLE_SIZE
+    ):
         resolution = _grid_resolution(arr)
         if resolution is not None:
             rounded = _normality_at_resolution(arr, resolution, alpha=alpha)

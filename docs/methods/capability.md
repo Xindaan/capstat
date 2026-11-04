@@ -89,15 +89,13 @@ The result carries `path` and a `rationale` sentence explaining the choice.
 !!! note "Readings rounded to a gauge resolution"
     Both normality tests assume continuous data. Readings from a gauge with a
     fixed resolution tie, and with enough readings the tests reject a perfectly
-    normal process for the ties alone. When they reject and the readings lie on
-    a regular grid with ties, capstat re-takes the verdict with the same two
-    tests calibrated against normal data rounded to the same resolution (a
-    parametric bootstrap; up to 5000 readings). If the rounding is the only
-    departure found, the normal path is taken; the rationale says so, and a
-    `nonnormal.resolution-limited` warning states the step relative to sigma —
-    at a step of about one sigma or more, the readings say little about the
-    shape of the distribution. Readings that take fewer than three distinct
-    values are refused: no distribution can be estimated from them.
+    normal process for the ties alone; such data then take the percentile path
+    and report Pp/Ppk only. capstat contains a remedy -- the same two tests
+    calibrated against normal data rounded to the same resolution, by a
+    parametric bootstrap -- but it is switched off: it is validated by
+    simulation only, and a method without a reference-validated test does not
+    ship. Readings that take fewer than three distinct values are refused: no
+    distribution can be estimated from them.
 
 !!! note "The unit does not matter"
     The percentile method fits each candidate distribution on standardised data
