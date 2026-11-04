@@ -245,25 +245,30 @@
   T-0113 / ARCH-17: today the hand-made lock commit is the only CI run on the
   release tree, and automating it removes that run.
 
-- T-0081 **release-please dropped the breaking change from the release notes.**
-  Found while cutting 0.3.0, and corrected by hand before the tag was made --
-  but the cause is unfixed and will recur on the next breaking commit.
-  Measured: of the twenty changelog-eligible commits since v0.2.1, exactly one
-  was absent from the generated changelog, and it was the only one whose header
-  carried a `!` (`feat(core,api,web)!: ...`). The same multi-part scope *without*
-  the `!` (T-0076) rendered fine, and the version still moved 0.2.1 -> 0.3.0,
-  which on a 0.x project is what a breaking change produces and a plain feat
-  does not. So the `BREAKING CHANGE:` footer in the body was read for the
-  version bump while the header was not read for the notes.
-  That is the diagnosis the evidence supports; the parser's exact objection was
-  not confirmed, and `(core,api,web)!` being an unusual scope is the obvious
-  suspect. Cheap mitigation until it is: **a breaking commit gets a single-word
-  scope** (`feat(core)!: ...`).
-  Why it matters more than a formatting nit: the notes are what a consumer
-  reads before upgrading, and the one thing 0.3.0 required them to act on is
-  precisely what went missing.
-  Acceptance: a breaking commit appears in the generated changelog without
-  hand-editing -- verified on a scratch branch, not on a real release.
+- T-0081 **release-please drops a commit whose body has a line starting
+  with `word(` -- diagnosed 2026-11-04, prevention still open.** The old
+  suspect (multi-part scope with `!`) is cleared.
+  * Diagnosed offline with release-please 17.11.2's own
+    `parseConventionalCommits` (scratch install, no release, no GitHub): the
+    0.3.0 commit `e3abe9f` fails at body line 29, `` `Caveat(` would prove
+    ...``. The same message with a single scope, or without `!`, is dropped
+    too; its header alone parses with the multi-part scope and `!`. Minimal
+    cases: a body line beginning `foo(bar`, `` `foo(` ``, `one-two(bar` or
+    `P(Hyp(N-1, ...) <= Ac) < 1/N` drops the *whole* commit; `see foo(bar`,
+    `foo (bar` and `foo(bar) would` parse. The parser (`@conventional-commits/
+    parser` ^0.4.1) reads such a line as the start of a footer token. The
+    0.2.1 -> 0.3.0 bump needs no breaking footer to explain it: on 0.x a
+    `feat` bumps the minor anyway.
+  * Swept every visible commit since v0.3.0: one more is dropped, `1ca99bf`
+    (T-0106, line 20 `P(Hyp(...`). Pushed, so not rewritten; PR #56 carries a
+    `BEGIN_COMMIT_OVERRIDE` block with all eleven visible headers (checked:
+    the parser reads 11 of 11). After the merge, check that T-0106 is in the
+    release PR's changelog -- the override path is not yet proven on a merge
+    commit.
+  * Open (prevention): a CI step on pull requests that runs the same parser
+    over each visible commit and fails on a drop; and an `AGENTS.md` line for
+    the maintainer to decide ("no body line may begin with an identifier
+    directly followed by `(`; indent or reword it").
 
 - T-0078 **Point positions are reported in two conventions.** Found while
   building the CLI, not by the review. The core's warnings quote raw 0-based

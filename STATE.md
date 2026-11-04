@@ -35,8 +35,9 @@ byte-verified release.
   T-0118). Removing a worktree discards it; decide per worktree first.
 - **T-0093 is not field-proven:** confirmed only after a green publish run
   containing `install attempt N failed ... retrying`. T-0047 likewise.
-- **T-0081 will recur:** a breaking commit with a multi-part scope drops out of
-  the release notes. Until fixed, use a single-word scope (`feat(core)!:`).
+- **T-0081:** a commit body line that starts with `word(` makes release-please
+  drop the whole commit from the notes. Reword such lines; PR #56 carries an
+  override for the affected `1ca99bf`.
 - **T-0078:** core warnings quote 0-based indices, app and CLI count from 1.
 - **Dependabot (T-0116):** alerts and update PRs open; T-0117 (2026-10-22)
   raised the flagged locked packages on main.
@@ -49,10 +50,10 @@ byte-verified release.
 
 ## Next actions
 
-1. **T-0118** -- merge the PR of
-   `fix/review-2026-10-01`; decide the three dirty worktrees.
-2. **T-0081** -- diagnose the release-please breaking-commit drop (scratch
-   branch, not a real release).
+1. **T-0118** -- merge PR #56 (`fix/review-2026-10-01`) once CI is green;
+   decide the three dirty worktrees.
+2. **T-0081** -- after the merge, check T-0106 is in the release PR's
+   changelog; then add the CI parser check (diagnosis done 2026-11-04).
 3. **T-0101 / T-0107** -- the next review items (T-0103/T-0104 are decided).
 
 ## Dates
