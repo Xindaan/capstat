@@ -186,6 +186,17 @@
   (incl. next 16.3.8, #53). The T-0046 "zero alerts" state of 2026-08-16 no
   longer holds. Done when: the high alerts are closed (merged or dismissed
   with a reason) and the remaining PRs are merged or closed.
+  **Alerts part done 2026-11-05 (T-0119):** all 10 open alerts fixed on main.
+  PRs #54 (virtualenv) and #55 (next) carry the same bumps and are superseded;
+  open are #47, #48, #50, #51, #52.
+
+- T-0120 **npm audit flags dev-only packages Dependabot does not.** (2026-11-05,
+  found during T-0119.) After T-0119 `npm audit` in `apps/web` still reports
+  zod 4.4.3 HIGH (GHSA-mrhx-c7xc-m3w5, fix 4.6.6; via eslint-config-next ->
+  eslint-plugin-react-hooks, which allows `^4.0.0`) and 8 MODERATE in the
+  typescript-eslint / minimatch chain. All lint-time only, none ships in the
+  app. Done when: zod is raised in the lock (in range, lock-only) and the
+  moderate chain is fixed or dismissed with a reason.
 
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four
@@ -643,6 +654,17 @@
 ## Done
 
 Older Done entries (before 2026-10-01): `docs/task_done_bis_2026-Q3.md`.
+
+- T-0119 (2026-11-05) **The ten open Dependabot alerts are closed; lock and
+  version change only.** Each package raised to its smallest patched release:
+  next 16.3.8 -> 16.4.1 (alerts 53-58: GHSA-673q-mjm6-r5xr and
+  GHSA-2464-fhr4-w9xw CRITICAL, GHSA-p3m5-59mp-jv5r HIGH); virtualenv 21.14.9
+  -> 21.14.13 (alerts 49-50); filelock 3.29.7 -> 4.2.1 (alerts 51-52; major
+  step approved by the maintainer, no 3.x fix exists, dev-only via pre-commit
+  -> virtualenv). Negative probe: npm audit critical 1 -> 0, pip-audit on the
+  exported lock 10 -> 0. Tests: pytest 959/959, vitest 154/154; tsc, eslint,
+  next build, pre-commit (fresh hook envs on filelock 4.2.1) green. Follow-up:
+  T-0120.
 
 - T-0095, T-0096, T-0097, T-0098, T-0099, T-0100, T-0102, T-0105, T-0106
   (implemented 2026-10-21 by parallel agents, integrated into

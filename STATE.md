@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-11-04
+Date: 2026-11-05
 
 ## Goal
 
@@ -20,7 +20,7 @@ byte-verified release.
 
 - **M1-M6 complete, v0.1.0 released 2026-07-21; repo public** (2026-07-23).
   Local-only by decision (T-0026): `docker compose up`, no public demo.
-- **Branch `fix/review-2026-10-01` integrates the 2026-10-21 agent work:**
+- **PR #56 merged to main 2026-11-04 (2026-10-21 agent work):**
   T-0095..T-0100, T-0102, T-0105, T-0106 done, plus a 2026-11-04 overflow
   fix in the T-0096 helper and the Codex review fixes. T-0097's rounding
   re-routing is switched off by decision (2026-11-04, T-0118: no reference
@@ -41,19 +41,19 @@ byte-verified release.
   drop the whole commit from the notes. Reword such lines; PR #56 carries an
   override for the affected `1ca99bf`.
 - **T-0078:** core warnings quote 0-based indices, app and CLI count from 1.
-- **Dependabot (T-0116):** alerts and update PRs open; T-0117 (2026-10-22)
-  raised the flagged locked packages on main.
+- **Dependabot (T-0116):** 0 open alerts after T-0119 (2026-11-05); update
+  PRs #47, #48, #50-#52 open. `npm audit` still flags dev-only zod (T-0120).
 
 ## With Andre
 
-- **T-0116** Dependabot: merge or close the open update PRs.
+- **T-0116** Dependabot: merge or close the open update PRs (#54/#55 are
+  superseded by T-0119).
 - Optional: prune Discussions categories to Q&A + Announcements (T-0043).
 - Confirm or edit the proposed success criterion above (Outcome is yours).
 
 ## Next actions
 
-1. **T-0118** -- merge PR #56 (`fix/review-2026-10-01`) once CI is green;
-   decide the three dirty worktrees.
+1. **T-0118** -- decide the three dirty worktrees (PR #56 is merged).
 2. **T-0081** -- after the merge, check T-0106 is in the release PR's
    changelog; then add the CI parser check (diagnosis done 2026-11-04).
 3. **T-0101 / T-0107** -- the next review items (T-0103/T-0104 are decided).
@@ -64,13 +64,14 @@ none
 
 ## Last done
 
+- 2026-11-05: **T-0119** the ten open Dependabot alerts closed (next 16.4.1,
+  virtualenv 21.14.13, filelock 4.2.1).
 - 2026-11-04: **Agent work of 2026-10-21 integrated** (T-0095..T-0100, T-0102,
   T-0105, T-0106) plus the `is_zero_deviation` overflow fix.
 - 2026-11-04: **Done entries before 2026-10-01 archived** to
   `docs/task_done_bis_2026-Q3.md` (verbatim, cmp-checked).
 - 2026-10-22: **T-0117** security update of locked dependencies.
 - 2026-10-07: **Third review filed as T-0095..T-0115.**
-- 2026-09-21: **T-0094 -- steering-file commits are `chore`.**
 <!-- snapshot-ende -->
 
 ## Working method (keeps paying off — do not abandon it under time pressure)
