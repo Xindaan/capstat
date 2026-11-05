@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.4.5](https://github.com/Xindaan/capstat/compare/v0.4.4...v0.4.5) (2026-11-05)
+
+
+### Bug fixes
+
+* **core:** compare a root spread without squaring it (T-0096 follow-up) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **core:** decide zero spread against the data's scale (T-0096) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **ingest:** cut subgroups by file row so a blank cell shifts nothing (T-0102) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **ingest:** read one-column German CSVs, trailing delimiters and header-less files correctly (T-0095) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **nonnormal:** switch the rounding re-routing off until it has a reference case ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **nonnormal:** unit-invariant percentile fit, gauge-rounded readings, true Box-Cox reason (T-0097) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **sampling:** exact Type A AOQ and an exhaustive Type A AOQL (T-0106) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **validation:** refuse non-finite and out-of-range parameters (T-0105) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **web:** "Decide the lot" sends a valid plan; every mocked e2e request is checked against openapi.json (T-0099) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **web:** always draw the control limits and print their values (T-0098) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **web:** no crash on re-upload after a subgroup size, none on long series ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **web:** read hand-entered numbers the same way in every locale (T-0100) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+
+
+### Documentation
+
+* **sources:** regenerate the validation sources page for the Type A AOQ (T-0106) ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+* **state:** record 0.4.4 as tagged and deliberately unpublished ([61f1223](https://github.com/Xindaan/capstat/commit/61f1223482b5b47502e8f6444cb2b9ea6f62d228))
+
+
+### Tests
+
+* **web:** give the T-0100 ingest mock the rows field T-0102 made required ([873cb54](https://github.com/Xindaan/capstat/commit/873cb54010def06d24c5a38b43305c7f9540dee3))
+
 ## [0.4.4](https://github.com/Xindaan/capstat/compare/v0.4.3...v0.4.4) (2026-09-20)
 
 
