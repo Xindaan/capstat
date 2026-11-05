@@ -202,9 +202,14 @@
   under `@typescript-eslint/typescript-estree` 8.64.0. Not lock-fixable: that
   package, up to its latest 8.72.1, requires `minimatch ^10.2.2`, so 11.0.1
   needs an override outside the declared range (major). The other copies
-  (3.1.5, 5.1.9) are below the vulnerable range `>= 7.0.0`. Decided by the
-  maintainer 2026-11-05: leave #60 open and wait for typescript-eslint to
-  allow minimatch 11; no override.
+  (3.1.5, 5.1.9) are below the vulnerable range `>= 7.0.0`.
+  **Fixed 2026-11-05 by override (maintainer's decision, replacing the earlier
+  same-day "leave open"; pattern from Gardena T-0643):** `apps/web/package.json`
+  `"minimatch@>=7 <11.0.1": "^11.0.1"` -> typescript-estree now loads 11.0.4.
+  npm audit 9 -> 1 (the 8 MODERATE are gone, zod remains); eslint, tsc, vitest
+  154/154, next build green; probe: breaking the 11.0.4 copy makes eslint exit
+  2, so lint really loads it. Remove the override once typescript-eslint
+  declares `minimatch ^11`. Open in T-0120: only zod.
 
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four
