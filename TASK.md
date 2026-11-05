@@ -197,6 +197,14 @@
   typescript-eslint / minimatch chain. All lint-time only, none ships in the
   app. Done when: zod is raised in the lock (in range, lock-only) and the
   moderate chain is fixed or dismissed with a reason.
+  **Dependabot alert #60 (2026-11-05, opened by the rescan after T-0119):**
+  minimatch 10.2.5 MEDIUM (GHSA-g3hv-75wg-m249, fix 11.0.1), only the copy
+  under `@typescript-eslint/typescript-estree` 8.64.0. Not lock-fixable: that
+  package, up to its latest 8.72.1, requires `minimatch ^10.2.2`, so 11.0.1
+  needs an override outside the declared range (major). The other copies
+  (3.1.5, 5.1.9) are below the vulnerable range `>= 7.0.0`. Decided by the
+  maintainer 2026-11-05: leave #60 open and wait for typescript-eslint to
+  allow minimatch 11; no override.
 
 - **External review 2026-08-22 (Ox Alpha via OpenRouter, source read only, no
   execution).** Twelve findings; every cited site was re-read here and the four

@@ -41,8 +41,9 @@ byte-verified release.
   drop the whole commit from the notes. Reword such lines; PR #56 carries an
   override for the affected `1ca99bf`.
 - **T-0078:** core warnings quote 0-based indices, app and CLI count from 1.
-- **Dependabot (T-0116):** 0 open alerts after T-0119 (2026-11-05); update
-  PRs #47, #48, #50-#52 open. `npm audit` still flags dev-only zod (T-0120).
+- **Dependabot (T-0116):** T-0119 closed the ten alerts of 2026-11-05; one new
+  open (#60, dev-only minimatch, not lock-fixable, T-0120). Update PRs #47,
+  #48, #50-#52 open.
 
 ## With Andre
 
