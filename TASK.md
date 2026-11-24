@@ -52,20 +52,28 @@
     field T-0102 made required, so `interiorGaps` threw. Mock fixed
     2026-11-04: 62/62. The class remains: mocked *responses* are not checked
     against `openapi.json` (T-0099 checks only request bodies); worth adding.
-  * Uncommitted work left in three agent worktrees under `.claude/worktrees/`
-    (all from 2026-10-21, not on any branch): `agent-acf0da0dcc7da2790`
-    (impl-ingest) 2 files, +528 -- looks like T-0110 (placeholders, a column and
-    cell cap, US-thousands lookalikes); `agent-ac3e00f2c11466d26` (impl-web-a)
-    11 files, +269 -589, components and e2e specs; `agent-ade2915e78c774d2a`
-    (impl-sampling) 4 files, +144 -- `_validation`/`acceptance_sampling`, likely
-    SAMP-12. The fourth worktree (impl-nonnormal) is clean and merged. Decide
-    per worktree: finish and commit, or drop. Removing a worktree discards
-    its uncommitted changes.
+  * The uncommitted work of the three 2026-10-21 agent worktrees is saved as
+    patches outside the repo, in
+    `~/src/.worktrees/_sicherung-20261124/capstat/` (one file per worktree,
+    named `<branch>_<worktree>_base-<sha>.patch`, tracked changes plus new
+    files; each verified on 2026-11-24 to reproduce the worktree exactly when
+    applied to its base). The worktrees and the local `impl-*` and
+    `fix/review-2026-10-01` branches are removed. Follow-up per patch:
+    impl-web-a -> T-0101, impl-ingest -> T-0110, impl-sampling -> T-0121.
 
 - T-0101 **Results stay on screen after their inputs change.** WEB-4 / UX-1 /
   UX-4 on all four pages: editing a spec limit or a reading leaves the old
   verdict standing, unmarked. WEB-27: a response arriving after an edit
   overwrites the invalidation.
+  Unfinished agent work exists (2026-10-21, never committed):
+  `~/src/.worktrees/_sicherung-20261124/capstat/impl-web-a_agent-ac3e00f2c11466d26_base-da16ede.patch`
+  (11 changed + 4 new files, +269 -589 on the changed ones): a
+  `useComputation` hook (`lib/use-computation.ts`) that stores each result
+  with the key of the inputs it was computed from and drops late responses, a
+  `StaleNote` component, all seven analysis panels moved onto it, e2e mocks
+  pulled into `e2e/mocks.ts` plus `e2e/stale.spec.ts`. `git apply --check`
+  against main 3d889be fails (`capability-dashboard.tsx`, `smoke.spec.ts`
+  changed since): port by hand, using the patch as the design.
 
 - T-0103 **Cpm -- needs a decision.** CAP-2: Cpm uses sigma_within (stated in
   the module docstring, pinned by a test asserting Cpm == Cp on target); on a
@@ -130,6 +138,27 @@
   measurement columns. API-5: `inf` cells come back as JSON null inside a
   `list[float]`. API-4 (narrowed): a small xlsx with one stray far-right cell
   needs gigabytes of RAM.
+  Unfinished agent work for this exists (2026-10-21, never committed):
+  `~/src/.worktrees/_sicherung-20261124/capstat/impl-ingest_agent-acf0da0dcc7da2790_base-708b52d.patch`
+  (`tabular.py` + `test_ingest.py`, +528 -20): placeholders such as "n.a." and
+  "-" as missing cells, decimal commas with space separators and exponents and
+  in xlsx too, a caveat for US-thousands lookalikes ("1,234"), a 1,000-column /
+  5M-cell cap checked before the sheet is materialised, date/flag column
+  detection. `git apply --check` against main 3d889be: clean. Not yet run
+  through the gates; review before use.
+
+- T-0121 (2026-11-24) **Whole-number parameters in acceptance sampling
+  (SAMP-12).** Left open by T-0105: `SamplingPlan(5.5, 1)` evaluates to NaN
+  risks, `Ac = 1.5` is judged as `Ac = 1`, and NaN passes every `<` guard in
+  `SamplingPlan`, `design_single_sampling_plan` and `SwitchingRules`.
+  Unfinished agent work exists (2026-10-21, never committed):
+  `~/src/.worktrees/_sicherung-20261124/capstat/impl-sampling_agent-ade2915e78c774d2a_base-1ca99bf.patch`
+  (+144 -8): a `check_count` helper in `_validation.py` (via
+  `operator.index`, bool refused, numpy ints stored as `int`), wired into
+  `SamplingPlan`, `accepts` and `design_single_sampling_plan`, plus tests --
+  including a `SwitchingRules` test whose production change is not in the
+  patch. `git apply --check` against main 3d889be: clean. Acceptance: all
+  count parameters refuse non-integers with a ValueError; gates green.
 
 - T-0111 **Test-suite strength: what the mutants found.** Kill rate 66 % of
   509 mutants (71 % without equivalents). High: TQ-1 / CHART-10 (R, S and MR

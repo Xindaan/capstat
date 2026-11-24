@@ -1,6 +1,6 @@
 # STATE.md — capstat
 
-Date: 2026-11-05
+Date: 2026-11-24
 
 ## Goal
 
@@ -33,8 +33,6 @@ byte-verified release.
 
 ## Live risks / pitfalls
 
-- **Uncommitted agent work in three worktrees** (`.claude/worktrees/`,
-  T-0118). Removing a worktree discards it; decide per worktree first.
 - **T-0093 is not field-proven:** confirmed only after a green publish run
   containing `install attempt N failed ... retrying`. T-0047 likewise.
 - **T-0081:** a commit body line that starts with `word(` makes release-please
@@ -55,7 +53,8 @@ byte-verified release.
 
 ## Next actions
 
-1. **T-0118** -- decide the three dirty worktrees (PR #56 is merged).
+1. **T-0121 / T-0110** -- review and gate the saved agent patches
+   (`~/src/.worktrees/_sicherung-20261124/capstat/`, both apply cleanly).
 2. **T-0081** -- after the merge, check T-0106 is in the release PR's
    changelog; then add the CI parser check (diagnosis done 2026-11-04).
 3. **T-0101 / T-0107** -- the next review items (T-0103/T-0104 are decided).
