@@ -5,11 +5,11 @@ Date: 2026-11-24
 ## Goal
 
 Reference-validated SPC / capability / MSA library (Python) + FastAPI +
-Next.js frontend as a professional MIT open-source project. Released: v0.4.4.
-`capstat-core` 0.4.1, 0.4.2 and 0.4.3 are on PyPI, each verified
-byte-identical to its tag. **v0.4.4 is tagged and not published** (it carries
-only the T-0093 write-up); v0.4.0 is unpublished for the same kind of reason.
-Both stay publishable; `publish` is manual and the maintainer's to run.
+Next.js frontend as a professional MIT open-source project. Released: v0.4.5
+(2026-11-24, the 2026-10-01 review fixes). `capstat-core` 0.4.1, 0.4.2 and
+0.4.3 and 0.4.5 are on PyPI, each verified byte-identical to its tag
+(0.4.5: 19/19 files, `scripts/verify_pypi_release.py`). v0.4.0 and v0.4.4
+stay tagged and unpublished (docs-only); `publish` is manual.
 
 Success criterion -- Proposal, not yet confirmed by Andre: every number and
 verdict the app prints is either right or carries a warning, shown by
@@ -28,13 +28,12 @@ byte-verified release.
   154 vitest, Playwright 63/63.
 - **Third review 2026-10-01** (T-0095..T-0115): open are T-0101, T-0103,
   T-0104, T-0107..T-0115; T-0103/T-0104/T-0108 decided 2026-10-07.
-- **Release path is hardened but one proof short** (T-0093, T-0047).
+- **Release path field-proven** (T-0093, T-0047): publish run 45482570315
+  (v0.4.5) went green after `install attempt 1 failed ... retrying`.
 - Steering-file commits are `chore` (T-0094); an open release PR is normal.
 
 ## Live risks / pitfalls
 
-- **T-0093 is not field-proven:** confirmed only after a green publish run
-  containing `install attempt N failed ... retrying`. T-0047 likewise.
 - **T-0081:** a commit body line that starts with `word(` makes release-please
   drop the whole commit from the notes. Reword such lines; PR #56 carries an
   override for the affected `1ca99bf`.
@@ -65,14 +64,16 @@ none
 
 ## Last done
 
+- 2026-11-24: **v0.4.5 on PyPI** (review fixes of 2026-10-01; uv.lock stamped
+  on the release PR, CI green, publish verified 19/19 against the tag).
+- 2026-11-24: **Dirty agent worktrees saved as patches** (T-0101, T-0110,
+  T-0121), worktrees and local branches removed.
 - 2026-11-05: **T-0119** the ten open Dependabot alerts closed (next 16.4.1,
   virtualenv 21.14.13, filelock 4.2.1).
 - 2026-11-04: **Agent work of 2026-10-21 integrated** (T-0095..T-0100, T-0102,
   T-0105, T-0106) plus the `is_zero_deviation` overflow fix.
 - 2026-11-04: **Done entries before 2026-10-01 archived** to
   `docs/task_done_bis_2026-Q3.md` (verbatim, cmp-checked).
-- 2026-10-22: **T-0117** security update of locked dependencies.
-- 2026-10-07: **Third review filed as T-0095..T-0115.**
 <!-- snapshot-ende -->
 
 ## Working method (keeps paying off — do not abandon it under time pressure)

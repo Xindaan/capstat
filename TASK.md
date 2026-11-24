@@ -412,6 +412,10 @@
   the one workflow whose runs cannot be rehearsed: every execution either
   publishes to PyPI or fails in front of a human. Close this when the next
   release is dispatched successfully (T-0030's flow), not before.
+  **Proven 2026-11-24:** publish run 45482570315 (v0.4.5) ran this workflow
+  green end to end, including the T-0093 retry path (`install attempt 1
+  failed ... retrying`); local `verify_pypi_release.py 0.4.5`: 19/19
+  identical. Ready to move to Done.
 - ~~T-0046 npm advisories have escalated well past what T-0023 left open~~ --
   **done 2026-08-16**, see `## Done`. 16 open alerts to zero.
 - ~~T-0045 `publish.yml` builds `main`, not the release tag~~ -- **done
